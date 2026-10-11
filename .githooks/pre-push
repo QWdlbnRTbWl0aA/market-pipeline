@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+if [ "${MARKET_PIPELINE_ALLOW_PUSH:-}" != "yes" ]; then
+  echo 'Push disabled: obtain explicit publication authorization before setting MARKET_PIPELINE_ALLOW_PUSH=yes.' >&2
+  exit 1
+fi
+if [ "$2" != 'git@github-market-pipeline:QWdlbnRTbWl0aA/market-pipeline.git' ]; then
+  echo 'Unexpected publication destination.' >&2
+  exit 1
+fi
+exec /usr/bin/python3 tools/publish_check.py

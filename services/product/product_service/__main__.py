@@ -1,0 +1,27 @@
+import argparse
+import json
+import signal
+import threading
+from .core import SavedReportIntake, process
+from .server import server
+
+parser = argparse.ArgumentParser(description='Stage-one digital product studio handoff')
+sub = parser.add_subparsers(dest='command', required=True)
+p = sub.add_parser('run'); p.add_argument('report'); p.add_argument('--output', default='test-output')
+p = sub.add_parser('define'); p.add_argument('report'); p.add_argument('--output', default='test-output/definitions'); p.add_argument('--allow-provisional', action='store_true'); p.add_argument('--qualification-root'); p.add_argument('--reuse-response')
+p = sub.add_parser('serve'); p.add_argument('--data', default='data'); p.add_argument('--port', type=int, default=8093); p.add_argument('--definition-config'); p.add_argument('--operations-root')
+args = parser.parse_args()
+if args.command == 'run':
+    print(json.dumps(process(SavedReportIntake().read(args.report), args.output)))
+elif args.command == 'define':
+    from .definition import enhanced, SavedDefinitionResponse
+    print(json.dumps(enhanced(SavedReportIntake().read(args.report), args.output, model=SavedDefinitionResponse(args.reuse_response) if args.reuse_response else None, allow_provisional=args.allow_provisional, qualification_root=args.qualification_root)))
+else:
+    http = server(args.data, args.port, args.definition_config, args.operations_root)
+    def shutdown(*unused):
+        http.stop_worker();threading.Thread(target=http.shutdown,daemon=True).start()
+    signal.signal(signal.SIGTERM,shutdown);signal.signal(signal.SIGINT,shutdown)
+    try:
+        http.serve_forever()
+    finally:
+        http.stop_worker();http.worker.join(timeout=180);http.server_close()

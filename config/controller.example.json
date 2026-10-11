@@ -1,0 +1,17 @@
+{
+  "data_root": "/var/lib/market-pipeline/controller",
+  "saved_runs_root": "/var/lib/market-pipeline/collector/runs",
+  "analyzer_output_root": "/var/lib/market-pipeline/analyzer",
+  "product_data_root": "/var/lib/market-pipeline/product",
+  "collector_url": "http://127.0.0.1:8090",
+  "control_auth_file": "/var/lib/market-pipeline/control-auth",
+  "execution_enabled": false,
+  "poll_seconds": 5,
+  "paid_ledger_root": "/var/lib/market-pipeline/paid-ledger",
+  "paid_policy": {
+    "daily_usd": null,
+    "daily_calls": null,
+    "total_usd": 2
+  },
+  "product_url": "http://127.0.0.1:8093"
+}

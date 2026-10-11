@@ -1,0 +1,33 @@
+{
+  "source": "api",
+  "limit": null,
+  "timeout_seconds": 20,
+  "daily_time": "09:00",
+  "timezone": "Asia/Jerusalem",
+  "niches": [
+    {
+      "category": "Example printable research",
+      "keywords": "printable planner"
+    }
+  ],
+  "page_size": 100,
+  "max_pages": null,
+  "max_shops": null,
+  "max_requests_per_run": null,
+  "local_daily_request_budget": null,
+  "requests_per_second": 0.5,
+  "quota_reserve": 0,
+  "tracking": {
+    "listing_ids": [],
+    "shop_ids": []
+  },
+  "search_parameters": {},
+  "daily_mode": "search",
+  "shop_ids": [],
+  "daily_enabled": false,
+  "exclude_fetched_listings": true,
+  "exclude_fetched_shops": true,
+  "capture_images": false,
+  "daily_resume_at": null,
+  "quota_reserve_percent": 5
+}

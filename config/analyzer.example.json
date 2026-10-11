@@ -1,0 +1,33 @@
+{
+  "saved_runs_root": "/var/lib/market-pipeline/collector/runs",
+  "output_root": "/var/lib/market-pipeline/analyzer",
+  "model": "gemma3:4b",
+  "model_digest": "a2af6cc3eb7fa8be8504abaf9b04e88f17a119ec3f04a3addf55f92841195f5a",
+  "ollama_url": "http://127.0.0.1:11434",
+  "sample_size": 8,
+  "poll_seconds": 30,
+  "endpoints": {
+    "search_refinement": "http://127.0.0.1:8094/search-refinement",
+    "market_insights": "http://127.0.0.1:8093/market-insights"
+  },
+  "research": {
+    "min_group_listings": 3,
+    "max_candidates": 12,
+    "cheap_price_reference": {
+      "USD": 5
+    }
+  },
+  "paid": {
+    "enabled": true,
+    "cheap_model": "gpt-6-luna",
+    "final_model": "gpt-6.1-sol",
+    "daily_usd": null,
+    "total_usd": 2,
+    "daily_calls": null,
+    "max_output_tokens": 2400,
+    "max_input_token_bound": 90000,
+    "ledger_root": "/var/lib/market-pipeline/paid-ledger"
+  },
+  "operations_root": "/var/lib/market-pipeline/controller/operations",
+  "cohort_root": "/var/lib/market-pipeline/controller/cohorts"
+}
