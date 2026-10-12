@@ -9,17 +9,22 @@ import zipfile
 from . import briefs
 from .adapters import MockGenerator, MockBroker, BlockedListing, checked_asset
 from .storage import Invalid, Conflict, now, digest, canonical, write, write_bytes, read, guard, identity, action_key, clean_environment
+from .understanding import aggregate, LocalUnderstanding, enforce
+from .dev_budget import Budget, BudgetBlocked
 
 REVIEWS = {'accept', 'reject', 'accept_with_comments'}
 
 
 class Studio:
-    def __init__(self, root, sketches=None, professional=None, broker=None, listing=None):
+    def __init__(self, root, sketches=None, professional=None, broker=None, listing=None, understanding=None,development=False):
         clean_environment()
         self.root = Path(root).resolve(); self.root.mkdir(parents=True, exist_ok=True)
         self.sketches = sketches or MockGenerator(); self.professional = professional or MockGenerator()
         self.broker = broker or MockBroker(self.root / 'mock-broker')
         self.listing = listing or BlockedListing()
+        self.understanding = understanding or LocalUnderstanding()
+        self.budget = Budget(self.root / 'development-openai')
+        self.development=development
 
     def directory(self, project):
         path = self.root / 'projects' / identity(project)
@@ -29,6 +34,12 @@ class Studio:
 
     def get(self, project):
         state = read(self.directory(project) / 'state.json')
+        state['spending'] = self.budget.summary(project)
+        state['spending']['development']=self.development
+        state['accepted_samples']=self.references(state)
+        if state['phase'].startswith('generating_'):
+            pending=read(self.directory(project)/'generations'/state['active_operation']/'request.json')
+            state['pending_sample']=pending.get('replacement')
         if state.get('notification'):
             receipt = self.root / 'broker-outbox' / (state['notification']['event_id']+'.receipt.json')
             if receipt.exists(): state['notification']['delivery'] = read(receipt)
@@ -49,7 +60,7 @@ class Studio:
         questions = state['missing_information']
         event = {'schema_version': 1, 'topic': 'studio.brief_information_required',
                  'project_id': state['id'], 'brief': state['brief'], 'missing_information': questions,
-                 'message': f"Please add detail to '{state['title'][:100]}': " + ' '.join(q['question'] for q in questions)}
+                 'message': f"כדי להתחיל ליצור את ׳{state['title'][:100]}׳, נשלים כמה פרטים: " + ' '.join(q['question'] for q in questions)}
         event['event_id'] = digest(event)
         path = self.root / 'broker-outbox' / (event['event_id']+'.json')
         if not path.exists(): write(path, event)
@@ -72,26 +83,30 @@ class Studio:
                      'source_sha256': digest(document), 'phase': 'needs_information',
                      'created_at': now(), 'updated_at': now(), 'rounds': [], 'archives': [],
                      'negative_summary': {}, 'interaction': [], 'action_receipts': {}, 'final_settings': None,
-                     'missing_information': briefs.missing(normalized), 'providers': 'mock', 'etsy_connected': False}
+                     'missing_information': briefs.missing(normalized), 'providers': getattr(self.sketches,'name','mock'), 'etsy_connected': False}
             if state['missing_information']: self.notify_missing(state)
             else: self.queue(directory, state, 'sketch', 'Initial sufficient brief')
             self.save(directory, state)
             return {'project': state, 'duplicate': False}
 
     def references(self, state, positive=True):
-        frames = state['rounds'][-1:] if positive else state['rounds']
-        result = []
-        for frame in frames:
+        result = {}; reviews = {}
+        for frame in state['rounds']:
+            reviews.update(frame['reviews'])
             for candidate in frame['candidates']:
-                review = frame['reviews'].get(candidate['id'], {})
-                selected = review.get('decision') in ('accept', 'accept_with_comments') if positive else review.get('decision') == 'reject'
-                if selected: result.append({**candidate, 'review': review, 'mode': frame['mode']})
-        return result[-64:]
+                result[candidate['id']] = {**candidate, 'mode': frame['mode']}
+        selected_result=[]
+        for candidate in result.values():
+            review = reviews.get(candidate['id'], {})
+            selected = review.get('decision') in ('accept', 'accept_with_comments') if positive else review.get('decision') == 'reject'
+            if selected: selected_result.append({**candidate, 'review': review})
+        return selected_result[-64:]
 
-    def queue(self, directory, state, mode, reason, accepted=None):
+    def queue(self, directory, state, mode, reason, accepted=None, replacement=None, feedback_only=False):
         operation = uuid.uuid4().hex
         request = {'schema_version': 1, 'operation_id': operation, 'project_id': state['id'],
-                   'mode': mode, 'count': 10 if mode == 'sketch' else 3, 'epoch': state['epoch'],
+                   'mode': mode, 'count': 0 if feedback_only else 1 if replacement else 10 if mode == 'sketch' else 3, 'epoch': state['epoch'],
+                   'replacement': replacement, 'feedback_only': feedback_only, 'feedback_context': aggregate(state),
                    'brief': state['brief'], 'accepted': self.references(state) if accepted is None else accepted,
                    'rejected': self.references(state, False), 'negative_summary': state['negative_summary'],
                    'archived_negative_examples': state['archives'],
@@ -122,12 +137,13 @@ class Studio:
         # Full immutable interaction remains recoverable; only the active view is squashed.
         body = canonical(state); filename = f"archives/epoch-{state['epoch']:04d}.json.gz"
         compressed = gzip.compress(body, mtime=0); write_bytes(directory / filename, compressed)
-        counts = Counter(); notes = [reason] if reason else []
+        counts = Counter(); notes = [reason] if reason else []; unique_reviews={}
         for frame in state['rounds']:
             if frame['comments']: notes.append(frame['comments'])
+            unique_reviews.update(frame['reviews'])
             for review in frame['reviews'].values():
-                counts[review['decision']] += 1
                 if review['comment']: notes.append(review['comment'])
+        counts.update(review['decision'] for review in unique_reviews.values())
         for event in state['interaction']:
             payload = event['payload']
             if payload.get('comments'): notes.append(briefs.text(payload['comments'], 4000))
@@ -140,6 +156,12 @@ class Studio:
                                      'review_counts': dict(prior_counts),
                                      'notes': list(dict.fromkeys(old.get('notes', []) + [n[:400] for n in notes]))[-64:],
                                      'meaning': 'All abandoned approaches, including previously accepted samples, are negative examples for this new start.'}
+        samples={c['id']:c for frame in state['rounds'] for c in frame['candidates']}
+        abandoned=[{'description':c.get('metadata',{}).get('description','')[:180],
+                    'features':{k:str(v)[:80] for k,v in c.get('metadata',{}).get('features',{}).items()}}
+                   for c in list(samples.values())[-8:]]
+        state['negative_summary']['abandoned_visual_directions']=(old.get('abandoned_visual_directions',[])+abandoned)[-8:]
+        state.pop('understanding',None)
         state['archives'].append({'epoch': state['epoch'], 'file': filename,
                                   'sha256': hashlib.sha256(compressed).hexdigest(),
                                   'content_sha256': hashlib.sha256(body).hexdigest()})
@@ -178,11 +200,21 @@ class Studio:
                 request = read(directory / 'generations' / state['active_operation'] / 'request.json')
                 if request['mode'] == 'professional' and payload.get('consent_expensive') is not True:
                     raise Invalid('Explicit expensive-loop consent required')
-                self.queue(directory, state, request['mode'], 'Explicit recovery', accepted=request['accepted'])
+                folder=directory/'generations'/state['active_operation']
+                operation=read(folder/'operation.json');operation.update(status='queued',explicit_recovery_at=now())
+                write(folder/'operation.json',operation);state['phase']='generating_'+request['mode']
+                state.pop('generation_error',None)
             else:
                 if phase not in ('sketch_review', 'professional_review'): raise Conflict('Wait for the current generation')
                 self.feedback(state, payload)
-                if action == 'save_feedback': pass
+                if action == 'save_feedback':
+                    self.queue(directory,state,state['rounds'][-1]['mode'],'Analyze saved feedback',feedback_only=True)
+                elif action in ('review_sample','replace_sample'):
+                    candidate_id=payload.get('candidate_id')
+                    if candidate_id not in {c['id'] for c in state['rounds'][-1]['candidates']}:raise Invalid('Choose a current sample')
+                    if action=='review_sample' and candidate_id not in state['rounds'][-1]['reviews']:raise Invalid('An explicit review is required')
+                    if phase=='professional_review' and payload.get('consent_expensive') is not True:raise Invalid('Explicit expensive-loop consent required')
+                    self.queue(directory,state,state['rounds'][-1]['mode'],'Immediate sample feedback',replacement=candidate_id)
                 elif action == 'next_sketches':
                     if phase != 'sketch_review' or not state['rounds'][-1]['reviews']: raise Invalid('Review at least one sketch')
                     self.queue(directory, state, 'sketch', 'Compile feedback into ten sketches')
@@ -205,7 +237,7 @@ class Studio:
                 elif action == 'approve_final':
                     if phase != 'professional_review': raise Conflict('Final approval requires professional samples')
                     chosen = payload.get('candidate_id')
-                    if chosen not in {c['id'] for c in state['rounds'][-1]['candidates']} or state['rounds'][-1]['reviews'].get(chosen, {}).get('decision') not in ('accept', 'accept_with_comments'):
+                    if chosen not in {c['id'] for c in self.references(state) if c['mode']=='professional'}:
                         raise Invalid('Choose an accepted professional sample for final approval')
                     self.approve(directory, state, chosen, key)
                 else: raise Invalid('Unknown Studio action')
@@ -213,11 +245,11 @@ class Studio:
             return {'project': state, 'duplicate': False}
 
     def approve(self, directory, state, chosen, key):
-        candidate = next(c for c in state['rounds'][-1]['candidates'] if c['id'] == chosen)
+        candidate = next(c for c in self.references(state) if c['id'] == chosen)
         approved = {'schema_version': 1, 'project_id': state['id'], 'candidate': candidate,
                     'brief': state['brief'], 'settings': state['final_settings'], 'approved_at': now(),
                     'approval_key': key, 'feedback': state['rounds'][-1]['reviews'],
-                    'comments': state['rounds'][-1]['comments'], 'provider': 'mock', 'sale_ready': False}
+                    'comments': state['rounds'][-1]['comments'], 'provider': candidate['provider'], 'sale_ready': False}
         path = directory / 'approved-product.json'
         if path.exists():
             previous = read(path)
@@ -227,9 +259,9 @@ class Studio:
         else: write(path, approved)
         data = io.BytesIO()
         with zipfile.ZipFile(data, 'w', zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr('product.svg', (directory / candidate['file']).read_bytes())
+            archive.writestr('product'+Path(candidate['file']).suffix, (directory / candidate['file']).read_bytes())
             archive.writestr('metadata.json', canonical(approved))
-            archive.writestr('README.txt', 'MOCK WORKFLOW PRODUCT. Generation providers and Etsy publishing are not wired.\n')
+            archive.writestr('README.txt', 'DEVELOPMENT DRAFT. Not print-ready. Etsy publishing is blocked.\n')
         write_bytes(directory / 'product.zip', data.getvalue())
         # Commit the handoff before invoking the blocked adapter; no Etsy client exists.
         write(directory / 'listing-handoff.json', {'status': 'blocked_not_wired', 'approved_product': approved,
@@ -260,31 +292,63 @@ class Studio:
         self.publish_messages()
 
     def generate(self, directory, folder, request):
+        has_feedback=False
         try:
+            context=request.get('feedback_context',{'evidence':[]})
+            has_feedback=bool(context['evidence'] or context.get('whole_set_comments'))
+            if has_feedback:
+                log=directory/'reasoning-log'/f"{request['operation_id']}.json"
+                logentry={'at':now(),'operation_id':request['operation_id'],'provider':getattr(self.understanding,'name','local'),
+                          'evidence':context,'status':'analyzing','type':'observable_preference_summary_not_chain_of_thought'}
+                if self.development:write(log,logentry)
+                explanation=enforce(self.understanding.analyze(context,request['operation_id']+'-feedback',request['project_id']),context)
+                if self.development:write(log,{**logentry,'status':'completed','understanding':explanation})
+                request['understanding']=explanation
+                with guard(directory):
+                    state=read(directory/'state.json')
+                    if state['active_operation']==request['operation_id']:state['understanding']=explanation;self.save(directory,state)
+            if request.get('feedback_only'):
+                with guard(directory):
+                    state=read(directory/'state.json')
+                    if state['active_operation']==request['operation_id']:
+                        state['phase']=request['mode']+'_review';self.save(directory,state)
+                write(folder/'operation.json',{'status':'completed','completed_at':now()});return
             provider = self.sketches if request['mode'] == 'sketch' else self.professional
             assets = provider.generate(request)
             if not isinstance(assets, list) or len(assets) != request['count']: raise Invalid('Provider returned an unexpected sample count')
             candidates = []
             for index, asset in enumerate(assets):
-                checked_asset(asset); filename = f'generations/{request["operation_id"]}/sample-{index+1:02d}.svg'
+                checked_asset(asset); suffix='.png' if asset.media_type=='image/png' else '.svg'
+                filename = f'generations/{request["operation_id"]}/sample-{index+1:02d}'+suffix
                 write_bytes(directory / filename, asset.content)
                 candidates.append({'id': request['operation_id']+'-'+str(index+1), 'file': filename,
-                                   'label': asset.label, 'sha256': hashlib.sha256(asset.content).hexdigest(), 'provider': 'mock'})
-            write(folder / 'response.json', {'provider': 'mock', 'candidates': candidates})
+                                   'label': asset.label, 'sha256': hashlib.sha256(asset.content).hexdigest(),
+                                   'media_type':asset.media_type,'metadata':asset.metadata,'provider':getattr(provider,'name','mock')})
+            write(folder / 'response.json', {'provider': getattr(provider,'name','mock'), 'candidates': candidates})
             with guard(directory):
                 state = read(directory / 'state.json')
                 if state['active_operation'] != request['operation_id']:
                     write(folder / 'operation.json', {'status': 'superseded', 'completed_at': now()}); return
-                state['rounds'].append({'id': request['operation_id'], 'mode': request['mode'], 'candidates': candidates,
-                                        'reviews': {}, 'comments': '', 'created_at': now()})
+                reviews={};comments=''
+                if request.get('replacement'):
+                    frame=state['rounds'][-1];new=candidates[0]
+                    candidates=[new if c['id']==request['replacement'] else c for c in frame['candidates']]
+                    reviews={k:v for k,v in frame['reviews'].items() if k!=request['replacement']};comments=frame['comments']
+                if not any(r['id']==request['operation_id'] for r in state['rounds']):
+                    state['rounds'].append({'id': request['operation_id'], 'mode': request['mode'], 'candidates': candidates,
+                                            'reviews': reviews, 'comments': comments, 'created_at': now()})
                 state['phase'] = request['mode']+'_review'; state.pop('generation_error', None)
                 write(folder / 'operation.json', {'status': 'completed', 'completed_at': now()}); self.save(directory, state)
         except Exception as error:
+            if self.development and has_feedback:
+                previous=read(log) if log.exists() else logentry
+                write(log,{**previous,'status':'generation_failed' if 'understanding' in previous else 'failed','error_type':type(error).__name__})
             write(folder / 'operation.json', {'status': 'failed', 'error_type': type(error).__name__, 'automatic_retry': False})
             with guard(directory):
                 state = read(directory / 'state.json')
                 if state['active_operation'] == request['operation_id']:
-                    state['phase'] = 'generation_failed'; state['generation_error'] = 'Generation failed; review before explicitly retrying'
+                    state['phase'] = 'generation_failed'
+                    state['generation_error'] = str(error) if isinstance(error,BudgetBlocked) else 'היצירה נעצרה. המשוב והנתונים נשמרו; יש לבדוק לפני ניסיון חוזר.'
                     self.save(directory, state)
 
     def publish_messages(self):

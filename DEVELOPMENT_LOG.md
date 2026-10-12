@@ -226,3 +226,56 @@ automatic production delivery is not activated. The mocks test interaction and
 contracts, not generative quality or print production; provider selection,
 authenticated production UI access and final Studio acceptance precede live
 generation, broker transport and Etsy publishing.
+
+## 2026-10-12 — Hebrew Studio, aggregate visual feedback and bounded OpenAI development
+
+User requested a simpler Hebrew UI, softer colours, left-side reject/accept/comment
+buttons, on-demand comment boxes, immediate single-sample replacement with spinner,
+aggregate learned context and a hard $1 development envelope including human use.
+Added a synthetic Product-format five-picture Hanukkah watercolor wall bundle.
+
+Replaced dropdown ratings with side buttons; nonempty comments plus acceptance
+become accept-with-comments. Clicking an image explores another sample without
+implying rejection. Other samples/DOM stay visible during asynchronous analysis
+and replacement. Accepted historical samples remain selectable, including for
+final professional approval. Simplified secondary details and automatic opening
+of the latest saved product. Existing whole-set API actions remain compatible.
+
+Deterministic aggregation deduplicates sample identities/decisions, compares visual
+attributes and carries comments, prior understanding and abandoned context. The
+development adapter observes actual generated images, analyzes combined feedback
+with structured outputs and sends its direction to the next image request.
+Development logs contain short observable conclusions, evidence and uncertainties;
+no private chain-of-thought is requested. Deterministic guards protect explicit
+retain clauses and reduce unsupported confidence from a lone rejection.
+
+OpenAI development is opt-in; production defaults remain mock and Etsy blocked.
+Pinned GPT-4.1 mini analyzes feedback/images; GPT Image 1 Mini supplies low-quality
+1024-square PNG boards. A separate, fixed one-dollar ledger spans all Studio
+products and survives restarts; integer-microdollar conservative reservations
+precede credential loading/network. Unknown outcomes stop further calls; response
+caches and same-operation explicit recovery reuse completed paid stages. Browser
+console logs per-product and global charged/reserved estimates. No credential
+values enter config, state, browser responses or Git. No packages were installed.
+
+All 300 automated tests passed (92 collector, 103 analyzer, 15 Product, 22
+Controller, 33 Studio, 35 repository). Nine offline Firefox workflow checks passed,
+including Hebrew RTL, physically left-side controls, comments not covering samples,
+accept-with-comments, visible spinner, single DOM replacement, preserved history,
+three-sample professional approval/download and Etsy hold. Real generated PNGs and
+the per-product spending console log were also checked read-only in Firefox.
+
+The bounded live trial generated ten boards, then processed one explicitly marked
+automated test rejection/comment and generated one replacement. Six API requests
+cost an estimated $0.057814; $0.942186 remains for further user testing. One visual
+observation initially described five items rather than ten input boards; cardinality
+and explicit image labels fixed it. Recovery reused the ten paid images and only
+repeated their observation. A lone rejection produced unrelated palette/style
+dislikes despite explicit retention; a deterministic guard now overrides these
+without another paid inference. The saved development explanation was reprocessed
+locally; original provider responses remain intact. Low-quality drafts can still
+miscount Hanukkah symbols or bundle items and are not print-ready deliverables.
+
+Private reports, provider artifacts, screenshots and usage receipts remain outside
+source. The development Studio stays on port 8096 with its preserved ledger;
+production state/releases/services/accounts/firewall and Etsy were untouched.

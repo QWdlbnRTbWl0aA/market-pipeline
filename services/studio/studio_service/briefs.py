@@ -2,11 +2,11 @@
 from .storage import Invalid, reject_secrets
 
 QUESTIONS = {
-    'concept': 'What product should we create?',
-    'audience': 'Who will use it?',
-    'purpose': 'What should the user be able to do with it?',
-    'deliverables': 'Which pages, items or files should it contain?',
-    'visual_direction': 'What visual style or layout should the sketches explore?'}
+    'concept': 'איזה מוצר ניצור?',
+    'audience': 'למי מיועד המוצר?',
+    'purpose': 'מה המוצר מאפשר לעשות?',
+    'deliverables': 'אילו תמונות, עמודים או קבצים כלולים?',
+    'visual_direction': 'איזה סגנון או כיוון חזותי תרצו?'}
 PLACEHOLDERS = {'tbd', 'unknown', 'n/a', 'todo', 'not specified'}
 
 
@@ -52,7 +52,7 @@ def settings(value):
         if type(value[name]) not in (int, float) or not 0 < value[name] <= 8192: raise Invalid('Invalid final dimensions')
     if value['unit'] not in ('px', 'mm', 'in') or type(value['dpi']) is not int or not 72 <= value['dpi'] <= 600:
         raise Invalid('Invalid units or resolution')
-    if value['format'] != 'svg' or value['color_mode'] not in ('color', 'grayscale'):
+    if value['format'] not in ('svg','png') or value['color_mode'] not in ('color', 'grayscale'):
         raise Invalid('The mock provider supports SVG with color or grayscale')
     if type(value['bleed_mm']) not in (int, float) or not 0 <= value['bleed_mm'] <= 10: raise Invalid('Invalid bleed')
     scale = 1 if value['unit'] == 'px' else value['dpi'] / (25.4 if value['unit'] == 'mm' else 1)

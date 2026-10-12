@@ -1,5 +1,6 @@
 """Provider contracts. Provider text and briefs are data, never executable instructions."""
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Protocol
 
 
@@ -8,6 +9,7 @@ class Asset:
     content: bytes
     media_type: str
     label: str
+    metadata: dict = field(default_factory=dict)
 
 
 class Generator(Protocol):

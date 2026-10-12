@@ -3,7 +3,8 @@
 File-based market research for digital products: collect → analyze → define a
 product brief → Studio approval. Installed production releases are separate
 from this source workspace. Product produces a Studio handoff. Studio currently
-uses mock generation and a mock broker; Etsy publishing remains blocked.
+defaults to mock generation and broker. An explicit development-only OpenAI
+adapter has a persistent $1 total envelope; Etsy publishing remains blocked.
 
 One repository contains independently runnable Python services. Python 3.11+
 and its standard library are sufficient for application code and tests. Ollama
@@ -34,7 +35,7 @@ flowchart LR
 | Market analyst | Independent saved-file watcher; HTTP output | Evidence-backed product hypotheses, listing content/images and scoped shop history |
 | Controller | Loopback port 8094 | Persist proposals, explicit experiment decisions, tracking cohorts, operations and comparisons |
 | Product | Loopback port 8093 | Consume saved market analysis; persist textual studio briefs and original SVG draft directions |
-| Studio | Dashboard and HTTP intake, port 8096 | Check briefs, persist 10-sketch / 3-professional-sample review loops, compact abandoned work, save final approval; all providers mocked |
+| Studio | Hebrew dashboard and HTTP intake, port 8096 | Aggregate visual feedback, replace individual sketches, persist 10/3-sample review loops, compact abandoned work; mock defaults and optional $1 OpenAI development mode |
 
 The analyzers never load Etsy credentials, call Etsy or modify collector input.
 They run independently; one failing does not suppress the other. Completed work

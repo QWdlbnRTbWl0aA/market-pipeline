@@ -13,15 +13,19 @@ from .storage import Conflict, Invalid, canonical, read, reject_secrets
 STATIC = Path(__file__).parent / 'static'
 LOG = logging.getLogger(__name__)
 DEFAULT = {'schema_version': 1, 'sketch_provider': 'mock', 'professional_provider': 'mock',
-           'broker_provider': 'mock', 'listing_provider': 'blocked', 'allowed_hostnames': []}
+           'broker_provider': 'mock', 'listing_provider': 'blocked', 'allowed_hostnames': [], 'development_openai': False}
 
 
 def configuration(path=None):
     config = read(path) if path else dict(DEFAULT)
     reject_secrets(config)
+    if isinstance(config,dict):config={'development_openai':False,**config}
     if not isinstance(config, dict) or set(config) != set(DEFAULT): raise Invalid('Unexpected Studio configuration')
     for key in ('schema_version', 'sketch_provider', 'professional_provider', 'broker_provider', 'listing_provider'):
-        if config[key] != DEFAULT[key]: raise Invalid('Only mock generation/broker and blocked listing are available')
+        allowed=('mock','openai_dev') if key in ('sketch_provider','professional_provider') else (DEFAULT[key],)
+        if config[key] not in allowed: raise Invalid('Unknown provider or live listing is forbidden')
+    if type(config['development_openai']) is not bool:raise Invalid('Explicit development setting required')
+    if any(config[k]=='openai_dev' for k in ('sketch_provider','professional_provider')) and not config['development_openai']:raise Invalid('OpenAI is development-only')
     names = config['allowed_hostnames']
     if not isinstance(names, list) or len(names) > 20 or any(not isinstance(n, str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}', n) for n in names):
         raise Invalid('Invalid allowed hostnames')
@@ -100,14 +104,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def get(self, path):
         studio = self.server.studio
-        if path == '/health': return self.reply(200, {'status': 'running', 'providers': 'mock', 'etsy_connected': False})
+        if path == '/health': return self.reply(200, {'status': 'running', 'providers': getattr(studio.sketches,'name','mock'), 'etsy_connected': False})
         if path in ('/', '/app.js', '/style.css'):
             filename, media = {'/': ('index.html', 'text/html; charset=utf-8'), '/app.js': ('app.js', 'text/javascript; charset=utf-8'), '/style.css': ('style.css', 'text/css; charset=utf-8')}[path]
             return self.reply(200, (STATIC / filename).read_bytes(), media)
         if path == '/api/projects': return self.reply(200, {'projects': studio.list()})
-        match = re.fullmatch(r'/api/projects/([a-f0-9]{32})(?:/(download|asset)/?([a-f0-9]{32}-[0-9]{1,2})?)?', path)
+        match = re.fullmatch(r'/api/projects/([a-f0-9]{32})(?:/(download|asset|reasoning)/?([a-f0-9]{32}-[0-9]{1,2})?)?', path)
         if match:
             project, kind, candidate_id = match.groups(); state = studio.get(project)
+            if kind=='reasoning':
+                if not studio.development:return self.reply(404,{'error':'Development log disabled'})
+                logs=[read(p) for p in (studio.directory(project)/'reasoning-log').glob('*.json')]
+                return self.reply(200,{'entries':sorted(logs,key=lambda r:r['at'])})
             if kind == 'download':
                 if state['phase'] != 'approved': raise Conflict('Approve a final sample before downloading')
                 return self.reply(200, (studio.directory(project) / 'product.zip').read_bytes(), 'application/zip', 'studio-product.zip')
@@ -116,7 +124,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not candidate: raise FileNotFoundError()
                 file = studio.directory(project) / candidate['file']
                 if file.is_symlink() or not file.resolve().is_relative_to(studio.directory(project)): raise Invalid('Invalid asset')
-                return self.reply(200, file.read_bytes(), 'image/svg+xml')
+                return self.reply(200, file.read_bytes(), candidate.get('media_type','image/svg+xml'))
             return self.reply(200, {'project': state})
         self.reply(404, {'error': 'Not found'})
 

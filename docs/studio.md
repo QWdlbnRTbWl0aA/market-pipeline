@@ -31,12 +31,26 @@ The default mock broker records it locally, with a delivery receipt. Publication
 failure does not trigger generation or discard the request; automatic broker
 attempts are bounded at three. Messages are visible in the project details.
 
-Sufficient briefs queue exactly ten 320×420 mock SVG sketches. Review each as
-accept, reject or accept with comments; save feedback independently or generate
-the next ten. Acceptance with comments requires text. Iteration includes current
-accepted references and their comments, prior rejected references and whole-set
-feedback. All-rejected rounds can still generate alternatives. Refresh preserves
-saved state; feedback typed but not saved remains browser-local.
+The Hebrew RTL dashboard uses soft colours and collapsed secondary detail.
+Each sample has three buttons physically on its left: reject, accept and add
+comments. Comments expand beside the image and never cover it. Accept plus
+nonempty text becomes accept-with-comments. Every decision queues analysis and
+one replacement; the other samples/DOM remain visible. Clicking the image alone
+explores a replacement without falsely recording rejection. A per-sample spinner
+remains until asynchronous completion; no page refresh is required. Accepted work
+is retained in a separate strip, including samples replaced from the active grid.
+
+Sufficient briefs initially queue ten sketches (default 320×420 mock SVGs;
+development OpenAI supplies low-quality 1024×1024 PNG concept boards). Iteration
+uses unique historical accepted/rejected samples and comments, not repeated votes
+from cloned frames. Attribute contrasts and actual visual observations inform
+short model-authored preference summaries, uncertainties, cited sample IDs and
+the next image direction. Shared attributes across positive/negative examples
+are confounders, not automatically dislikes. Refresh preserves saved state;
+unsent comment drafts remain browser-local.
+Deterministic guards protect explicitly retained attributes from invented
+dislikes and reduce unsupported confidence when there is no positive/negative
+contrast. They quote source comments rather than inventing product direction.
 The browser preserves a pending submission in session storage and resumes its
 exact idempotency key after refresh, including a response lost after acceptance.
 
@@ -53,13 +67,15 @@ professional generator returns exactly three samples. Further professional
 rounds require consent again; the dashboard warns about the expensive loop and
 offers return to ten sketches. Settings are metadata plus SVG dimensions;
 professional print preparation/bleed rendering is not implemented by the mock.
-Only SVG is currently supported. Pixel dimensions are bounded to 64–8192.
+SVG and PNG target settings are supported. Pixel dimensions are bounded to
+64–8192. OpenAI development always returns draft PNG boards at 1024×1024;
+target size/DPI/bleed are saved production requirements, not print-ready output.
 
 Final approval requires choosing an accepted professional sample. It saves
-`approved-product.json`, a downloadable ZIP (SVG, metadata, mock disclaimer) and
+`approved-product.json`, a downloadable ZIP (SVG/PNG, metadata, draft notice) and
 `listing-handoff.json`. Approval is immutable. The listing handoff always has
 `blocked_not_wired` / `etsy_api_called: false`. There is no Etsy client, credential
-loader or selectable real publisher. These mock artifacts are not sale-ready.
+loader or selectable real Etsy publisher. Development artifacts are not sale-ready.
 
 ## Persistence and provider boundaries
 
@@ -72,37 +88,90 @@ input is rejected. Mutations require current project revision. Concurrent
 generation workers lock independently of HTTP review. Interrupted or failed
 generation is parked for explicit recovery; it never automatically repeats a
 possibly chargeable request. Saved partial/completed responses remain available
-for inspection. Explicit retry may regenerate; it is not automatic billing-safe
-reconciliation with a future provider.
+for inspection. Explicit retry resumes the same operation. Completed paid image
+steps are reused even when a downstream visual observation fails or its schema
+is corrected. Cached HTTP responses avoid repeated paid inference. Unknown API
+outcomes block all new calls until explicit accounting reconciliation; a retry
+does not release a reservation. Mock generators may recompute deterministic assets.
 
 `ports.py` defines independent Generator, Broker and Listing contracts. Current
-configuration accepts only mock/mock/mock/blocked. The generator request
+configuration defaults to mock/mock/mock/blocked, with optional `openai_dev`
+generation explicitly gated by `development_openai: true`. The generator request
 contains structured brief, sample count, accepted/rejected assets with SHA256
 and comments, compact negative context, archive references, latest feedback and
 professional settings. Implementing real providers later requires explicit
 budget admission, provider identity/provenance, output formats, failure and
 unknown-outcome reconciliation, and prompt-injection controls. Mock layouts
-prove workflow only, not generative quality or reference synthesis. No LLM,
-email or Etsy API is called in this version.
+prove workflow only. Email and Etsy API are not called by Studio.
 
 The launcher drops inherited credentials; Studio also refuses provider/collector
 credential environment names and credential-shaped intake fields. SVGs have a
 strict safe markup whitelist and no remote resources. HTTP mutations reject
 foreign origins; Host validation, body limits, revision checks, CSP and scoped
 asset lookup protect the initial interface. Real broker transport/authentication
-and real model credential loading are deliberately pending provider selection.
+remain separate from the optional development OpenAI credential loader.
+
+## OpenAI development mode and one-dollar envelope
+
+Set `development_openai: true` and select `openai_dev` for sketch/professional
+providers in a private runtime config. Pass `--credential-directory` containing
+`openai.env` to the launcher; only a `STUDIO_OPENAI_CREDENTIAL_FILE` path is
+forwarded, and only the admitted adapter opens it. No key is stored in config,
+state, logs, arguments or browser responses. No collector credentials are opened.
+Production examples/units stay mock-only with no Studio credentials installed.
+
+The model allowlist uses `gpt-image-1-mini` (low, square PNG) for draft generation
+and `gpt-4.1-mini-2025-04-14` for visual observation and structured feedback
+understanding. Image observation describes **input boards**, not the five
+individual paintings within each Hanukkah board. Cardinality is constrained
+and validated. Only bounded low-detail local generated PNGs enter vision.
+Image generation uses the learned direction and original brief rather than
+hardcoding a subject or artistic style. No tools, redirects or SDK retries.
+
+`development-openai/budget.json` is a hardcoded **$1 total Studio development
+envelope**, across all products, agent tests and human UI use. It is independent
+of the existing analyzer preparation ledger and never resets by day/restart.
+All calls first reserve conservative integer-microdollar cost: UTF-8 byte token
+bounds plus framing, 4096 vision tokens per bounded square image, explicit text
+output cap, and a conservative low-image output allowance. Cross-process locks
+serialize admission. Provider usage settles the reservation at standard rates
+without assuming cached-input discounts. Unknown outcomes retain their maximum
+charge and stop all new calls. Never delete/move/reset this ledger to refill it.
+At insufficient budget the feedback/history remain saved, samples stay available,
+and generation stops with a readable message. Full payment-provider billing
+reconciliation and future professional-quality rates remain separate work.
+
+Pricing basis: [official model pricing](https://developers.openai.com/api/docs/pricing),
+[image generation](https://developers.openai.com/api/docs/guides/image-generation)
+and [GPT-4.1 mini](https://developers.openai.com/api/docs/models/gpt-4.1-mini).
+Recorded cost is a conservative usage-based estimate, not an invoice.
+
+Development-only `reasoning-log/<operation>.json` records the bounded aggregate,
+observable conclusion, evidence IDs, uncertainties, provider and completion/failure
+status after feedback. It does not request or expose private chain-of-thought.
+Read it from the collapsed UI panel or `/api/projects/<id>/reasoning` (disabled
+outside development). Browser `console.log` reports cumulative per-product cost,
+global charged/reserved total, remaining budget and unknown outcomes after updates.
+
+The synthetic [Hanukkah Product handoff](../examples/studio-hanukkah-brief.example.json)
+defines five printable watercolor wall pictures: menorah, dreidels, doughnuts,
+oil jug/olive branch and a holiday composition. It is testing data, not market
+evidence. The initial ten boards preview whole bundles; separate print files
+are a future production output, not something the draft adapter claims to create.
 
 ## API actions
 
 Read `/api/projects` and `/api/projects/<id>`. Submit JSON with `revision` to
 `POST /api/projects/<id>/actions/<action>`, with an `Idempotency-Key`. Actions:
 `update_brief`, `save_feedback`, `next_sketches`, `start_over`, `generate_final`,
-`next_professional`, `back_to_sketches`, `approve_final`, `retry_generation`.
+`next_professional`, `back_to_sketches`, `approve_final`, `retry_generation`,
+`review_sample`, `replace_sample`. The latter two also require `candidate_id`.
 Review payload: `reviews: {sample_id: {decision, comment}}` and `comments`.
 Professional generation requires `consent_expensive: true`; final generation
 also requires `settings`. Approval requires `candidate_id`. Assets use
 `/api/projects/<id>/asset/<sample_id>`, approved ZIP uses `/download`.
 
 Run `python3 tools/test.py` for all components, or Studio's independent unittest
-suite. All providers are offline mocks. Browser smoke verification exercises the
+suite. Functional tests use offline transports/mocks. Browser smoke requires a
+mock health endpoint and refuses to run against paid mode. It exercises the
 actual static UI against a fresh standalone service, separate from production.

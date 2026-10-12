@@ -46,7 +46,7 @@ class Workflow(unittest.TestCase):
         state=self.create({'concept':'Planner'});self.assertEqual(state['phase'],'needs_information')
         self.assertEqual(len(self.generator.requests),0);self.assertEqual(len(state['missing_information']),4)
         message=next((Path(self.tmp.name)/'mock-broker').glob('*.json'));event=read(message)
-        self.assertIn('Who will use it?',event['message']);self.assertEqual(event['brief']['concept'],'Planner')
+        self.assertIn('למי מיועד המוצר?',event['message']);self.assertEqual(event['brief']['concept'],'Planner')
         self.studio.tick();self.assertEqual(len(list(message.parent.glob('*.json'))),1)
         self.assertEqual(self.state()['notification']['delivery']['status'],'recorded')
         self.act('update_brief',brief=BRIEF);self.studio.tick();self.assertEqual(len(self.state()['rounds'][-1]['candidates']),10)

@@ -45,72 +45,75 @@ def run(url, driver, output):
         raise AssertionError('UI did not reach expected state: '+expression)
     def capture(name):
         (output/(name+'.png')).write_bytes(base64.b64decode(http('GET',base+'/screenshot')))
-    def accept():
-        fill('.sample .decision','accept_with_comments'); fill('.sample .candidate-comment','Keep spacious writing areas')
     def alert():http('POST',base+'/alert/accept',{})
+    def state():
+        identity=js("return document.querySelector('#download').href.split('/')[5]")
+        with opener.open(url.rstrip('/')+'/api/projects/'+identity,timeout=3) as response:return json.load(response)['project']
+    def ready():wait("document.querySelector('#phase').textContent === 'בוחרים כיוון' || document.querySelector('#phase').textContent === 'מלטשים את היצירה'")
     try:
+        with opener.open(url.rstrip('/')+'/health',timeout=3) as response:
+            assert json.load(response)['providers']=='mock', 'Browser smoke requires an offline mock server'
         http('POST',base+'/window/rect',{'width':390,'height':844})
         http('POST',base+'/url',{'url':url})
         wait("document.querySelector('#brief-form') !== null")
-        fill('[name=concept]','Browser smoke planner '+str(time.time_ns()));click('#brief-form button[type=submit]')
+        wait("document.querySelector('#new-project') !== null");time.sleep(.3);click('#new-project')
+        assert js("return document.documentElement.lang === 'he' && document.documentElement.dir === 'rtl'")
+        fill('[name=concept]','בדיקת חנוכה '+str(time.time_ns()));click('#brief-form button[type=submit]')
         wait("!document.querySelector('#missing').hidden")
-        # Reload the saved project to read its broker receipt, independently of generation polling.
-        time.sleep(.6);click('#projects button');wait("document.querySelector('#notification').textContent.includes('recorded')")
-        checks.append('Missing brief -> durable human-readable broker message');capture('01-information-mobile')
         click('#edit-brief')
-        for name,value in {'audience':'Busy families','purpose':'Plan meals','deliverables':'Weekly grid\nShopping list','visual_direction':'Warm minimal layout'}.items():fill('[name='+name+']',value)
-        click('#brief-form button[type=submit]');wait("document.querySelectorAll('.sample').length === 10")
-        wait("[...document.querySelectorAll('.sample img')].every(i=>i.complete && i.naturalWidth>0)")
-        js("document.querySelector('#samples').scrollIntoView({block:'start'})")
-        checks.append('Completed brief -> 10 sketches');capture('02-sketches-mobile')
-        assert js('return document.documentElement.scrollWidth <= window.innerWidth'), 'Mobile horizontal overflow'
-        assert js("return [...document.querySelectorAll('.sample img')].every(i=>i.complete && i.naturalWidth>0)"), 'Images failed to render'
-        accept();fill('#comments','Preserve white space');click('#save');wait("document.querySelector('#message').textContent === 'Saved.'")
-        http('POST',base+'/refresh',{});wait("document.querySelector('#projects button') !== null");click('#projects button')
-        wait("document.querySelector('.sample .decision')?.value === 'accept_with_comments'")
-        checks.append('Feedback persists across browser refresh')
-        # Simulate a lost response: save a browser request already accepted by
-        # the backend, then refresh. It must restore the same receipt/revision.
-        browser_project=js("return document.querySelector('#download').href.split('/')[5]")
-        with opener.open(url.rstrip('/')+'/api/projects/'+browser_project,timeout=3) as response: saved_state=json.load(response)['project']
-        replay_path='/api/projects/'+browser_project+'/actions/save_feedback'
-        replay_payload={'revision':saved_state['revision'],'reviews':saved_state['rounds'][-1]['reviews'],'comments':'Lost-response fixture'}
-        replay_key='browser-lost-'+str(time.time_ns())
-        req=urllib.request.Request(url.rstrip('/')+replay_path,data=json.dumps(replay_payload).encode(),headers={'Content-Type':'application/json','Idempotency-Key':replay_key})
-        with opener.open(req,timeout=3) as response: receipt=json.load(response)['project']
-        pending={'serialized':json.dumps({'path':replay_path,'payload':replay_payload},separators=(',',':')),'key':replay_key}
-        # JS serialization order must match the saved pending fingerprint.
-        js("const pending=arguments[0];pending.serialized=JSON.stringify(JSON.parse(pending.serialized));sessionStorage.setItem('studio-pending',JSON.stringify(pending));",pending)
-        http('POST',base+'/refresh',{});wait("document.querySelector('#message').textContent.includes('Previously saved action restored')")
-        with opener.open(url.rstrip('/')+'/api/projects/'+browser_project,timeout=3) as response: replayed=json.load(response)['project']
-        assert replayed['revision']==receipt['revision'], 'Refresh duplicated completed browser action'
-        checks.append('Lost-response request resumes after refresh without duplicate work')
-        fill('.sample:nth-child(2) .decision','reject');fill('.sample:nth-child(2) .candidate-comment','Too crowded');click('#next')
-        wait("document.querySelector('#round-info').textContent.includes('2 rounds') && document.querySelectorAll('.sample').length === 10")
-        checks.append('Accepted + rejected references -> next 10 sketches')
-        click('#start-over');alert();wait("document.querySelector('#round-info').textContent.includes('Start 2') && document.querySelectorAll('.sample').length === 10 && !document.querySelector('#review').hidden")
-        checks.append('Start over -> archived negative example + fresh 10')
-        accept();click('#final');wait("document.querySelector('#settings').open")
-        capture('03-settings-mobile');click('#consent');click('#settings-form button[type=submit]')
-        wait("document.querySelectorAll('.sample').length === 3 && !document.querySelector('#expensive').hidden")
-        checks.append('Final settings + consent -> 3 samples + expensive warning');capture('04-professional-mobile')
-        accept();click('#next');alert();wait("document.querySelector('#round-info').textContent.includes('3 rounds') && document.querySelectorAll('.sample').length === 3")
-        checks.append('Professional iteration -> another 3 samples')
-        click('#back');wait("document.querySelectorAll('.sample').length === 10 && document.querySelector('#expensive').hidden")
-        checks.append('Return to sketch area')
-        accept();click('#final');click('#consent');click('#settings-form button[type=submit]')
-        wait("document.querySelectorAll('.sample').length === 3 && !document.querySelector('#expensive').hidden")
-        accept();click('.final-choice input');click('#approve');alert();wait("!document.querySelector('#approved').hidden")
-        checks.append('Final human approval -> saved artifact, blocked listing handoff');capture('05-approved-mobile')
+        for name,value in {'audience':'משפחות','purpose':'לקשט בית לחנוכה','deliverables':'חנוכייה\nסביבונים\nסופגניות\nכד שמן\nנרות','visual_direction':'אקוורל ידני רך'}.items():fill('[name='+name+']',value)
+        click('#brief-form button[type=submit]');ready()
+        wait("document.querySelectorAll('.sample').length === 10")
+        checks.append('Hebrew RTL intake and 10 sketches')
+        assert js("return document.querySelectorAll('.sample select').length === 0")
+        assert js("return [...document.querySelectorAll('.comment-panel')].every(p=>p.hidden)")
+        assert js("return document.querySelector('.controls').getBoundingClientRect().right <= document.querySelector('.visual').getBoundingClientRect().left")
+        checks.append('Three buttons physically left of sample; comments initially hidden')
+        click('.sample .comment')
+        assert js("return !document.querySelector('.comment-panel').hidden")
+        assert js("return document.querySelector('.candidate-comment').getBoundingClientRect().right <= document.querySelector('.visual').getBoundingClientRect().left")
+        fill('.candidate-comment','לשמור את הצבע הכחול ולהגדיל את הרווחים')
+        js("window.unchangedSample=document.querySelectorAll('.sample')[1];document.querySelector('#samples').scrollIntoView({block:'start'})")
+        old=state()['rounds'][-1]['candidates'][0]['id']
+        capture('01-hebrew-comment-mobile');click('.sample .accept')
+        wait("!document.querySelector('.sample .loading').hidden")
+        capture('02-feedback-spinner-mobile')
+        wait("document.querySelector('.sample').dataset.candidate !== "+json.dumps(old));ready()
+        assert js("return document.querySelectorAll('.sample')[1] === window.unchangedSample")
+        saved=state()
+        assert saved['accepted_samples'][0]['review']['decision']=='accept_with_comments'
+        checks.append('Accept with text -> accept_with_comments, spinner, single replacement, other DOM samples preserved')
+        assert len(saved['rounds'][-1]['candidates'])==10
+        old=saved['rounds'][-1]['candidates'][0]['id']
+        click('.sample .reject');wait("document.querySelector('.sample').dataset.candidate !== "+json.dumps(old));ready()
+        assert any(r['reviews'].get(old,{}).get('decision')=='reject' for r in state()['rounds'])
+        checks.append('Reject triggers immediate replacement and preserves negative evidence')
+        old=state()['rounds'][-1]['candidates'][0]['id'];click('.sample img')
+        wait("document.querySelector('.sample').dataset.candidate !== "+json.dumps(old));ready()
+        assert all(old not in r['reviews'] for r in state()['rounds'])
+        checks.append('Sample click replaces without falsely recording rejection')
+        http('POST',base+'/refresh',{});wait("document.querySelector('#projects button') !== null");click('#projects button');ready()
+        assert state()['accepted_samples']
+        checks.append('Refresh preserves accepted history')
+        js("document.querySelector('.extra').open=true");click('#reasoning')
+        wait("!document.querySelector('#reasoning-log').hidden && document.querySelector('#reasoning-log').textContent.length > 0")
+        checks.append('Development understanding log and spending display')
+        assert js("return document.documentElement.scrollWidth <= window.innerWidth")
+        js("document.querySelector('#samples').scrollIntoView({block:'start'})");capture('03-sketch-mobile')
+        http('POST',base+'/window/rect',{'width':1440,'height':1000});capture('04-sketch-desktop')
+        click('#final');click('#consent');click('#settings-form button[type=submit]')
+        wait("document.querySelectorAll('.sample').length === 3 && !document.querySelector('#expensive').hidden");ready()
+        checks.append('Final settings, expensive warning and three professional samples')
+        old=state()['rounds'][-1]['candidates'][0]['id'];click('.sample .accept');alert()
+        wait("document.querySelector('.sample').dataset.candidate !== "+json.dumps(old));ready()
+        click('#accepted-samples button:last-child');click('#approve');alert()
+        wait("!document.querySelector('#approved').hidden")
         download=js("return document.querySelector('#download').href")
-        with opener.open(download,timeout=3) as response:
-            assert response.headers['Content-Type']=='application/zip'
-            (output/'approved-product.zip').write_bytes(response.read())
-        checks.append('Approved ZIP downloaded')
-        http('POST',base+'/window/rect',{'width':1440,'height':1000});capture('06-approved-desktop')
+        with opener.open(download,timeout=3) as response:(output/'approved-product.zip').write_bytes(response.read())
+        assert state()['listing']['etsy_api_called'] is False
+        checks.append('Approve historical accepted professional sample, download and Etsy block')
         report={'passed':True,'checks':checks,'providers':'mock','etsy_calls':0,'paid_calls':0}
-        (output/'browser-results.json').write_text(json.dumps(report,indent=2)+'\n')
-        print(json.dumps(report))
+        (output/'browser-results.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
     except Exception:
         capture('failure');raise
     finally:http('DELETE',base)

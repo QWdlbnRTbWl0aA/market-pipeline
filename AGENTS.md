@@ -47,6 +47,15 @@ host security settings without explicit authorization.
   abandoned interaction as negative context, and explicit expensive-loop consent.
   Final approval records a blocked listing handoff. Do not wire Etsy publishing
   until the Studio is finalized; Studio must not load collector credentials.
+- Studio development uses an explicitly enabled OpenAI adapter with a separate
+  **$1 total** development/testing envelope, including human UI use, shared across
+  products and preserved across restarts. Reserve conservative cost before key
+  loading/HTTP; hold unknown outcomes and never replenish/reset the ledger.
+  Production defaults remain mock. Development logs contain observable preference
+  summaries and cited feedback evidence, not private chain-of-thought. The Hebrew
+  RTL UI uses left-side reject/accept/comment buttons; comments open on demand,
+  accept plus nonempty comment is accept-with-comments, and feedback replaces a
+  single sample asynchronously while retaining historical accepted/rejected work.
 - Deployment account is `market-pipeline`. The six daemons must start, stop,
   recover and be deployable independently. Keep credentials and mutable state
   outside source. Prepare OS isolation; do not claim it is enforced until tested

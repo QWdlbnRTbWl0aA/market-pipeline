@@ -37,8 +37,15 @@ class MockGenerator:
 def checked_asset(asset):
     if not isinstance(asset, Asset) or not isinstance(asset.label, str) or len(asset.label) > 200:
         raise Invalid('A bounded, labeled asset is required')
-    if not isinstance(asset, Asset) or asset.media_type != 'image/svg+xml' or not isinstance(asset.content, bytes) or len(asset.content) > 1_000_000:
-        raise Invalid('Bounded SVG mock asset required')
+    if not isinstance(asset, Asset) or not isinstance(asset.content, bytes) or len(asset.content) > 6_000_000:
+        raise Invalid('Bounded image required')
+    if asset.media_type == 'image/png':
+        import struct
+        if len(asset.content)<33 or asset.content[:8]!=b'\x89PNG\r\n\x1a\n' or asset.content[12:16]!=b'IHDR':raise Invalid('PNG required')
+        width,height=struct.unpack('>II',asset.content[16:24])
+        if not 64<=width<=8192 or not 64<=height<=8192 or b'IEND' not in asset.content[-20:]:raise Invalid('Bounded complete PNG required')
+        return asset
+    if asset.media_type != 'image/svg+xml' or len(asset.content)>1_000_000:raise Invalid('Supported image required')
     if b'<!' in asset.content or b'<?' in asset.content: raise Invalid('SVG declarations forbidden')
     try: root = ElementTree.fromstring(asset.content)
     except ElementTree.ParseError: raise Invalid('Invalid SVG') from None

@@ -4,5 +4,6 @@
   "professional_provider": "mock",
   "broker_provider": "mock",
   "listing_provider": "blocked",
-  "allowed_hostnames": []
+  "allowed_hostnames": [],
+  "development_openai": false
 }
