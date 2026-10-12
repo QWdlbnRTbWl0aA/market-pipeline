@@ -83,21 +83,31 @@ class Cursor:
         self.floor = json.loads(self.path.read_text())['initial_floor']
 
     def eligible(self, run_id, finalized_at):
-        if self.floor and dt.datetime.fromisoformat(finalized_at.replace('Z', '+00:00')) <= dt.datetime.fromisoformat(self.floor.replace('Z', '+00:00')):
-            return False
         record = self.directory / (run_id + '.json')
-        if record.exists() and json.loads(record.read_text()).get('terminal'):
+        saved = json.loads(record.read_text()) if record.exists() else {}
+        if saved.get('terminal'):
+            return False
+        if self.floor and dt.datetime.fromisoformat(finalized_at.replace('Z', '+00:00')) <= dt.datetime.fromisoformat(self.floor.replace('Z', '+00:00')) and not saved.get('delivery_only_recovery'):
             return False
         if not record.exists():
             write_json(record, {'source_run_id': run_id, 'finalized_at': finalized_at, 'status': 'pending', 'terminal': False})
         return True
 
+    def pending_delivery(self, run_id):
+        record = self.directory / (run_id + '.json')
+        saved = json.loads(record.read_text()) if record.exists() else {}
+        result = saved.get('result') or {}
+        if not saved.get('terminal') and result.get('delivery_status') == 'pending' and result.get('analysis_status') in ('completed', 'failed', 'budget_waiting'):
+            return result.get('job_id')
+        return None
+
     def finish(self, run_id, result):
-        terminal = result.get('analysis_status') in ('completed', 'failed', 'budget_waiting') and result.get('delivery_status') == 'delivered'
+        terminal = result.get('analysis_status') in ('completed', 'failed', 'budget_waiting') and result.get('delivery_status') in ('delivered', 'permanent_failure', 'retries_exhausted')
         # Interrupted or intake failures are parked, never automatic inference retries.
         attention = result.get('status') in ('interrupted_requires_explicit_retry', 'failed_before_analysis')
         write_json(self.directory / (run_id + '.json'), {'source_run_id': run_id, 'updated_at': now(),
                    'status': 'requires_attention' if attention else result.get('analysis_status', result.get('status')),
+                   'delivery_only_recovery': result.get('delivery_generation', 0) > 0,
                    'terminal': terminal or attention, 'result': result})
 
 

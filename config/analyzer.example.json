@@ -6,6 +6,18 @@
   "ollama_url": "http://127.0.0.1:11434",
   "sample_size": 8,
   "poll_seconds": 30,
+  "delivery": {
+    "max_attempts": 5,
+    "retry_base_seconds": 30,
+    "retry_max_seconds": 3600,
+    "max_payload_bytes": 5000000,
+    "failure_events": {
+      "enabled": false,
+      "endpoint": null,
+      "max_attempts": 3,
+      "retry_seconds": 60
+    }
+  },
   "endpoints": {
     "search_refinement": "http://127.0.0.1:8094/search-refinement",
     "market_insights": "http://127.0.0.1:8093/market-insights"

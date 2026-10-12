@@ -29,6 +29,10 @@ host security settings without explicit authorization.
   whole-shop sales as listing sales, or infer missing purchases/search volume.
 - Search and market analysis are independent services. Persist outputs and
   delivery status; repeated triggers must not repeat completed inference.
+- Analyzer HTTP delivery must distinguish transient and permanent errors, use
+  a configurable finite attempt limit and publish durable terminal-failure
+  events. Broker publication is optional/configurable and independently bounded.
+  Preserve failed artifacts for explicit delivery-only recovery without inference.
 - The dashboard stays mobile compatible at `/` and `/v1`; `/v2` and `/v3` are
   retired. Counters and saved-run metadata load independently and immediately.
   Daily configuration persists separately from trial parameters; protect

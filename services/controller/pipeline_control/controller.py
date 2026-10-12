@@ -48,18 +48,22 @@ class Controller:
     def receive(self, body):
         if not 0 < len(body) <= 5_000_000: raise ValueError('Bounded report required')
         payload = json.loads(body)
+        if not isinstance(payload, dict): raise ValueError('Report object required')
         from .storage import reject_secrets
         reject_secrets(payload)
         key = identity(payload.get('delivery_id'))
         if payload.get('service') != 'search_refinement' or payload.get('schema_version') != 1:
             raise ValueError('Compatible saved search-refinement report required')
         envelope = payload.get('envelope') or {}
+        if not isinstance(envelope, dict): raise ValueError('Envelope object required')
         if envelope and (envelope.get('schema_version') != 1 or envelope.get('event_type') != 'analysis_completed'):
             raise ValueError('Unsupported envelope version')
         with Guard(self.root):
             path = self.root / 'inbox' / (key + '.json'); sha = hashlib.sha256(body).hexdigest()
             if path.exists():
-                if read(path)['sha256'] != sha: raise ValueError('Delivery identity collision')
+                previous = read(path)
+                if previous['sha256'] != sha and json.dumps(previous['payload'],sort_keys=True,allow_nan=False) != json.dumps(payload,sort_keys=True,allow_nan=False):
+                    raise ValueError('Delivery identity collision')
                 return {'accepted': True, 'duplicate': True, 'delivery_id': key}
             # Write before acknowledgment; proposal preparation is independent.
             write(path, {'sha256': sha, 'received_at': now(), 'payload': payload})

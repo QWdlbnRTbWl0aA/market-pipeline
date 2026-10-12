@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import threading
-from .core import MAX_BYTES, clean_environment, now, process, validate, valid_key, write_json
+from .core import MAX_BYTES, clean_environment, now, process, validate, valid_key, write_json, waiting_for_brief
 
 
 def server(root, port=8093, definition_config=None, operations_root=None):
@@ -69,7 +69,8 @@ def server(root, port=8093, definition_config=None, operations_root=None):
                 self.connection.settimeout(10)
                 length = int(self.headers.get('Content-Length', '0'))
                 if not 0 < length <= MAX_BYTES:
-                    raise ValueError('Payload size')
+                    self.close_connection = True
+                    self.reply(413, {'error': 'Payload size', 'max_bytes': MAX_BYTES}); return
                 body = self.rfile.read(length)
                 if len(body) != length:
                     raise ValueError('Incomplete body')
@@ -82,14 +83,19 @@ def server(root, port=8093, definition_config=None, operations_root=None):
                 with lock:
                     path = inbox / (key + '.json')
                     duplicate = path.exists()
-                    if duplicate and json.loads(path.read_text())['sha256'] != digest:
-                        self.reply(409, {'error': 'Identity collision'}); return
+                    if duplicate:
+                        old = json.loads(path.read_text())
+                        if old['sha256'] != digest and json.dumps(json.loads(old['body']),sort_keys=True,allow_nan=False) != json.dumps(payload,sort_keys=True,allow_nan=False):
+                            self.reply(409, {'error': 'Identity collision'}); return
                     if not duplicate:
                         write_json(path, {'received_at': now(), 'sha256': digest, 'body': body.decode()})
                 wake.set()
-                self.reply(200, {'accepted': True, 'job_id': key, 'duplicate': duplicate, 'product_status': 'queued'})
-            except (ValueError, TypeError, OSError):
+                self.reply(200, {'accepted': True, 'job_id': key, 'duplicate': duplicate,
+                                 'product_status': 'awaiting_product_brief' if waiting_for_brief(payload) else 'queued'})
+            except (ValueError, TypeError, AttributeError, KeyError):
                 self.reply(400, {'error': 'Invalid saved market analysis'})
+            except OSError:
+                self.reply(503, {'error': 'Intake storage unavailable'})
 
         def log_message(self, *args):
             pass

@@ -110,6 +110,10 @@ performed by these scripts.
 
 ## Operations and rollback
 
+Analyzer delivery limits, terminal failure events, optional broker relay and
+delivery-only recovery are described in [delivery.md](delivery.md). Recovery
+must use saved output and preserve inference IDs/receipts and paid accounting.
+
 Health: collector `/api/health` on 8090; controller `/health` on 8094; product
 `/health` on 8093. Analyzer heartbeat/cursor files are under
 `analyzer/lifecycle`. Saved delivery status and controller timeline distinguish

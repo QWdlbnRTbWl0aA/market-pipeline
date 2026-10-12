@@ -4,8 +4,6 @@ import fcntl
 import hashlib
 import json
 from pathlib import Path
-import time
-import urllib.request
 from .adapters.ollama import VerifiedOllamaModel
 from .io import now, write_json
 from .normalize import normalize
@@ -14,6 +12,7 @@ from .security import LocalHTTP, assert_clean_environment, local_url, reject_sec
 from .service_reports import SERVICES, RECIPE_VERSION, request_for, validate
 from .research import VERSION as RESEARCH_VERSION
 from .lifecycle import resolve, Cursor, heartbeat, event, envelope
+from .delivery import deliver, policy as delivery_policy, recover, retry_saved, publish_failure_events
 
 
 def load_config(path):
@@ -25,11 +24,12 @@ def load_config(path):
         raise ValueError('Only independent JSON configuration files allowed; env files forbidden')
     config = json.loads(config_path.read_text())
     reject_secrets(config)
-    allowed = {'saved_runs_root', 'output_root', 'model', 'model_digest', 'ollama_url', 'sample_size', 'poll_seconds', 'endpoints', 'research', 'paid', 'email_config', 'operations_root', 'cohort_root'}
+    allowed = {'saved_runs_root', 'output_root', 'model', 'model_digest', 'ollama_url', 'sample_size', 'poll_seconds', 'endpoints', 'research', 'paid', 'email_config', 'operations_root', 'cohort_root', 'delivery'}
     if not isinstance(config, dict) or set(config) - allowed:
         raise ValueError('Independent analyzer configuration has unknown fields')
     if set(config.get('endpoints', {})) != set(SERVICES):
         raise ValueError('Both independent HTTP endpoints required')
+    config['delivery'] = delivery_policy(config.get('delivery'))
     config.setdefault('sample_size', 8)
     config.setdefault('poll_seconds', 30)
     config.setdefault('model', 'gemma3:4b')
@@ -49,29 +49,6 @@ def load_config(path):
         raise ValueError('Analyzer output must be separate from source artifacts')
     config['saved_runs_root'], config['output_root'] = str(root), str(output)
     return config
-
-
-def deliver(directory, state, endpoint, transport):
-    payload = (directory / 'outbound.json').read_bytes()
-    request = urllib.request.Request(local_url(endpoint), data=payload,
-                                    headers={'Content-Type': 'application/json', 'Idempotency-Key': state['delivery_id']})
-    prior = sorted(directory.glob('delivery-*.json'))
-    result = {'attempt': len(prior)+1, 'at': now(), 'endpoint': endpoint, 'idempotency_key': state['delivery_id'],
-              'payload_sha256': hashlib.sha256(payload).hexdigest(), 'delivered': False}
-    try:
-        with transport(request, timeout=10) as response:
-            result['http_status'] = response.status
-            body = response.read(4097)
-            result['response_excerpt'] = body[:4096].decode('utf-8', errors='replace')
-            result['response_truncated'] = len(body) > 4096
-            result['delivered'] = 200 <= response.status < 300
-    except Exception as error:
-        result['error'] = {'type': type(error).__name__, 'message': str(error)}
-    write_json(directory / f"delivery-{result['attempt']:04d}.json", result)
-    state['delivery_status'] = 'delivered' if result['delivered'] else 'pending'
-    state['updated_at'] = now()
-    write_json(directory / 'state.json', state)
-    return result
 
 
 def run_service(service, intake, model, config, retry_failed=False, transport=None):
@@ -96,7 +73,7 @@ def run_service(service, intake, model, config, retry_failed=False, transport=No
         state = json.loads(state_path.read_text()) if state_path.exists() else {}
         if state.get('analysis_status') == 'completed' or state.get('analysis_status') in ('failed', 'budget_waiting') and not retry_failed:
             if state.get('delivery_status') != 'delivered':
-                deliver(directory, state, config['endpoints'][service], transport)
+                deliver(directory, state, config['endpoints'][service], transport, config)
             return {**state, 'duplicate_trigger': True, 'directory': str(directory)}
         # A running record from an interrupted process is never silently rerun.
         if state.get('analysis_status') == 'running' and not retry_failed:
@@ -158,7 +135,7 @@ def run_service(service, intake, model, config, retry_failed=False, transport=No
         state['finished_at'] = payload['finished_at']
         write_json(state_path, state)
         event(config['output_root'], job_id, 'analysis_completed', {'service': service, 'source_run_id': batch.metadata['source_run_id'], 'status': state['analysis_status'], 'delivery_id': state['delivery_id']})
-        deliver(directory, state, config['endpoints'][service], transport)
+        deliver(directory, state, config['endpoints'][service], transport, config)
         return {**state, 'directory': str(directory)}
 
 
@@ -210,6 +187,8 @@ def main():
     group.add_argument('--run', help='Finalized successful saved collection ID')
     group.add_argument('--latest', action='store_true')
     group.add_argument('--watch', action='store_true', help='Poll finalized successes; durable state skips completed/failed work')
+    group.add_argument('--recover-delivery', metavar='JOB_ID', help='Explicit saved delivery-only retry; never repeats inference')
+    parser.add_argument('--reason', help='Required audit reason for explicit delivery recovery')
     parser.add_argument('--service', choices=['both', *SERVICES], default='both', help='Run a service independently or both')
     parser.add_argument('--since', help='Watch only collections finalized after this ISO UTC timestamp (no historic backlog)')
     parser.add_argument('--retry-failed', action='store_true', help='Explicitly retry failed/interrupted analysis; never completed work')
@@ -218,6 +197,15 @@ def main():
     args = parser.parse_args()
     if args.refresh_as_of and (not args.run or args.service != 'market_insights'):parser.error('Refresh requires one --run and --service market_insights')
     config = load_config(args.config)
+    if args.recover_delivery:
+        if args.service == 'both' or not args.reason or args.retry_failed or args.dry_run or args.refresh_as_of:
+            parser.error('Delivery recovery requires one --service and --reason; inference options forbidden')
+        result = recover(config, args.service, args.recover_delivery, args.reason)
+        publish_failure_events(config)
+        print(json.dumps(result), flush=True)
+        return 0 if result.get('delivery_status') == 'delivered' else 1
+    if args.reason:
+        parser.error('--reason is only for --recover-delivery')
     if args.refresh_as_of:config['refresh_as_of']=args.refresh_as_of
     if args.dry_run and 'paid' in config:
         config['paid']={**config['paid'],'enabled':False}
@@ -243,7 +231,15 @@ def main():
                     continue
                 if args.watch:
                     heartbeat(config['output_root'], service, status='analyzing', source_run_id=identity)
-                current = run_cycle(config, identity, retry_failed=args.retry_failed, service_names=(service,))
+                pending = cursors[service].pending_delivery(identity) if args.watch else None
+                if pending:
+                    try:
+                        current = [retry_saved(config, service, pending)]
+                    except Exception as error:
+                        current = [{'service': service, 'job_id': pending, 'source_run_id': identity,
+                                    'status': 'failed_before_analysis', 'error': {'type': type(error).__name__}}]
+                else:
+                    current = run_cycle(config, identity, retry_failed=args.retry_failed, service_names=(service,))
                 results.extend(current)
                 print(json.dumps({'source_run_id': identity, 'services': current}), flush=True)
                 if args.watch:
@@ -252,6 +248,7 @@ def main():
         if args.watch:
             for service in selected:
                 heartbeat(config['output_root'], service, status='idle')
+        publish_failure_events(config)
         if not args.watch:
             return 0 if identities and all(r.get('analysis_status') == 'completed' and r.get('delivery_status') == 'delivered' for r in results) else 1
         stopping.wait(config['poll_seconds'])

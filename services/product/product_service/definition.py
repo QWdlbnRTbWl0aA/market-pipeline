@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import urllib.request
 from urllib.parse import urlsplit
-from .core import clean_environment, now, reject_secrets, text, validate, write_json
+from .core import clean_environment, now, reject_secrets, text, validate, write_json, process
 
 VERSION = 'studio-definition-v3.2'
 
@@ -237,6 +237,8 @@ def qualify(row, payload, qualification_root=None):
 def enhanced(body, output_root, model=None, allow_provisional=False, qualification_root=None):
     clean_environment();payload=json.loads(body);rows=validate(payload);source={'delivery_id':payload['delivery_id'],'source_run_id':payload.get('source_run_id'),
         'input_sha256':hashlib.sha256(body).hexdigest(),'analysis_job_id':payload.get('job_id'),'envelope':payload.get('envelope')}
+    if not rows:
+        return process(body, output_root)
     model=model or OllamaDefinition();job=digest({'source_delivery':payload['delivery_id'],'recipe':VERSION})
     folder=Path(output_root)/job;folder.mkdir(parents=True,exist_ok=True)
     with (folder/'.lock').open('a') as lock:

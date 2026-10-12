@@ -49,6 +49,7 @@ class ServiceTests(unittest.TestCase):
         self.addCleanup(self.receiver.server_close);self.addCleanup(self.receiver.shutdown)
         url = 'http://127.0.0.1:'+str(self.receiver.server_port)
         self.config = {'saved_runs_root': str(self.source), 'output_root': str(self.root/'output'), 'model': 'synthetic',
+                       'delivery': {'retry_base_seconds': 0, 'retry_max_seconds': 0},
                        'sample_size': 1, 'endpoints': {'search_refinement': url+'/search-refinement', 'market_insights': url+'/market-insights'}}
         self.models = {name: FakeModel() for name in SERVICES}
 

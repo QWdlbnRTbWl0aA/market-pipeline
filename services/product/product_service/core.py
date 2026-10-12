@@ -76,31 +76,54 @@ def validate(payload):
         raise ValueError('Unsupported analysis envelope')
     if payload.get('status') != 'completed':
         return []  # Preserve failures, never turn them into product ideas.
-    rows = payload.get('report', {}).get('recommendations')
-    if payload.get('report',{}).get('status')=='insufficient_evidence' and rows==[]:return []
+    report = payload.get('report')
+    if not isinstance(report, dict):
+        raise ValueError('Structured analysis report required')
+    rows = report.get('recommendations')
+    if report.get('status')=='insufficient_evidence' and rows==[]:return []
     if not isinstance(rows, list) or not 1 <= len(rows) <= 12:
         raise ValueError('One to twelve model-authored recommendations required')
     identities = set()
+    awaiting = False
     for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError('Structured recommendation required')
         identity = text(row.get('candidate_id'))
         if identity in identities:
             raise ValueError('Duplicate candidate identity')
         identities.add(identity)
         text(row.get('rationale'))
-        brief = row.get('product_brief', {})
+        brief = row.get('product_brief')
+        if brief is None and report.get('status') == 'local_preview' and report.get('final_model_completed') is False:
+            awaiting = True
+            continue
+        if not isinstance(brief, dict):
+            raise ValueError('Structured product brief required')
         text(brief.get('product_concept'))
         for name in ('intended_customer', 'customer_job', 'differentiation'):
-            text(brief.get(name, {}).get('text'))
+            if not isinstance(brief.get(name), dict):
+                raise ValueError('Structured brief statement required')
+            text(brief[name].get('text'))
         if not isinstance(brief.get('deliverables'), list) or not 1 <= len(brief['deliverables']) <= 20:
             raise ValueError('Concrete source deliverables required')
         for item in brief['deliverables']:
+            if not isinstance(item, dict):
+                raise ValueError('Structured deliverable required')
             text(item.get('text'))
         for name in ('acceptance_checks', 'validation_plan', 'risks'):
             if not isinstance(brief.get(name), list) or not 1 <= len(brief[name]) <= 20:
                 raise ValueError('Source checks, validation and risks required')
             for item in brief[name]:
                 text(item)
-    return rows
+    return [] if awaiting else rows
+
+
+def waiting_for_brief(payload):
+    report = payload.get('report') or {}
+    if not isinstance(report, dict) or not isinstance(report.get('recommendations'), list):
+        return False
+    return (report.get('status') == 'local_preview' and report.get('final_model_completed') is False
+            and any(r.get('product_brief') is None for r in report.get('recommendations', [])))
 
 
 class SavedReportIntake:
@@ -211,7 +234,7 @@ def process(body, output_root):
             previous = json.loads(state.read_text())
             if previous['input_sha256'] != digest:
                 raise ValueError('Delivery identity reused with different content')
-            if previous['status'] in ('completed', 'ignored_failed_analysis', 'ignored_insufficient_evidence'):
+            if previous['status'] in ('completed', 'ignored_failed_analysis', 'ignored_insufficient_evidence', 'awaiting_product_brief'):
                 return {**previous, 'duplicate': True, 'directory': str(directory)}
         source = {'delivery_id': payload['delivery_id'], 'source_run_id': payload.get('source_run_id'),
                   'analysis_job_id': payload.get('job_id'), 'input_sha256': digest, 'envelope': payload.get('envelope')}
@@ -231,7 +254,7 @@ def process(body, output_root):
             write_json(directory / 'studio-handoff.json', {'source': source, 'products': products, 'delivery': 'local_studio_outbox', 'finished_products_generated': False})
             links = ''.join('<article><h2>' + html.escape(x['vision']) + '</h2><p><a href="' + x['directory'] + '/brief.md">Text brief</a> · <a href="' + x['directory'] + '/product.json">Specification JSON</a></p>' + ''.join('<a href="' + x['directory'] + '/draft-' + k + '.svg"><img alt="' + k + ' draft" src="' + x['directory'] + '/draft-' + k + '.svg"></a>' for k in ('cover', 'activity', 'guide')) + '</article>' for x in products)
             (directory / 'index.html').write_text('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Studio handoff</title><style>body{font:16px/1.5 system-ui;margin:24px;background:#f4f7f5}article{background:white;padding:20px;margin:20px 0;border-radius:12px}img{width:30%;min-width:180px;max-width:320px;margin:1%}a{color:#17634b}</style></head><body><h1>Studio concepts</h1><p>Layout drafts and textual specifications for studio interpretation.</p>' + links + '</body></html>')
-            result = {**source, 'status': 'completed' if rows else 'ignored_insufficient_evidence' if payload.get('status')=='completed' else 'ignored_failed_analysis',
+            result = {**source, 'status': 'completed' if rows else 'awaiting_product_brief' if waiting_for_brief(payload) else 'ignored_insufficient_evidence' if payload.get('status')=='completed' else 'ignored_failed_analysis',
                       'products': len(products), 'drafts_per_product': 3, 'finished_at': now(), 'duplicate': False}
         except Exception as error:
             write_json(state, {**source, 'status': 'failed', 'error_type': type(error).__name__, 'finished_at': now()})

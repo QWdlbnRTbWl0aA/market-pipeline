@@ -67,7 +67,9 @@ def server(settings, port=8094):
             if self.headers.get('Origin') or self.headers.get('Sec-Fetch-Site')=='cross-site':self.reply(403,{'error':'Local service interface only'});return
             try:
                 length=int(self.headers.get('Content-Length','0'))
-                if not 0<length<=5_000_000:raise ValueError('Bounded payload required')
+                if not 0<length<=5_000_000:
+                    self.close_connection=True
+                    self.reply(413,{'error':'Bounded payload required','max_bytes':5_000_000});return
                 self.connection.settimeout(10);body=self.rfile.read(length)
                 if len(body)!=length:raise ValueError('Incomplete body')
                 if self.path=='/search-refinement':
@@ -101,7 +103,8 @@ def server(settings, port=8094):
                         result={'recorded':True,'status':read(target)['status'],'operation_id':operation_id,'automatic_retry':False}
                 else:self.reply(404,{'error':'Unknown route'});return
                 self.reply(200,result)
-            except (ValueError,KeyError,TypeError,OSError) as e:self.reply(400,{'error':str(e)[:300]})
+            except (ValueError,KeyError,TypeError,AttributeError):self.reply(400,{'error':'Invalid operation or report'})
+            except OSError:self.reply(503,{'error':'Intake storage unavailable'})
         def log_message(self,*args):pass
     http=ThreadingHTTPServer(('127.0.0.1',port),Handler);http.controller=controller
     http.worker=threading.Thread(target=work,daemon=True);http.worker.start();http.stop_worker=stop.set;return http

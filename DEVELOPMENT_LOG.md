@@ -147,3 +147,41 @@ loading was used in functional tests. Full-object credential/privacy audits
 passed. Reports remain outside source. Production configuration/state, installed
 releases and services were not changed; no collection/inference/paid/email calls
 were made. The source correction still requires a separately authorized deploy.
+
+## 2026-10-12 — durable analyzer delivery correction
+
+User supplied offline failure evidence and authorized investigation, correction,
+validation, commit and push. Six completed undelivered jobs had hundreds of
+attempts. Two original 5.19 MB outbound artifacts exceed the receiver limit but
+fit at 2.77 MB with compact JSON. Five Market Insights jobs are local previews
+with null product briefs, which crashed Product validation. Evidence also shows
+receivers loading an earlier release; release activation alone does not reload
+existing daemon processes.
+
+Added deterministic compact wire artifacts while preserving original outbound
+bytes, fields, IDs and inference identity. Receiver duplicate checks admit
+equivalent JSON serialization without altering old receipts. Product stores
+incomplete local previews as awaiting_product_brief without generating products
+or invoking models; malformed final briefs remain invalid. Receivers return
+400/413/503 for validation/size/storage failures rather than crashing requests.
+
+Delivery now classifies transient/permanent failures, enforces configurable
+finite attempts (default five), persists exponential backoff/Retry-After and
+reserves attempts before HTTP. Permanent/exhausted work is parked with a durable
+failure event and explicit delivery-only recovery. Old counts are not reset;
+recovery archives prior state/reason and retains receipts/accounting. Added an
+optional disabled-by-default HTTP broker-relay publisher with its own persisted
+finite retry policy, idempotency keys and one nonblocking bounded send per poll.
+No broker or SDK setup is assumed. Documented activation/recovery hold points.
+
+All 267 tests passed: collector 92, analyzer 103, product 15, controller 22 and
+repository 35. New tests cover retry classification/caps across restarts,
+uncertain attempts, event publication, recovery without inference/source reads,
+pending watcher retries bound to their saved job after model/configuration changes,
+receiver validation, storage errors, size admission, semantic idempotency and
+Product preview holds. Recovered all six supplied jobs only in disposable copies
+through fresh loopback receivers: all acknowledged, one Controller receipt and
+five Product holds, duplicate recovery skipped. Original evidence hashes and
+outbound bytes remained unchanged; no actual inference/source/paid/email calls.
+Private verification artifacts remain outside source. Production state, failed
+jobs, release selection and services were not modified, recovered or restarted.
