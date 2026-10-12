@@ -31,7 +31,7 @@ def prepare(state, configs):
         with target.open('x') as output: json.dump(content,output,indent=2);output.write('\n')
     token = state/'control-auth'
     if not token.exists():
-        with token.open('x') as output: output.write(secrets.token_urlsafe(48)+'\n')
+        with token.open('x') as output: output.write(secrets.token_hex(32)+'\n')
 
 
 if __name__ == '__main__':

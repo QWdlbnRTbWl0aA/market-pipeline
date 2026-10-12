@@ -21,6 +21,12 @@ Systemd `LoadCredential` exposes Etsy credentials only to the collector and
 OpenAI credentials only to the two analyzer daemons. The analyzer paid adapter
 opens its credential only after admission. Product/controller load neither.
 
+The shared Controller/collector control token is 64 lowercase hexadecimal
+characters, generated from 32 random bytes. Preparation preserves an existing
+token file. A token created with the earlier URL-safe generator must be replaced
+explicitly during deployment with a valid shared token; rerunning preparation
+does not rotate it. Both services must read the same owner-only token file.
+
 Each unit runs independently with restart limits, graceful SIGTERM, restricted
 filesystem writes, no capabilities and `NoNewPrivileges`. No `Requires` or
 `PartOf` joins their failure lifecycles. Model availability and HTTP delivery

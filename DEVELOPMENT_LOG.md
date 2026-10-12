@@ -66,3 +66,16 @@ Rebuilt a fresh publication history so earlier commits cannot expose the removed
 network details. Preserved the old repository privately. Functional verification,
 all-object and archive audit receipts are stored outside source. No collection,
 paid/model-generation, email or running-service changes were required.
+
+## 2026-10-12 — Controller/collector authentication generation fix
+
+User requested a committed and pushed fix for the deployment token format.
+Changed preparation to generate 32 random bytes as 64 lowercase hexadecimal
+characters. Added a regression that failed before the fix and now passes both
+the real Controller sender validation and collector authentication validator,
+using a synthetic transport with no network request. Verified owner-only file
+permissions and retained the existing-token preservation test. All 224 offline
+tests passed. Documented that previously generated incompatible token files
+require explicit deployment rotation; no existing runtime token was changed.
+Secret/environment audits passed; detailed test/audit results remain outside
+source. No services were restarted and no source/paid/model/email calls occurred.

@@ -24,6 +24,31 @@ def free_port():
 
 
 class DeploymentTests(unittest.TestCase):
+    def test_generated_control_token_is_accepted_by_controller_and_collector(self):
+        import io
+        import re
+        for component in ('collector','controller'):
+            sys.path.insert(0,str(ROOT/'services'/component))
+        from etsy_app.control import authentication
+        from pipeline_control.controller import Controller
+        with tempfile.TemporaryDirectory() as temp:
+            state=Path(temp)/'state';configs=Path(temp)/'configs';prepare(state,configs)
+            path=state/'control-auth';token=path.read_text().strip()
+            self.assertTrue(re.fullmatch('[a-f0-9]{64}',token) is not None,
+                            'Generated control token must be 64 lowercase hexadecimal characters')
+            self.assertEqual(path.stat().st_mode & 0o777,0o600)
+            settings=json.loads((configs/'controller.json').read_text())
+            calls=[];identity='e'*64
+            def transport(request,timeout):
+                self.assertEqual(request.full_url,'http://127.0.0.1:8090/api/control/jobs')
+                self.assertTrue(authentication(path,request.get_header('X-pipeline-control')),
+                                'Collector must accept the generated Controller authentication')
+                calls.append(1)
+                return io.BytesIO(json.dumps({'job_id':identity}).encode())
+            controller=Controller(settings,transport=transport)
+            self.assertEqual(controller.send_job({'job_id':identity}),{'job_id':identity})
+            self.assertEqual(len(calls),1)
+
     def test_clean_environment_and_service_credential_separation(self):
         with tempfile.TemporaryDirectory() as temp:
             directory=Path(temp);secret=directory/'etsy.env'
