@@ -15,7 +15,7 @@ def words(text):return re.findall(r'[^\W\d_]{2,}',text.lower(),re.UNICODE)
 
 def build_evidence(dataset, policy):
     records=dataset['records'];queries=dataset['metadata'].get('query_context') or {}
-    query=' '.join(n.get('keywords','') for n in queries.get('niches',[]) if isinstance(n,dict)).strip()
+    query=' '.join(n.get('keywords','') for n in (queries.get('niches') or []) if isinstance(n,dict)).strip()
     terms=set(words(query));flags=[];groups=defaultdict(list);fingerprints=defaultdict(list)
     for row in records:
         title=words(row['title']);content=set(title+words(' '.join(row['tags']))+words(row['description'][:4000]))

@@ -1,5 +1,26 @@
 # Preparation verification — 2026-10-11
 
+## Legacy compatibility correction — 2026-10-12
+
+232 offline tests passed, including eight new analyzer regressions (83 analyzer
+tests total). Synthetic snapshots reproduce the early collector layout with
+48/48/24 rows, no `settings` and missing optional listing fields. The fix recovers
+query intent from saved query niches, records its provenance, and treats a null
+niche list safely. Modern settings and explicit empty lists retain their meaning.
+
+Both analyzer services complete with fake local-model responses and HTTP
+transports; repeat triggers preserve job identity and do not repeat inference or
+delivery. Existing completed and failed job receipts remain unchanged. The
+research recipe version is deliberately unchanged; this correction does not
+authorize or implement failed-job recovery.
+
+Offline intake/normalization/evidence checks on original development copies of
+the three affected snapshots (48/48/24 accepted records) and a newer snapshot
+(six retained records) passed without changing snapshot or DQA hashes. No
+production state was read or modified for these checks. No deployment, restart,
+collection, actual inference, paid API or email requests occurred. Detailed
+verification artifacts remain outside the publication repository.
+
 ## Functional results
 
 218 standard-library tests passed: collector 92, analyzer 75, product 15,

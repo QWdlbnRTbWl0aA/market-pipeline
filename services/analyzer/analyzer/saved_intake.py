@@ -42,8 +42,20 @@ class SavedCollectionIntake:
             raise ValueError('Finalization incomplete: saved DQA must match snapshot DQA')
         records, metadata = etsy_export(snapshot)
         # Project only query context, not arbitrary source configuration.
-        settings = snapshot.get('settings', {})
+        settings = snapshot.get('settings')
+        if settings is None:
+            settings = {}
+        if not isinstance(settings, dict):
+            raise ValueError('Saved settings must be an object or null')
         metadata['query_context'] = {k: settings.get(k) for k in ('niches', 'limit', 'shop_ids', 'search_parameters', 'page_size', 'max_pages', 'exclude_fetched_listings', 'exclude_fetched_shops')}
+        context_sources = None
+        # Early snapshots saved query intent only on each query. An explicit
+        # modern empty list remains authoritative; never invent missing bounds.
+        if metadata['query_context']['niches'] is None:
+            saved_niches = [(i, q['niche']) for i, q in enumerate(snapshot.get('queries', []))
+                            if isinstance(q.get('niche'), dict)]
+            metadata['query_context']['niches'] = [dict(niche) for _, niche in saved_niches]
+            context_sources = {'niches': [f'queries[{i}].niche' for i, _ in saved_niches]}
         metadata['finished_at'] = snapshot['finished_at']
         metadata['artifact_kind'] = snapshot.get('artifact_kind') or ('tracking' if snapshot.get('mode') == 'tracking' else 'discovery')
         metadata['lineage'] = snapshot.get('lineage', {})
@@ -58,9 +70,12 @@ class SavedCollectionIntake:
         # as provenance, but never fetched by this component.
         for row in records:
             row['images'] = row.get('images') or []
-        return IntakeBatch(records, metadata, {'input_path': str(self.directory / 'snapshot.json'),
-                           'input_sha256': hashlib.sha256(body).hexdigest(), 'input_bytes': len(body),
-                           'decoder': 'finalized-saved-collection-v1', 'artifact_directory': str(self.directory)})
+        provenance = {'input_path': str(self.directory / 'snapshot.json'),
+                      'input_sha256': hashlib.sha256(body).hexdigest(), 'input_bytes': len(body),
+                      'decoder': 'finalized-saved-collection-v1', 'artifact_directory': str(self.directory)}
+        if context_sources is not None:
+            provenance['query_context_sources'] = context_sources
+        return IntakeBatch(records, metadata, provenance)
 
 
 _DISCOVERY_CACHE = {}

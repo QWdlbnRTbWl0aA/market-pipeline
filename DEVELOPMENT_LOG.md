@@ -79,3 +79,26 @@ tests passed. Documented that previously generated incompatible token files
 require explicit deployment rotation; no existing runtime token was changed.
 Secret/environment audits passed; detailed test/audit results remain outside
 source. No services were restarted and no source/paid/model/email calls occurred.
+
+## 2026-10-12 — legacy analyzer query-context compatibility
+
+User authorized the compatibility correction, regression tests, commit and push;
+explicitly excluded deployment, production-state changes and failed-job recovery.
+Saved intake now recovers absent/null `settings.niches` from saved
+`queries[*].niche`, retaining the source locations in derived provenance. Modern
+settings, including an explicit empty niche list, remain authoritative. Research
+evidence handles a null niche list defensively. Source hashes and the research
+recipe version remain unchanged so existing job identities are preserved.
+
+The initial regression run reproduced failures before the correction. Eight new
+tests cover the early 48/48/24-row snapshot structures, missing optional listing
+fields, query relevance, null settings/context, authoritative modern settings,
+immutable source bytes and job identity. Both services complete with synthetic
+local responses and delivery transports; repeated triggers perform no duplicate
+inference/delivery, and existing failed jobs remain parked without explicit retry.
+All 232 offline tests passed: collector 92, analyzer 83, product 15, controller
+22 and repository 20. Read-only deterministic checks on the three original saved
+development snapshots and a newer snapshot also passed; original snapshot/DQA
+hashes were unchanged. Detailed test and privacy-audit results remain outside
+source. No production files, jobs or services were changed. No actual inference,
+collection, paid API or email requests were made.
