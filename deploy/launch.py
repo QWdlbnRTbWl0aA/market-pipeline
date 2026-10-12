@@ -8,7 +8,7 @@ import stat
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-SERVICES = ('collector', 'search-refiner', 'market-analyst', 'controller', 'product')
+SERVICES = ('collector', 'search-refiner', 'market-analyst', 'controller', 'product', 'studio')
 
 
 def read_collector_credentials(path):
@@ -69,6 +69,9 @@ def command(service, config, state, port=None, bind='127.0.0.1', credential_dire
     elif service == 'product':
         args = ['-m','product_service','serve','--data',str(state/'product'),'--port',str(port or 8093),
                 '--definition-config',str(config),'--operations-root',str(state/'controller'/'operations')]
+    elif service == 'studio':
+        args = ['-m','studio_service','serve','--config',str(config),'--data',str(state/'studio'),
+                '--host',bind,'--port',str(port or 8096)]
     else: raise ValueError('Unknown service')
     return cwd, [sys.executable, *args, *extra], env
 

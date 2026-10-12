@@ -1,9 +1,9 @@
 # Market pipeline
 
 File-based market research for digital products: collect → analyze → define a
-product brief. This repository is a **pre-deployment candidate**. No production
-deployment is claimed. The product stage produces a studio handoff, not a
-sale-ready product.
+product brief → Studio approval. Installed production releases are separate
+from this source workspace. Product produces a Studio handoff. Studio currently
+uses mock generation and a mock broker; Etsy publishing remains blocked.
 
 One repository contains independently runnable Python services. Python 3.11+
 and its standard library are sufficient for application code and tests. Ollama
@@ -19,7 +19,10 @@ flowchart LR
   R --> Q[Refinement controller]
   Q -->|reviewed bounded experiment| C
   M --> P[Product service]
-  P --> S[Local studio outbox]
+  P --> O[Saved studio brief]
+  O --> S[Studio HTTP intake + human approval]
+  S --> B[Abstract broker · mock]
+  S --> A[Approved artifact + blocked listing handoff]
 ```
 
 ## Components
@@ -31,6 +34,7 @@ flowchart LR
 | Market analyst | Independent saved-file watcher; HTTP output | Evidence-backed product hypotheses, listing content/images and scoped shop history |
 | Controller | Loopback port 8094 | Persist proposals, explicit experiment decisions, tracking cohorts, operations and comparisons |
 | Product | Loopback port 8093 | Consume saved market analysis; persist textual studio briefs and original SVG draft directions |
+| Studio | Dashboard and HTTP intake, port 8096 | Check briefs, persist 10-sketch / 3-professional-sample review loops, compact abandoned work, save final approval; all providers mocked |
 
 The analyzers never load Etsy credentials, call Etsy or modify collector input.
 They run independently; one failing does not suppress the other. Completed work
@@ -67,6 +71,7 @@ python3 deploy/launch.py controller --state /tmp/market-pipeline-state --config 
 python3 deploy/launch.py product --state /tmp/market-pipeline-state --config /tmp/market-pipeline-config/product.json
 python3 deploy/launch.py search-refiner --state /tmp/market-pipeline-state --config /tmp/market-pipeline-config/analyzer.json
 python3 deploy/launch.py market-analyst --state /tmp/market-pipeline-state --config /tmp/market-pipeline-config/analyzer.json
+python3 deploy/launch.py studio --state /tmp/market-pipeline-state --config /tmp/market-pipeline-config/studio.json
 ```
 
 Use separate terminals/process supervisors. Fresh preparation leaves paid
@@ -80,12 +85,13 @@ For migration, daemon installation, activation and rollback see
 [deployment](docs/deployment.md). For policy see [budgets and evidence](docs/policy.md).
 For publication see [GitHub preparation](docs/publication.md).
 Verification results and limitations are recorded in [verification](docs/verification.md).
+For Studio intake, its approval dashboard and mock-provider limits see [Studio](docs/studio.md).
 
 ## Runtime outputs
 
 Deployed state is under `/var/lib/market-pipeline`: `collector/`, `analyzer/`,
-`controller/`, `product/`, `paid-ledger/` and `local-cache/`. Credentials and
-independent analyzer/controller/product JSON settings belong under
+`controller/`, `product/`, `studio/`, `paid-ledger/` and `local-cache/`. Credentials and
+independent analyzer/controller/product/Studio JSON settings belong under
 `/etc/market-pipeline`. The collector's saved daily configuration lives in its
 writable state directory because dashboard saves use atomic replacement.
 

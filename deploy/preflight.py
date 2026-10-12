@@ -22,7 +22,8 @@ if __name__=='__main__':
     validators={'collector':'from etsy_app.core import config; config(sys.argv[1])',
                 'analyzer':'from analyzer.services import load_config; load_config(sys.argv[1])',
                 'controller':'from pipeline_control.controller import config; config(sys.argv[1])',
-                'product':'from product_service.configuration import load; load(sys.argv[1])'}
+                'product':'from product_service.configuration import load; load(sys.argv[1])',
+                'studio':'from studio_service.server import configuration; configuration(sys.argv[1])'}
     for component in validators:
         file=Path(args.state)/'collector'/'config.json' if component=='collector' else Path(args.configs)/(component+'.json')
         valid=False

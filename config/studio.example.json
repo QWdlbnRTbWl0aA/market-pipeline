@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "sketch_provider": "mock",
+  "professional_provider": "mock",
+  "broker_provider": "mock",
+  "listing_provider": "blocked",
+  "allowed_hostnames": []
+}

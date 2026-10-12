@@ -6,7 +6,7 @@ state in `/var/lib/market-pipeline`. Inspect actual runtime state before relying
 on it. Source changes and workspace cleanup do not authorize deployment,
 production-state changes or service restarts.
 Keep the collector, independent search and market analyzers, controller and
-product service independently runnable. Do not create host accounts or change
+product service and Studio independently runnable. Do not create host accounts or change
 host security settings without explicit authorization.
 
 ## Current requirements
@@ -40,7 +40,14 @@ host security settings without explicit authorization.
 - Product writes local textual definitions and original draft directions. It
   does not manufacture or publish sale-ready products. Email requires review of
   the exact final message before its first test send.
-- Deployment account is `market-pipeline`. The five daemons must start, stop,
+- Studio receives saved Product briefs through its HTTP intake, checks missing
+  information, and publishes concise human-facing messages through an abstract
+  broker. Initially all generation and broker providers are mocked. Persist
+  ten-sketch and three-professional-sample human feedback loops, compaction of
+  abandoned interaction as negative context, and explicit expensive-loop consent.
+  Final approval records a blocked listing handoff. Do not wire Etsy publishing
+  until the Studio is finalized; Studio must not load collector credentials.
+- Deployment account is `market-pipeline`. The six daemons must start, stop,
   recover and be deployable independently. Keep credentials and mutable state
   outside source. Prepare OS isolation; do not claim it is enforced until tested
   under the actual designated account/systemd units.

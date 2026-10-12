@@ -8,7 +8,8 @@ SPECS = {
                     ('analyzer','paid-ledger','local-cache'), 'openai.env'),
  'controller': ('controller','/etc/market-pipeline/controller.json',8094,
                  ('controller','paid-ledger'), None),
- 'product': ('product','/etc/market-pipeline/product.json',8093,('product',),None)
+ 'product': ('product','/etc/market-pipeline/product.json',8093,('product',),None),
+ 'studio': ('studio','/etc/market-pipeline/studio.json',8096,('studio',),None)
 }
 
 

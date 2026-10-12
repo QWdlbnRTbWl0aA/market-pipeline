@@ -14,7 +14,7 @@ def prepare(state, configs):
     if state.is_relative_to(ROOT) or configs.is_relative_to(ROOT):
         raise ValueError('Runtime files must remain outside the publication repository')
     os.umask(0o077)
-    for part in ('collector/runs','analyzer','product','controller/operations','controller/cohorts','controller/qualifications','paid-ledger','local-cache'):
+    for part in ('collector/runs','analyzer','product','studio','controller/operations','controller/cohorts','controller/qualifications','paid-ledger','local-cache'):
         (state/part).mkdir(parents=True,exist_ok=True)
     configs.mkdir(parents=True,exist_ok=True)
     def rewrite(value):
@@ -22,7 +22,7 @@ def prepare(state, configs):
         if isinstance(value, dict): return {k:rewrite(v) for k,v in value.items()}
         if isinstance(value, list): return [rewrite(v) for v in value]
         return value
-    for name in ('collector','analyzer','controller','product'):
+    for name in ('collector','analyzer','controller','product','studio'):
         target = state/'collector'/'config.json' if name == 'collector' else configs/(name+'.json')
         # Existing saved settings, cursors, quotas and ledgers are never reset.
         if target.exists(): continue

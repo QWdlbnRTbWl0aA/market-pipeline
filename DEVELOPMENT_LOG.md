@@ -185,3 +185,44 @@ five Product holds, duplicate recovery skipped. Original evidence hashes and
 outbound bytes remained unchanged; no actual inference/source/paid/email calls.
 Private verification artifacts remain outside source. Production state, failed
 jobs, release selection and services were not modified, recovered or restarted.
+
+## 2026-10-12 — preliminary independent Studio
+
+Added the independently runnable Studio, a sixth daemon template, mock-only
+configuration and mobile approval dashboard. HTTP intake normalizes direct and
+saved Product briefs, deterministically requests missing details, and writes
+concise human-facing messages through a mocked broker with durable receipts.
+No model provider or broker infrastructure was selected or installed.
+
+Sufficient briefs queue ten low-resolution original mock SVG layouts. Saved
+accept/reject/comment decisions, current positive references and previous negative
+references accompany later rounds. Start over gzip-archives the full interaction
+with file/content hashes and compacts it into negative context. Professional
+generation requires final size/resolution/format settings and explicit costly-loop
+consent, returns three mock samples, and supports returning to sketches. Final
+approval saves a downloadable SVG/metadata ZIP and an always-blocked listing
+handoff; no Etsy publisher or credential loader exists in Studio.
+
+Added revision admission, intake/action idempotency, browser pending-request
+recovery, concurrent worker locks, durable unknown generation holds and explicit
+retry. Approval reserves its artifact before package writes so storage failure
+recovery keeps its identity. SVG whitelisting, bounded JSON bodies, same-origin
+mutations, Host admission and CSP protect the preliminary trusted-network UI.
+A bounded near-limit upload drain avoids a socket-close race hiding HTTP 413.
+
+Verification: all 287 offline tests passed (collector 92, analyzer 103, Product
+15, Controller 22, Studio 20, repository 35); six local daemons started, stopped
+and restarted independently. Firefox at mobile and desktop sizes passed eleven
+workflow checks, including missing-information delivery, refresh persistence,
+lost-response recovery without duplicate work, both feedback loops, compaction,
+final approval and ZIP download. JavaScript syntax and the Studio systemd unit
+also passed. Private reports, screenshots and generated fixtures stay outside
+source. No application Etsy, paid-model, Ollama or email calls were made.
+
+The separate mock dashboard remains available in development on port 8096 with
+a synthetic example. Production files/services/accounts/firewall were untouched.
+Product's current outbox is unchanged: briefs can be imported or POSTed, but
+automatic production delivery is not activated. The mocks test interaction and
+contracts, not generative quality or print production; provider selection,
+authenticated production UI access and final Studio acceptance precede live
+generation, broker transport and Etsy publishing.

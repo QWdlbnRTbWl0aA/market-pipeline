@@ -8,7 +8,7 @@
 - Writable files: `/var/lib/market-pipeline` with one directory per stage and a
   shared `paid-ledger`/local cache. Collector configuration is
   `/var/lib/market-pipeline/collector/config.json`.
-- Independent settings: `/etc/market-pipeline/{analyzer,controller,product}.json`.
+- Independent settings: `/etc/market-pipeline/{analyzer,controller,product,studio}.json`.
 - Secrets: root-managed owner-only files in `/etc/market-pipeline/credentials`.
   `etsy.env` contains only literal `export ETSY_API_KEY=...` and
   `export ETSY_API_SECRET=...`; `openai.env` contains only
@@ -19,7 +19,7 @@
 Inherited keys, collector environment and proxy variables are discarded.
 Systemd `LoadCredential` exposes Etsy credentials only to the collector and
 OpenAI credentials only to the two analyzer daemons. The analyzer paid adapter
-opens its credential only after admission. Product/controller load neither.
+opens its credential only after admission. Product/controller/Studio load neither.
 
 Collector credential validation uses the kernel's read-access decision and
 descriptor metadata, with no expected UID, GID or exact permission-mode value.
@@ -78,7 +78,7 @@ directories. The account needs no interactive login or sudo privileges.
    phrases, scheduling preference and unlimited result bounds are retained.
 4. Run `python3 deploy/render_units.py --output /temporary/unit-directory`.
    Validate using `systemd-analyze verify /temporary/unit-directory/*.service`.
-   Install the five generated unit files into `/etc/systemd/system` and run
+   Install the generated unit files into `/etc/systemd/system` and run
    `systemctl daemon-reload`. This step requires administrator access.
 5. Run `python3 deploy/preflight.py`. Review all settings/ports and ensure
    `gemma3:4b` is available through local Ollama. Keep paid work disabled until
@@ -87,7 +87,7 @@ directories. The account needs no interactive login or sudo privileges.
    Automatic refinement execution and enhanced product generation also have
    independent settings/review records; they are not silently enabled by install.
 6. Start each `market-pipeline-<service>.service` independently; names are
-   `collector`, `search-refiner`, `market-analyst`, `controller`, `product`.
+   `collector`, `search-refiner`, `market-analyst`, `controller`, `product`, `studio`.
    Check their state/journal and health endpoints. Collector launch defers
    deployment-day catch-up; enabling a future daily schedule should not trigger
    an unintended historical collection. Analyzer cursor floors and migrated
@@ -108,6 +108,12 @@ TLS access in front before public exposure. Controller/product bind loopback;
 mutations reject browser-origin requests. No firewall or host network change is
 performed by these scripts.
 
+Studio is a new optional mock stage; preparing its configuration/state/unit does
+not deploy it or wire Product's existing outbox. Its unit binds loopback on 8096
+and uses no credentials. See [Studio](studio.md) for intake and trusted-network
+dashboard access. Existing deployments can prepare the new files without
+overwriting their previous settings, then activate only Studio after review.
+
 ## Operations and rollback
 
 Analyzer delivery limits, terminal failure events, optional broker relay and
@@ -115,7 +121,7 @@ delivery-only recovery are described in [delivery.md](delivery.md). Recovery
 must use saved output and preserve inference IDs/receipts and paid accounting.
 
 Health: collector `/api/health` on 8090; controller `/health` on 8094; product
-`/health` on 8093. Analyzer heartbeat/cursor files are under
+`/health` on 8093; Studio `/health` on 8096. Analyzer heartbeat/cursor files are under
 `analyzer/lifecycle`. Saved delivery status and controller timeline distinguish
 analysis, delivery, tracking and product failures. Monitor heartbeat freshness,
 parked work, quota waits and budget reservations; `systemctl` alone does not
@@ -129,7 +135,6 @@ Do not run legacy and new watchers concurrently against the same inputs.
 Migration and activation are separate hold points: review migration accounting
 before requests, and account-level isolation before boot enablement.
 
-Prepared units were syntax-validated locally. Their OS security controls have
-not been tested under the designated account because that account and system
-layout are not yet installed. Development process tests do not replace that
-deployment acceptance step.
+Prepared units are syntax-validated locally. Source-workspace process tests do
+not verify OS security controls under the actual designated account. Installed
+production release acceptance and the new Studio deployment are separate checks.

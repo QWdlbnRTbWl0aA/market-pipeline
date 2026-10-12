@@ -86,10 +86,10 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual((state/'control-auth').read_bytes(),token)
             self.assertFalse(json.loads((configs/'analyzer.json').read_text())['paid']['enabled'])
 
-    def test_all_five_daemons_start_stop_and_restart_without_source_or_paid_work(self):
+    def test_all_six_daemons_start_stop_and_restart_without_source_or_paid_work(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);state=root/'state';configs=root/'configs';prepare(state,configs)
-            processes=[];logs=[];ports={name:free_port() for name in ('collector','controller','product')}
+            processes=[];logs=[];ports={name:free_port() for name in ('collector','controller','product','studio')}
             def start(name):
                 config=state/'collector'/'config.json' if name=='collector' else configs/({'search-refiner':'analyzer','market-analyst':'analyzer'}.get(name,name)+'.json')
                 log=(root/(name+'.log')).open('ab');logs.append(log)
