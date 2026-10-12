@@ -13,12 +13,19 @@ SERVICES = ('collector', 'search-refiner', 'market-analyst', 'controller', 'prod
 
 def read_collector_credentials(path):
     path = Path(path)
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    # open() enforces this process's actual access, including service-manager
+    # delivery, groups and ACLs. Ownership is not a credential-delivery contract.
+    # Nonblocking prevents a substituted FIFO from hanging before fstat rejects it.
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     try:
         info = os.fstat(descriptor)
-        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077 or info.st_size > 8192:
-            raise ValueError('Collector credentials require a bounded regular owner-only file')
-        content = os.read(descriptor, 8193).decode('utf-8')
+        unsafe_permissions = stat.S_IWGRP | stat.S_IRWXO
+        if not stat.S_ISREG(info.st_mode) or info.st_mode & unsafe_permissions or info.st_size > 8192:
+            raise ValueError('Collector credentials require a bounded regular file without group-write or other access')
+        body = os.read(descriptor, 8193)
+        if len(body) > 8192:
+            raise ValueError('Collector credential file too large')
+        content = body.decode('utf-8')
     finally:
         os.close(descriptor)
     values = {}

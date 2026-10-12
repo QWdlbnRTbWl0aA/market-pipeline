@@ -21,6 +21,16 @@ Systemd `LoadCredential` exposes Etsy credentials only to the collector and
 OpenAI credentials only to the two analyzer daemons. The analyzer paid adapter
 opens its credential only after admission. Product/controller load neither.
 
+Collector credential validation uses the kernel's read-access decision and
+descriptor metadata, with no expected UID, GID or exact permission-mode value.
+Service-manager-owned, group-readable credential copies are supported. The
+supplied credential directory must be protected by the service manager or
+operator. The loader rejects symlinks, nonregular files, files writable by the
+group, access permissions for others, and content beyond its 8 KiB bound. It
+parses only literal Etsy key/secret assignments and never executes shell text.
+FIFO opens are nonblocking so invalid inputs cannot hang startup. Validation
+does not change ownership/permissions or bypass an actual read-access denial.
+
 The shared Controller/collector control token is 64 lowercase hexadecimal
 characters, generated from 32 random bytes. Preparation preserves an existing
 token file. A token created with the earlier URL-safe generator must be replaced

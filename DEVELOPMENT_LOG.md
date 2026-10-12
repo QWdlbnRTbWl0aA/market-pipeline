@@ -123,3 +123,27 @@ failed during inspection; its credential-validation repair is a subsequent
 assignment. Updated instructions to reflect the user's completed deployment and
 the archived private checkpoints. No collection/inference/paid/email calls were
 made. Archive verification receipts and restore instructions remain private.
+
+## 2026-10-12 — portable Collector credential validation
+
+User reported valid systemd LoadCredential copies rejected by the Collector
+launcher and required a portable correction without host-specific identities,
+paths or observed permission-mode values. The previous check required the file
+owner to equal the process UID and rejected every group permission. Regressions
+for differing manager ownership and group-readable delivery both failed before
+the fix. The loader now relies on kernel read admission, retains descriptor-based
+regular-file/symlink/size checks, permits read-only group access, and rejects
+group-write and access for others using symbolic permission bits. It uses a
+nonblocking open to reject FIFOs without hanging and checks the actual read bound.
+Literal assignment parsing and credential separation remain unchanged.
+
+Nine new offline regressions cover delivery ownership/group readability,
+existing private files, unsafe permissions, symlinks/directories/FIFOs, actual
+access denial, bounded literal parsing, non-disclosure and component separation.
+All 241 tests passed: collector 92, analyzer 83, product 15, controller 22 and
+repository 29. Synthetic metadata models alternate credential ownership; no
+privileged chown, OS account creation, actual systemd activation or real secret
+loading was used in functional tests. Full-object credential/privacy audits
+passed. Reports remain outside source. Production configuration/state, installed
+releases and services were not changed; no collection/inference/paid/email calls
+were made. The source correction still requires a separately authorized deploy.
