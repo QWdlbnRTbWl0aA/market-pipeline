@@ -1,7 +1,10 @@
 # Development instructions
 
-This is the canonical pre-deployment repository. There is no production
-deployment yet. Inspect actual files and runtime state before relying on them.
+This is the canonical source repository. Production is installed separately
+under `/opt/market-pipeline`, with configuration in `/etc/market-pipeline` and
+state in `/var/lib/market-pipeline`. Inspect actual runtime state before relying
+on it. Source changes and workspace cleanup do not authorize deployment,
+production-state changes or service restarts.
 Keep the collector, independent search and market analyzers, controller and
 product service independently runnable. Do not create host accounts or change
 host security settings without explicit authorization.
@@ -40,7 +43,8 @@ host security settings without explicit authorization.
 - GitHub target is `QWdlbnRTbWl0aA/market-pipeline`, one repository. Maintain
   coherent tested commits and concise documentation. No secrets/generated data
   in Git, including unreachable objects. Do not push without explicit approval.
-  Preserve the private legacy repositories and their known-good checkpoints.
+  Preserve the private legacy repositories and their known-good checkpoints,
+  including verified offline archives. Keep archives outside this repository.
 - Publication sanitation includes real machine hostnames, LAN/Tailscale/public
   interface addresses and personal absolute filesystem paths, including tests
   and Git history. Use reserved documentation addresses and example domains in

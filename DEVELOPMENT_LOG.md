@@ -102,3 +102,24 @@ development snapshots and a newer snapshot also passed; original snapshot/DQA
 hashes were unchanged. Detailed test and privacy-audit results remain outside
 source. No production files, jobs or services were changed. No actual inference,
 collection, paid API or email requests were made.
+
+## 2026-10-12 — authorized workspace cleanup
+
+User authorized removal of temporary files and obsolete versions, compaction of
+saved data and reduction of old reports. Kept this GitHub-backed checkout as the
+maintained source. Archived eight private legacy/preparation trees, including
+unpublished Git history and staged changes, raw snapshots/DQA, accounting,
+controller state, historical configurations and reports. Verified SHA256 for all
+29,656 retained files and exact archive coverage, then rechecked sources before
+removing the obsolete working copies. Removed disposable browser profiles and
+Python caches. An indexed private archive and concise cleanup report remain
+outside source; 20 original collection runs have an offline index. Allocated
+workspace usage fell from 3.26 GiB to 0.57 GiB, reclaiming about 2.69 GiB.
+
+Retained a retirement notice and failing legacy launcher at the old collector
+working-directory location because existing shells still use it. No production
+files, services or security settings were changed. The collector was already
+failed during inspection; its credential-validation repair is a subsequent
+assignment. Updated instructions to reflect the user's completed deployment and
+the archived private checkpoints. No collection/inference/paid/email calls were
+made. Archive verification receipts and restore instructions remain private.
