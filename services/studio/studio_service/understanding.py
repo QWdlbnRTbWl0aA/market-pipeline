@@ -70,7 +70,10 @@ def enforce(value, context):
               'subject':r'דמות|ילד|ילדה|subject|boy|girl', 'typography':r'גופן|כיתוב|font|typography',
               'lighting':r'תאורה|lighting','background':r'רקע|background'}
     protected={}
-    for row in context['evidence']:
+    comments=list(context['evidence'])
+    if comments:
+        comments += [{'id':comments[-1]['id'],'comment':c} for c in context.get('whole_set_comments',[])]
+    for row in comments:
         for match in re.finditer(r'(?:לשמור|להשאיר|retain|keep|preserve)\s+(.*?)(?:[.,;]|אך|אבל|\bbut\b|\bnot\b|$)',row['comment'],re.I):
             if re.search(r"(?:לא|don't|do not)\s*$",row['comment'][max(0,match.start()-12):match.start()],re.I):continue
             phrase=match.group(1).strip()

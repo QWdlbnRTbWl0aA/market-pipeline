@@ -42,6 +42,7 @@
     "ledger_root": "/var/lib/market-pipeline/paid-ledger"
   },
   "opportunities": {"enabled": true},
+  "mail": {"enabled": false, "recipients": [], "max_attempts": 5, "retry_seconds": 60},
   "operations_root": "/var/lib/market-pipeline/controller/operations",
   "cohort_root": "/var/lib/market-pipeline/controller/cohorts"
 }

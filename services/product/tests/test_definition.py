@@ -14,6 +14,17 @@ class LocalFixture:
   return {'definition':d,'raw':{'synthetic':True},'provider':'synthetic'}
 
 class DefinitionTests(unittest.TestCase):
+ def test_compact_commercial_summary_preserves_qualification_gates(self):
+  v=self.input();row=v['report']['recommendations'][0]
+  summary={'qualified':True,'hold_reasons':[],'strong_sales_context_shops':2,'positive_listing_history_shops':2,'listing_sales':None,'verified_listing_purchase_demand':False,'shop_examples':[{'shop_id':'4','qualified_group_sales_context':True}]}
+  row['facts']={'shop_count':3,'commercial_assessment':summary}
+  result=qualify(row,v)
+  self.assertEqual(result['status'],'qualified_for_definition_review');self.assertEqual(result['mature_shop_ids'],['4']);self.assertFalse(result['purchase_demand_verified'])
+  for field,value in (('strong_sales_context_shops',1),('positive_listing_history_shops',1),('hold_reasons',['missing history']),('listing_sales',10),('verified_listing_purchase_demand',True)):
+   original=summary[field];summary[field]=value
+   self.assertEqual(qualify(row,v)['status'],'review_pending');summary[field]=original
+  row['high_demand_verified']=True
+  self.assertEqual(qualify(row,v)['status'],'review_pending')
  def test_zero_or_short_shop_counters_cannot_qualify_product(self):
   v=self.input();row=v['report']['recommendations'][0]
   row['facts']={'shop_count':3,'performance_cross_check':{'history_qualification':{'1':{'trend_status':'engagement_proxy_ready','intervals':[{'metrics':{'views':{'change':5}}}]}},'shop_history_qualification':{'4':{'trend_status':'shop_counter_trend_ready','intervals':[{'metrics':{'transaction_sold_count':{'change':0}}}]}},'positive_shop_sales_intervals':0}}

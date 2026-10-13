@@ -219,6 +219,13 @@ def qualify(row, payload, qualification_root=None):
     shop_history = check.get('shop_history_qualification') or {}
     mature_shops = [k for k,v in shop_history.items() if v.get('trend_status')=='shop_counter_trend_ready' and any((d.get('metrics',{}).get('transaction_sold_count',{}).get('change') or 0)>0 for d in v.get('intervals',[]))]
     source_ready=bool(positive) and enough_shops and whole_shop_intervals>0 and bool(mature_shops) and not row.get('high_demand_verified') and not row.get('thin_supply_verified')
+    commercial=facts.get('commercial_assessment') or {}
+    qualified_context=(commercial.get('qualified') is True and not commercial.get('hold_reasons') and
+                       commercial.get('strong_sales_context_shops',0)>=2 and commercial.get('positive_listing_history_shops',0)>=2 and
+                       commercial.get('listing_sales') is None and commercial.get('verified_listing_purchase_demand') is False)
+    source_ready |= qualified_context and enough_shops and not row.get('high_demand_verified') and not row.get('thin_supply_verified')
+    if qualified_context:
+        mature_shops=sorted({s['shop_id'] for s in commercial.get('shop_examples',[]) if s.get('qualified_group_sales_context') is True})
     refined=(payload.get('envelope') or {}).get('experiment_id')
     accepted = False
     if refined and qualification_root and re.fullmatch('[a-f0-9]{64}', refined):
@@ -228,6 +235,8 @@ def qualify(row, payload, qualification_root=None):
             accepted = decision.get('status') == 'accepted' and decision.get('source_run_id') == payload.get('source_run_id') and decision.get('snapshot_sha256') == payload.get('source',{}).get('input_sha256')
     qualified = source_ready and (not refined or accepted)
     return {'status':'qualified_for_definition_review' if qualified else 'review_pending',
+            'commercial_summary_used':qualified_context,
+            'qualification_scope':'Saved deterministic analyzer qualification summary; full identity-matched series stay in analyzer evidence' if qualified_context else 'Saved per-listing/shop series',
             'mature_listing_ids':mature,'positive_engagement_listing_ids':positive,'positive_whole_shop_counter_intervals':whole_shop_intervals,'mature_shop_ids':mature_shops,'shop_counter_scope':'Entire shop; no listing sales attribution','independent_shop_count':facts.get('shop_count'), 'refined_experiment_id':refined,
             'refined_acceptance_required':bool(refined and not accepted),'launch_approved':False,'purchase_demand_verified':False,
             'reasons':[] if qualified else ['Repeated comparable performance/multiple-shop evidence or accepted refined comparison missing'],

@@ -108,3 +108,18 @@ filesystem isolation under that account, then enable the chosen daemons and
 settings. GitHub repository provisioning and explicit push authorization remain
 separate. These are deployment/publication steps, not a two-week waiting period
 or a new daily spending cap.
+
+
+## Studio and automatic-mail batch verification (2026-10-13)
+
+The complete offline suite passed 348 tests. Six mock-provider Firefox mobile
+checks passed, including file upload and simulated clipboard handling. A manual
+Collector query fixture flowed through both analyzers and Product, produced
+exactly two mock SMTP deliveries with byte-identical contract attachments, and
+remained idempotent on repeat triggers. No Studio generation was triggered.
+No paid inference, live collection or external mail occurred.
+
+The documented additive configuration upgrade passed preview/apply checks on
+temporary files, preserving paid settings and configuration modes with backups.
+Optional SMTP systemd units passed static verification. These checks do not claim
+installed production delivery or designated-account isolation was exercised.

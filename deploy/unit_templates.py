@@ -13,7 +13,7 @@ SPECS = {
 }
 
 
-def render(name, user='market-pipeline'):
+def render(name, user='market-pipeline', mail=False):
     service, config, port, writable, credential = SPECS[name]
     args = f'{service} --config {config}'
     if port: args += f' --port {port}'
@@ -33,6 +33,7 @@ def render(name, user='market-pipeline'):
             'ReadWritePaths='+' '.join('/var/lib/market-pipeline/'+p for p in writable),
             'StandardOutput=journal','StandardError=journal']
     if credential: rows.append(f'LoadCredential={credential}:/etc/market-pipeline/credentials/{credential}')
+    if mail and name in ('market-analyst','product'):rows.append('LoadCredential=gmail_smtp.env:/etc/market-pipeline/credentials/gmail_smtp.env')
     if name == 'collector': rows.append('EnvironmentFile=-/etc/market-pipeline/dashboard.env')
     rows += ['', '[Install]','WantedBy=multi-user.target','']
     return '\n'.join(rows)

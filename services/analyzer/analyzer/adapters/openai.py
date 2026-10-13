@@ -19,11 +19,12 @@ def api_key():
     value=os.environ.get('OPENAI_API_KEY')
     if not value:
         path=Path(os.environ.get('PIPELINE_OPENAI_KEY_FILE','/etc/market-pipeline/credentials/openai.env'))
-        descriptor=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
+        if path.name!='openai.env':raise ValueError('Dedicated OpenAI credential file required')
+        descriptor=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
         try:
             info=os.fstat(descriptor)
-            if not stat.S_ISREG(info.st_mode) or info.st_uid!=os.getuid() or info.st_mode&0o077:
-                raise ValueError('OpenAI credential file must be owned by this user, regular and mode 600')
+            if not stat.S_ISREG(info.st_mode) or info.st_mode&(stat.S_IWGRP|stat.S_IRWXO):
+                raise ValueError('OpenAI credentials require a protected readable regular file')
             if info.st_size>8192:raise ValueError('OpenAI credential file too large')
             content=os.read(descriptor,8193).decode('utf-8')
             if len(content.encode())>8192:raise ValueError('OpenAI credential file too large')

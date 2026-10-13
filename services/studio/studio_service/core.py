@@ -77,13 +77,16 @@ class Studio:
                 state = read(path)
                 if state['source_sha256'] != digest(document): raise Conflict('Intake key reused with different brief')
                 return {'project': state, 'duplicate': True}
-            write(directory / 'original-brief.json', document)
+            from .references import save as save_references
+            reference_images=save_references(directory,document.get('reference_images',[]))
+            write(directory / 'original-brief.json', {**document,'reference_images':reference_images})
             state = {'schema_version': 1, 'id': project, 'revision': 0, 'epoch': 1,
                      'title': normalized['concept'] or 'Untitled brief', 'brief': normalized,
                      'source_sha256': digest(document), 'phase': 'needs_information',
                      'created_at': now(), 'updated_at': now(), 'rounds': [], 'archives': [],
                      'negative_summary': {}, 'interaction': [], 'action_receipts': {}, 'final_settings': None,
-                     'missing_information': briefs.missing(normalized), 'providers': getattr(self.sketches,'name','mock'), 'etsy_connected': False}
+                     'missing_information': briefs.missing(normalized), 'providers': getattr(self.sketches,'name','mock'), 'etsy_connected': False,
+                     'reference_images':reference_images}
             if state['missing_information']: self.notify_missing(state)
             else: self.queue(directory, state, 'sketch', 'Initial sufficient brief')
             self.save(directory, state)
@@ -105,7 +108,8 @@ class Studio:
     def queue(self, directory, state, mode, reason, accepted=None, replacement=None, feedback_only=False):
         operation = uuid.uuid4().hex
         request = {'schema_version': 1, 'operation_id': operation, 'project_id': state['id'],
-                   'mode': mode, 'count': 0 if feedback_only else 1 if replacement else 10 if mode == 'sketch' else 3, 'epoch': state['epoch'],
+                   'mode': mode, 'count': 0 if feedback_only else 1 if replacement else 3, 'epoch': state['epoch'],
+                   'reference_images':state.get('reference_images',[]),
                    'replacement': replacement, 'feedback_only': feedback_only, 'feedback_context': aggregate(state),
                    'brief': state['brief'], 'accepted': self.references(state) if accepted is None else accepted,
                    'rejected': self.references(state, False), 'negative_summary': state['negative_summary'],
@@ -177,6 +181,8 @@ class Studio:
         fingerprint = digest({'action': action, 'payload': payload})
         with guard(directory):
             state = read(directory / 'state.json')
+            if 'reference_images' in payload or action=='update_brief' and isinstance(payload.get('brief'),dict) and payload['brief'].get('reference_images'):
+                raise Invalid('Reference images are fixed at original brief intake')
             if key in state['action_receipts']:
                 if state['action_receipts'][key] != fingerprint: raise Conflict('Action key reused with different input')
                 return {'project': state, 'duplicate': True}
@@ -215,9 +221,14 @@ class Studio:
                     if action=='review_sample' and candidate_id not in state['rounds'][-1]['reviews']:raise Invalid('An explicit review is required')
                     if phase=='professional_review' and payload.get('consent_expensive') is not True:raise Invalid('Explicit expensive-loop consent required')
                     self.queue(directory,state,state['rounds'][-1]['mode'],'Immediate sample feedback',replacement=candidate_id)
+                elif action == 'regenerate_batch':
+                    current={c['id'] for c in state['rounds'][-1]['candidates'][:3]}
+                    if set(state['rounds'][-1]['reviews'])!=current:raise Invalid('Mark all three samples before regenerating')
+                    if phase=='professional_review' and payload.get('consent_expensive') is not True:raise Invalid('Explicit expensive-loop consent required')
+                    self.queue(directory,state,state['rounds'][-1]['mode'],'Regenerate three samples from shared batch feedback')
                 elif action == 'next_sketches':
                     if phase != 'sketch_review' or not state['rounds'][-1]['reviews']: raise Invalid('Review at least one sketch')
-                    self.queue(directory, state, 'sketch', 'Compile feedback into ten sketches')
+                    self.queue(directory, state, 'sketch', 'Compile feedback into three sketches')
                 elif action in ('generate_final', 'next_professional'):
                     if payload.get('consent_expensive') is not True: raise Invalid('Explicit expensive-loop consent required')
                     if action == 'generate_final':
@@ -295,6 +306,11 @@ class Studio:
         has_feedback=False
         try:
             context=request.get('feedback_context',{'evidence':[]})
+            reference_file=directory/'reference-understanding.json'
+            if request.get('reference_images') and hasattr(self.understanding,'analyze_brief'):
+                reference_understanding=read(reference_file) if reference_file.exists() else self.understanding.analyze_brief(request)
+                if not reference_file.exists():write(reference_file,reference_understanding)
+                context['reference_understanding']=reference_understanding
             has_feedback=bool(context['evidence'] or context.get('whole_set_comments'))
             if has_feedback:
                 log=directory/'reasoning-log'/f"{request['operation_id']}.json"
@@ -307,6 +323,11 @@ class Studio:
                 with guard(directory):
                     state=read(directory/'state.json')
                     if state['active_operation']==request['operation_id']:state['understanding']=explanation;self.save(directory,state)
+            elif request.get('reference_images') and reference_file.exists():
+                request['understanding']=read(reference_file)
+            from .prompting import compose
+            request['optimized_prompt']=compose(request)
+            write(folder/'optimized-prompt.json',{'prompt':request['optimized_prompt'],'feedback_sha256':digest(context)})
             if request.get('feedback_only'):
                 with guard(directory):
                     state=read(directory/'state.json')

@@ -49,13 +49,13 @@ class Workflow(unittest.TestCase):
         self.assertIn('למי מיועד המוצר?',event['message']);self.assertEqual(event['brief']['concept'],'Planner')
         self.studio.tick();self.assertEqual(len(list(message.parent.glob('*.json'))),1)
         self.assertEqual(self.state()['notification']['delivery']['status'],'recorded')
-        self.act('update_brief',brief=BRIEF);self.studio.tick();self.assertEqual(len(self.state()['rounds'][-1]['candidates']),10)
+        self.act('update_brief',brief=BRIEF);self.studio.tick();self.assertEqual(len(self.state()['rounds'][-1]['candidates']),3)
 
     def test_sketch_round_carries_accepted_comments_and_rejected_references(self):
-        state=self.create();self.assertEqual(len(state['rounds'][0]['candidates']),10)
+        state=self.create();self.assertEqual(len(state['rounds'][0]['candidates']),3)
         reviews=self.accept();rejected=state['rounds'][0]['candidates'][1]['id'];reviews[rejected]={'decision':'reject','comment':'Too crowded'}
         self.act('next_sketches',reviews=reviews,comments='More breathing room');self.studio.tick()
-        request=self.generator.requests[-1];self.assertEqual(request['count'],10)
+        request=self.generator.requests[-1];self.assertEqual(request['count'],3)
         self.assertEqual(request['accepted'][0]['review']['comment'],'Keep the writing space')
         self.assertEqual(request['rejected'][0]['id'],rejected);self.assertEqual(request['last_feedback'],'More breathing room')
         self.assertTrue((self.studio.directory(self.project)/request['accepted'][0]['file']).exists())
@@ -146,7 +146,7 @@ class Workflow(unittest.TestCase):
     def test_all_rejected_samples_can_iterate_and_invalid_comments_fail(self):
         self.create();reviews={c['id']:{'decision':'reject'} for c in self.state()['rounds'][-1]['candidates']}
         self.act('next_sketches',reviews=reviews);self.studio.tick()
-        self.assertEqual(len(self.generator.requests[-1]['rejected']),10)
+        self.assertEqual(len(self.generator.requests[-1]['rejected']),3)
         with self.assertRaises(Invalid):self.act('save_feedback',reviews={self.state()['rounds'][-1]['candidates'][0]['id']:{'decision':'accept_with_comments'}})
 
     def test_interrupted_generation_never_automatically_repeats(self):

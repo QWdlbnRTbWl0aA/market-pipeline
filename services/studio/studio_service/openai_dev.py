@@ -90,8 +90,10 @@ class OpenAIDev:
         if len(encoded)>65_000 or len(images)>10:raise Invalid('Development context exceeds bound')
         content=[{'type':'input_text','text':encoded.decode()}]
         for index,image in enumerate(images):
+            from .references import thumbnail
+            image,unused=thumbnail(image)
             content.append({'type':'input_text','text':f'Input image {index+1} of {len(images)}: one concept board; return one observation for this entire image, not one per panel.'})
-            content.append({'type':'input_image','image_url':'data:image/png;base64,'+base64.b64encode(image).decode(),'detail':'low'})
+            content.append({'type':'input_image','image_url':'data:image/jpeg;base64,'+base64.b64encode(image).decode(),'detail':'low'})
         payload={'model':TEXT_MODEL,'instructions':SYSTEM,'input':[{'role':'user','content':content}],
                  'max_output_tokens':2400,'store':False,'text':{'format':{'type':'json_schema','name':'studio','strict':True,'schema':schema}}}
         # Byte-per-token text bound + framing; 4096 tokens per <=1024 square
@@ -105,9 +107,24 @@ class OpenAIDev:
     def analyze(self, context, identity, project):
         return validate(self.text(context,SCHEMA,identity,project),context['evidence'])
 
+    def analyze_brief(self,request):
+        from .storage import identity
+        images=[]
+        for row in request['reference_images']:
+            if not __import__('re').fullmatch(r'references/reference-[1-3]\.jpg',row['file']):raise Invalid('Invalid saved reference')
+            path=self.root/'projects'/identity(request['project_id'])/row['file']
+            if path.is_symlink():raise Invalid('Reference symlinks forbidden')
+            body=path.read_bytes()
+            if __import__('hashlib').sha256(body).hexdigest()!=row['sha256']:raise Invalid('Reference changed')
+            images.append(body)
+        result=self.text({'brief':request['brief'],'task':'Interpret these small user-supplied style references to optimize an original image-generation direction. Return no evidence-linked preferences because there is no reviewed sample evidence yet; distinguish observed traits from suggestions.'},SCHEMA,request['operation_id']+'-brief-references',request['project_id'],images)
+        return validate(result,[])
+
     def generate(self, request):
+        try:import PIL
+        except ImportError:raise Invalid('OpenAI draft generation requires Pillow for bounded image input') from None
         count=request['count']
-        prompt=canonical({'brief':request['brief'],'understanding':request.get('understanding'),
+        prompt=request.get('optimized_prompt') or canonical({'brief':request['brief'],'understanding':request.get('understanding'),
             'explicit_review_comments':[{'sample_id':r['id'],'decision':r['decision'],'comment':r['comment']} for r in request.get('feedback_context',{}).get('evidence',[])[-12:] if r['comment']],
             'last_feedback':request['last_feedback'],'negative_context':request['negative_summary'],'production_settings':request.get('settings'),
             'instruction':'Create one original concept-board preview for the entire requested product bundle, with separate balanced panels for its deliverables. No frames, no watermark, no invented text. Honor subject and requested style. Vary composition tastefully across samples. This is a draft.'}).decode()

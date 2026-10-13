@@ -32,15 +32,16 @@ failure does not trigger generation or discard the request; automatic broker
 attempts are bounded at three. Messages are visible in the project details.
 
 The Hebrew RTL dashboard uses soft colours and collapsed secondary detail.
-Each sample has three buttons physically on its left: reject, accept and add
-comments. Comments expand beside the image and never cover it. Accept plus
-nonempty text becomes accept-with-comments. Every decision queues analysis and
-one replacement; the other samples/DOM remain visible. Clicking the image alone
-explores a replacement without falsely recording rejection. A per-sample spinner
-remains until asynchronous completion; no page refresh is required. Accepted work
-is retained in a separate strip, including samples replaced from the active grid.
+Each of three samples has like/dislike buttons physically on its left. One comment
+area applies to the entire batch. Mark all three, then submit for regeneration;
+local votes do not make provider requests. A shared spinner covers asynchronous
+understanding/generation. Accepted/rejected history stays available; Studio compiles
+the generator prompt from the complete feedback rather than forwarding raw comments
+alone. The professional loop also presents three samples with explicit expensive
+consent. Legacy single-sample API actions remain for saved-client compatibility,
+but are not exposed in the current UI.
 
-Sufficient briefs initially queue ten sketches (default 320×420 mock SVGs;
+Sufficient briefs initially queue three sketches (default 320×420 mock SVGs;
 development OpenAI supplies low-quality 1024×1024 PNG concept boards). Iteration
 uses unique historical accepted/rejected samples and comments, not repeated votes
 from cloned frames. Attribute contrasts and actual visual observations inform
@@ -65,7 +66,7 @@ Generate final product requires an accepted sketch, explicit expensive-loop
 consent, dimensions, units, DPI, colour, format and bleed settings. The mock
 professional generator returns exactly three samples. Further professional
 rounds require consent again; the dashboard warns about the expensive loop and
-offers return to ten sketches. Settings are metadata plus SVG dimensions;
+offers return to three sketches. Settings are metadata plus SVG dimensions;
 professional print preparation/bleed rendering is not implemented by the mock.
 SVG and PNG target settings are supported. Pixel dimensions are bounded to
 64–8192. OpenAI development always returns draft PNG boards at 1024×1024;
@@ -76,6 +77,27 @@ Final approval requires choosing an accepted professional sample. It saves
 `listing-handoff.json`. Approval is immutable. The listing handoff always has
 `blocked_not_wired` / `etsy_api_called: false`. There is no Etsy client, credential
 loader or selectable real Etsy publisher. Development artifacts are not sale-ready.
+
+## Brief reference images and optimized prompts
+
+At original brief intake, `reference_images` can contain up to three PNG/JPEG/WebP
+data URLs. The Hebrew UI supports file upload and clipboard image-file paste. It
+resizes before upload; the backend independently verifies still-image type,
+20-million-pixel/2MB input bounds, strips EXIF/comments/metadata, and saves JPEGs
+with longest edge at most 512px and at most 80KB each. Remote URLs and animated
+images are refused. References are fixed for the project; subsequent feedback or
+brief updates cannot replace them. Create a new project for different examples.
+Old ten-sample rounds remain intact; the UI shows three and new batches have three.
+
+Pillow is required for reference processing and development image observation;
+no tool automatically installs it. It is available system-wide on the tested host.
+Mock operation without references remains standard-library-only. OpenAI receives
+small low-detail thumbnails for interpretation; the image generator receives the
+Studio's optimized textual direction. Reference interpretation is cached once per
+project and reused in subsequent batches. Generated previews are also downsized
+before paid visual observation. `optimized-prompt.json` preserves the actual prompt
+and feedback fingerprint; development preference logs contain observable evidence,
+not private chain-of-thought. No additional provider is selected for production.
 
 ## Persistence and provider boundaries
 
@@ -156,7 +178,7 @@ global charged/reserved total, remaining budget and unknown outcomes after updat
 The synthetic [Hanukkah Product handoff](../examples/studio-hanukkah-brief.example.json)
 defines five printable watercolor wall pictures: menorah, dreidels, doughnuts,
 oil jug/olive branch and a holiday composition. It is testing data, not market
-evidence. The initial ten boards preview whole bundles; separate print files
+evidence. The initial three boards preview whole bundles; separate print files
 are a future production output, not something the draft adapter claims to create.
 
 ## API actions

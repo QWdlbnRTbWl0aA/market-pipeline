@@ -1,4 +1,5 @@
 import base64
+import importlib.util
 import io
 import json
 from pathlib import Path
@@ -59,6 +60,7 @@ class Development(unittest.TestCase):
         with self.assertRaises(BudgetBlocked):adapter.text({}, {},'request','product')
         self.assertEqual(len(calls),1)
         for file in self.root.rglob('*.json'):self.assertNotIn('Bearer fixture',file.read_text())
+    @unittest.skipUnless(importlib.util.find_spec('PIL'),'Optional Pillow runtime unavailable')
     def test_real_adapter_image_and_visual_observation_contract_offline(self):
         calls=[]
         def transport(req,timeout):
@@ -83,6 +85,7 @@ class Development(unittest.TestCase):
         result=validate(LocalUnderstanding().analyze(context,'test',project),context['evidence'])
         self.assertEqual(result['preferences'][0]['prefer'],'boy');self.assertEqual(result['preferences'][0]['avoid'],'girl')
         self.assertEqual([p['aspect'] for p in result['preferences']],['subject'])
+    @unittest.skipUnless(importlib.util.find_spec('PIL'),'Optional Pillow runtime unavailable')
     def test_failed_observation_recovery_reuses_paid_images(self):
         images=[];observations=[]
         def transport(req,timeout):
@@ -112,7 +115,7 @@ class Development(unittest.TestCase):
         studio=Studio(self.root,development=True);project=studio.create(BRIEF,'intake')['project']['id'];studio.tick();state=studio.get(project)
         ids=[c['id'] for c in state['rounds'][-1]['candidates']]
         studio.command(project,'review_sample',{'revision':state['revision'],'candidate_id':ids[0],'reviews':{ids[0]:{'decision':'accept_with_comments','comment':'Use a boy, keep blue'}}},'review');studio.tick();state=studio.get(project)
-        self.assertEqual(len(state['rounds'][-1]['candidates']),10);self.assertEqual([c['id'] for c in state['rounds'][-1]['candidates']][1:],ids[1:])
+        self.assertEqual(len(state['rounds'][-1]['candidates']),3);self.assertEqual([c['id'] for c in state['rounds'][-1]['candidates']][1:],ids[1:])
         self.assertEqual(state['accepted_samples'][0]['id'],ids[0]);self.assertEqual(len(list((studio.directory(project)/'reasoning-log').glob('*.json'))),1)
         self.assertIn('understanding',state)
     def test_replace_without_decision_is_not_a_rejection(self):
@@ -125,7 +128,7 @@ class Development(unittest.TestCase):
         studio=Studio(self.root,understanding=adapter,development=True);project=studio.create(BRIEF,'intake')['project']['id'];studio.tick();state=studio.get(project)
         adapter.budget.reserve('spent','other',1_000_000,'fixture');adapter.budget.settle('spent',1_000_000,{})
         chosen=state['rounds'][-1]['candidates'][0]['id'];studio.command(project,'review_sample',{'revision':state['revision'],'candidate_id':chosen,'reviews':{chosen:{'decision':'reject','comment':'Change palette'}}},'review');studio.tick();state=studio.get(project)
-        self.assertEqual(state['phase'],'generation_failed');self.assertEqual(state['rounds'][-1]['reviews'][chosen]['decision'],'reject');self.assertEqual(len(state['rounds'][-1]['candidates']),10)
+        self.assertEqual(state['phase'],'generation_failed');self.assertEqual(state['rounds'][-1]['reviews'][chosen]['decision'],'reject');self.assertEqual(len(state['rounds'][-1]['candidates']),3)
         log=next((studio.directory(project)/'reasoning-log').glob('*.json'));self.assertEqual(read(log)['status'],'failed')
     def test_openai_config_requires_development_and_key_loader_does_not_source_shell(self):
         path=self.root/'config.json';write(path,{**DEFAULT,'sketch_provider':'openai_dev'})

@@ -53,68 +53,63 @@ def run(url, driver, output):
     try:
         with opener.open(url.rstrip('/')+'/health',timeout=3) as response:
             assert json.load(response)['providers']=='mock', 'Browser smoke requires an offline mock server'
-        http('POST',base+'/window/rect',{'width':390,'height':844})
-        http('POST',base+'/url',{'url':url})
-        wait("document.querySelector('#brief-form') !== null")
-        wait("document.querySelector('#new-project') !== null");time.sleep(.3);click('#new-project')
+        http('POST',base+'/window/rect',{'width':390,'height':844});http('POST',base+'/url',{'url':url})
+        wait("document.querySelector('#brief-form') !== null");click('#new-project')
         assert js("return document.documentElement.lang === 'he' && document.documentElement.dir === 'rtl'")
-        fill('[name=concept]','בדיקת חנוכה '+str(time.time_ns()));click('#brief-form button[type=submit]')
-        wait("!document.querySelector('#missing').hidden")
-        click('#edit-brief')
+        fill('[name=concept]','בדיקת חנוכה')
         for name,value in {'audience':'משפחות','purpose':'לקשט בית לחנוכה','deliverables':'חנוכייה\nסביבונים\nסופגניות\nכד שמן\nנרות','visual_direction':'אקוורל ידני רך'}.items():fill('[name='+name+']',value)
+        js("""const canvas=document.createElement('canvas');canvas.width=900;canvas.height=600;
+        const context=canvas.getContext('2d');context.fillStyle='blue';context.fillRect(0,0,900,600);
+        const bytes=Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0));
+        const transfer=new DataTransfer();transfer.items.add(new File([bytes],'reference.png',{type:'image/png'}));
+        document.querySelector('#reference-paste').onpaste({clipboardData:transfer,preventDefault:()=>{}});""")
+        wait("document.querySelectorAll('#reference-previews img').length === 1")
+        data=js("const canvas=document.createElement('canvas');canvas.width=750;canvas.height=500;return canvas.toDataURL('image/png').split(',')[1]")
+        reference=output/'upload-fixture.png';reference.write_bytes(base64.b64decode(data))
+        element=http('POST',base+'/element',{'using':'css selector','value':'#reference-files'})['element-6066-11e4-a52e-4f735466cecf']
+        http('POST',base+'/element/'+element+'/value',{'text':str(reference),'value':list(str(reference))})
+        wait("document.querySelectorAll('#reference-previews img').length === 2")
+        checks.append('Simulated clipboard input and real file upload are resized before intake')
         click('#brief-form button[type=submit]');ready()
-        wait("document.querySelectorAll('.sample').length === 10")
-        checks.append('Hebrew RTL intake and 10 sketches')
-        assert js("return document.querySelectorAll('.sample select').length === 0")
-        assert js("return [...document.querySelectorAll('.comment-panel')].every(p=>p.hidden)")
+        wait("document.querySelectorAll('.sample').length === 3")
+        saved=state();assert saved['reference_images'][0]['width']<=512 and saved['reference_images'][0]['bytes']<=80000
+        checks.append('Hebrew RTL intake, fixed compressed reference and three sketches')
+        assert js("return document.querySelectorAll('.candidate-comment').length === 0")
+        assert js("return document.querySelectorAll('#batch-comments').length === 1")
         assert js("return document.querySelector('.controls').getBoundingClientRect().right <= document.querySelector('.visual').getBoundingClientRect().left")
-        checks.append('Three buttons physically left of sample; comments initially hidden')
-        click('.sample .comment')
-        assert js("return !document.querySelector('.comment-panel').hidden")
-        assert js("return document.querySelector('.candidate-comment').getBoundingClientRect().right <= document.querySelector('.visual').getBoundingClientRect().left")
-        fill('.candidate-comment','לשמור את הצבע הכחול ולהגדיל את הרווחים')
-        js("window.unchangedSample=document.querySelectorAll('.sample')[1];document.querySelector('#samples').scrollIntoView({block:'start'})")
-        old=state()['rounds'][-1]['candidates'][0]['id']
-        capture('01-hebrew-comment-mobile');click('.sample .accept')
-        wait("!document.querySelector('.sample .loading').hidden")
-        capture('02-feedback-spinner-mobile')
-        wait("document.querySelector('.sample').dataset.candidate !== "+json.dumps(old));ready()
-        assert js("return document.querySelectorAll('.sample')[1] === window.unchangedSample")
-        saved=state()
-        assert saved['accepted_samples'][0]['review']['decision']=='accept_with_comments'
-        checks.append('Accept with text -> accept_with_comments, spinner, single replacement, other DOM samples preserved')
-        assert len(saved['rounds'][-1]['candidates'])==10
-        old=saved['rounds'][-1]['candidates'][0]['id']
-        click('.sample .reject');wait("document.querySelector('.sample').dataset.candidate !== "+json.dumps(old));ready()
-        assert any(r['reviews'].get(old,{}).get('decision')=='reject' for r in state()['rounds'])
-        checks.append('Reject triggers immediate replacement and preserves negative evidence')
-        old=state()['rounds'][-1]['candidates'][0]['id'];click('.sample img')
-        wait("document.querySelector('.sample').dataset.candidate !== "+json.dumps(old));ready()
-        assert all(old not in r['reviews'] for r in state()['rounds'])
-        checks.append('Sample click replaces without falsely recording rejection')
+        revision=saved['revision'];click('#samples .sample:nth-child(1) .accept')
+        assert js("return document.querySelector('#regenerate').disabled")
+        assert state()['revision']==revision
+        click('#samples .sample:nth-child(2) .reject');click('#samples .sample:nth-child(3) .accept')
+        fill('#batch-comments','לשמור את הצבע הכחול ולהגדיל את הרווחים')
+        checks.append('All three like/dislike decisions plus one shared comment before submission')
+        old=state()['rounds'][-1]['id'];click('#regenerate')
+        wait("!document.querySelector('#generation').hidden")
+        capture('01-batch-spinner-mobile')
+        wait("document.querySelector('.sample').dataset.candidate !== "+json.dumps(saved['rounds'][-1]['candidates'][0]['id']));ready()
+        assert len(state()['rounds'][-1]['candidates'])==3
+        assert len(state()['rounds'][-2]['reviews'])==3
+        assert state()['rounds'][-2]['comments']=='לשמור את הצבע הכחול ולהגדיל את הרווחים'
+        checks.append('Whole batch regenerates three previews; shared feedback and accepted history persist')
         http('POST',base+'/refresh',{});wait("document.querySelector('#projects button') !== null");click('#projects button');ready()
         assert state()['accepted_samples']
-        checks.append('Refresh preserves accepted history')
         js("document.querySelector('.extra').open=true");click('#reasoning')
         wait("!document.querySelector('#reasoning-log').hidden && document.querySelector('#reasoning-log').textContent.length > 0")
-        checks.append('Development understanding log and spending display')
         assert js("return document.documentElement.scrollWidth <= window.innerWidth")
-        js("document.querySelector('#samples').scrollIntoView({block:'start'})");capture('03-sketch-mobile')
-        http('POST',base+'/window/rect',{'width':1440,'height':1000});capture('04-sketch-desktop')
+        capture('02-three-sketch-mobile')
+        checks.append('Refresh, development understanding log and mobile width')
         click('#final');click('#consent');click('#settings-form button[type=submit]')
         wait("document.querySelectorAll('.sample').length === 3 && !document.querySelector('#expensive').hidden");ready()
-        checks.append('Final settings, expensive warning and three professional samples')
-        old=state()['rounds'][-1]['candidates'][0]['id'];click('.sample .accept');alert()
-        wait("document.querySelector('.sample').dataset.candidate !== "+json.dumps(old));ready()
-        click('#accepted-samples button:last-child');click('#approve');alert()
-        wait("!document.querySelector('#approved').hidden")
+        click('#samples .sample:nth-child(1) .accept');click('#samples .sample:nth-child(2) .reject');click('#samples .sample:nth-child(3) .reject')
+        click('#approve');wait("!document.querySelector('#approved').hidden")
         download=js("return document.querySelector('#download').href")
         with opener.open(download,timeout=3) as response:(output/'approved-product.zip').write_bytes(response.read())
         assert state()['listing']['etsy_api_called'] is False
-        checks.append('Approve historical accepted professional sample, download and Etsy block')
+        checks.append('Professional three-sample loop, final approval, download and Etsy block')
         report={'passed':True,'checks':checks,'providers':'mock','etsy_calls':0,'paid_calls':0}
         (output/'browser-results.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
     except Exception:
+        (output/'ui-error.json').write_text(json.dumps({'message':js("return document.querySelector('#message').textContent"),'reference_previews':js("return document.querySelectorAll('#reference-previews img').length")}))
         capture('failure');raise
     finally:http('DELETE',base)
 

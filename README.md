@@ -7,7 +7,9 @@ defaults to mock generation and broker. An explicit development-only OpenAI
 adapter has a persistent $1 total envelope; Etsy publishing remains blocked.
 
 One repository contains independently runnable Python services. Python 3.11+
-and its standard library are sufficient for application code and tests. Ollama
+and its standard library support the core services. Studio reference images and
+OpenAI image observation additionally require Pillow (optional; verified by preflight).
+Ollama
 with `gemma3:4b` is needed for actual local inference. OpenAI is optional and
 subject to a shared persisted budget. No database or Node dependency is needed.
 
@@ -20,8 +22,10 @@ flowchart LR
   R --> Q[Refinement controller]
   Q -->|reviewed bounded experiment| C
   M --> P[Product service]
+  M --> ME[Analyzer email: readable report + exact analysis JSON]
   P --> O[Saved studio brief]
-  O --> S[Studio HTTP intake + human approval]
+  P --> PE[Product email: full exact Studio briefs]
+  O -.->|separate manual intake| S[Studio HTTP intake + human approval]
   S --> B[Abstract broker · mock]
   S --> A[Approved artifact + blocked listing handoff]
 ```
@@ -35,14 +39,16 @@ flowchart LR
 | Market analyst | Independent saved-file watcher; HTTP output | Evidence-backed product hypotheses, listing content/images and scoped shop history |
 | Controller | Loopback port 8094 | Persist proposals, explicit experiment decisions, tracking cohorts, operations and comparisons |
 | Product | Loopback port 8093 | Consume saved market analysis; persist textual studio briefs and original SVG draft directions |
-| Studio | Hebrew dashboard and HTTP intake, port 8096 | Aggregate visual feedback, replace individual sketches, persist 10/3-sample review loops, compact abandoned work; mock defaults and optional $1 OpenAI development mode |
+| Studio | Hebrew dashboard and HTTP intake, port 8096 | Three-sample batch feedback, compressed brief references, Studio-owned generator prompts, persistent sketch/professional loops; mock defaults and optional $1 development mode |
 
 The analyzers never load Etsy credentials, call Etsy or modify collector input.
 They run independently; one failing does not suppress the other. Completed work
 is identified semantically and retained across budget/configuration changes.
 HTTP delivery is persisted before acknowledgment and retried without repeating
-completed inference. Email requires review of the exact final message before
-sending and is outside automatic daemon delivery.
+completed inference. Configured Analyzer/Product mail runs automatically through
+separate durable SMTP outboxes: one message per stage and collection. Delivery
+failure never repeats inference. The older manually prepared mail CLI retains
+its exact-message review requirement.
 
 Collection saves original source responses separately from versioned derived
 views. Shop sales are shop-wide counters; favorites/views are listing metrics.
@@ -92,6 +98,57 @@ For migration, daemon installation, activation and rollback see
 For publication see [GitHub preparation](docs/publication.md).
 Verification results and limitations are recorded in [verification](docs/verification.md).
 For Studio intake, its approval dashboard and mock-provider limits see [Studio](docs/studio.md).
+
+## Upgrade an existing deployment and enable the two-email chain
+
+Pulling code alone preserves existing JSON settings and units. The saved-result
+watchers and HTTP Analyzer→Product endpoints remain compatible, but automatic
+email requires SMTP configuration, explicit enablement and updated units.
+`deploy/prepare.py` deliberately does **not** overwrite installed settings.
+
+1. Stage the new committed release and run `python3 tools/test.py`. Keep runtime
+   state, completed receipts, quota history and paid ledgers intact.
+2. Provision `/etc/market-pipeline/credentials/gmail_smtp.env` outside Git with
+   literal `SMTP_HOST`, `SMTP_PORT`, `SMTP_TLS`, `SMTP_USER`, `SMTP_FROM`,
+   `SMTP_PASSWORD` and `SMTP_TO` exports. Gmail supports an app password with
+   `smtp.gmail.com`, TLS `ssl`/465 or `starttls`/587. `SMTP_TO` accepts a quoted
+   comma-separated recipient list. See [automatic mail](docs/mail.md).
+3. Preview, then apply the additive configuration upgrade as the administrator:
+
+   ```sh
+   sudo python3 deploy/upgrade_config.py --configs /etc/market-pipeline --enable-mail
+   sudo python3 deploy/upgrade_config.py --configs /etc/market-pipeline --enable-mail --apply
+   ```
+
+   This enables `mail` in Analyzer and Product, adds missing opportunity settings
+   and upgrades the old 2,400-token ceiling to 4,000. It preserves model choices,
+   paid enablement/budget/ledger paths, Product promotion review and all state.
+   Backups remain beside the settings; existing ownership and permissions survive
+   atomic replacement. An optional `--recipients team@example.com` overrides
+   `SMTP_TO`. No request or daemon restart is made by this helper.
+4. Render/install updated units with SMTP credentials exposed to Market Analyst
+   and Product only:
+
+   ```sh
+   python3 deploy/render_units.py --with-mail --output /tmp/market-pipeline-units
+   systemd-analyze verify /tmp/market-pipeline-units/*.service
+   ```
+
+   Follow the [deployment procedure](docs/deployment.md) to install these units,
+   select the staged release, run preflight and restart the affected daemons.
+   SMTP provisioning must precede starting units rendered with `--with-mail`.
+   The collector and both analyzer daemons plus Product/Controller run independently.
+5. Trigger a **new manual query** in `/v1`. A successful finalized collection feeds
+   both analyzers; Market Insights delivers to Product. Expect one Analyzer email
+   with its exact Product-bound JSON and readable report, then one Product email
+   with full Studio-ready specifications and exact JSON attachments. If evidence
+   is insufficient or analysis is held, messages explain the gap instead of
+   inventing opportunities/briefs. No Studio generation is triggered automatically.
+
+Mail activation does not flood older completed collections. Unknown/failed mail
+is durable and can be recovered without collecting or inferring again. Paid
+analysis still needs its independently supplied OpenAI credential and sufficient
+preserved allowance; enabling mail does not enable paid inference or replenish it.
 
 ## Runtime outputs
 

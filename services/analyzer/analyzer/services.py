@@ -24,12 +24,14 @@ def load_config(path):
         raise ValueError('Only independent JSON configuration files allowed; env files forbidden')
     config = json.loads(config_path.read_text())
     reject_secrets(config)
-    allowed = {'saved_runs_root', 'output_root', 'model', 'model_digest', 'ollama_url', 'sample_size', 'poll_seconds', 'endpoints', 'research', 'paid', 'email_config', 'operations_root', 'cohort_root', 'delivery', 'opportunities'}
+    allowed = {'saved_runs_root', 'output_root', 'model', 'model_digest', 'ollama_url', 'sample_size', 'poll_seconds', 'endpoints', 'research', 'paid', 'email_config', 'operations_root', 'cohort_root', 'delivery', 'opportunities', 'mail'}
     if not isinstance(config, dict) or set(config) - allowed:
         raise ValueError('Independent analyzer configuration has unknown fields')
     if set(config.get('endpoints', {})) != set(SERVICES):
         raise ValueError('Both independent HTTP endpoints required')
     config['delivery'] = delivery_policy(config.get('delivery'))
+    from pipeline_mail import policy as mail_policy
+    config['mail']=mail_policy(config.get('mail'))
     config.setdefault('sample_size', 8)
     config.setdefault('poll_seconds', 30)
     config.setdefault('model', 'gemma3:4b')
@@ -155,6 +157,9 @@ def run_service(service, intake, model, config, retry_failed=False, transport=No
 
 def run_cycle(config, run_id, models=None, retry_failed=False, transport=None, service_names=SERVICES):
     assert_clean_environment()
+    if config.get('mail',{}).get('enabled'):
+        from .automatic_mail import activate
+        activate(config)
     results = []
     for service in service_names:
         if service not in SERVICES:
@@ -178,6 +183,11 @@ def run_cycle(config, run_id, models=None, retry_failed=False, transport=None, s
                       'error': {'type': type(error).__name__, 'message': str(error)}}
             results.append(result)
     for result in results:
+        if result.get('service')=='market_insights' and result.get('directory') and config.get('mail',{}).get('enabled'):
+            try:
+                from .automatic_mail import prepare as prepare_mail
+                prepare_mail(result['directory'],config)
+            except Exception as error:write_json(Path(result['directory'])/'automatic-mail-error.json',{'error_type':type(error).__name__,'analysis_unaffected':True})
         if result.get('service')=='market_insights' and result.get('analysis_status')=='completed' and config.get('email_config'):
             directory=Path(result['directory'])
             try:
@@ -263,6 +273,11 @@ def main():
             for service in selected:
                 heartbeat(config['output_root'], service, status='idle')
         publish_failure_events(config)
+        if 'market_insights' in selected and config.get('mail',{}).get('enabled'):
+            try:
+                from .automatic_mail import deliver as deliver_mail
+                deliver_mail(config)
+            except Exception as error:write_json(Path(config['output_root'])/'mail-worker-error.json',{'at':now(),'error_type':type(error).__name__})
         if not args.watch:
             return 0 if identities and all(r.get('analysis_status') == 'completed' and r.get('delivery_status') == 'delivered' for r in results) else 1
         stopping.wait(config['poll_seconds'])

@@ -336,3 +336,38 @@ unreachable Git objects. The full working-tree/object audit compared four known
 credential values without exposing them and reported zero findings. Runtime
 evidence and audit reports remain outside source. Only sanitized source commits
 are approved for the configured repository; production state/services are unchanged.
+
+
+## 2026-10-13 — Studio batch feedback and automatic report mail
+
+Studio now presents three sketches, collects all three votes and one shared
+comment, and regenerates the batch. Studio compiles generator prompts from
+aggregate feedback, retained examples and a cached reference interpretation.
+Original intake supports upload/paste; references are resized, byte-bounded and
+stripped of metadata before storage or paid use. Existing ten-sample histories,
+legacy actions and the separate one-dollar ledger remain compatible.
+
+Configured automatic mail uses two independent durable outboxes: Analyzer sends
+its readable report and exact Product-bound JSON; Product sends every complete
+saved Studio brief, both inline and attached. SMTP credentials are isolated from
+collector credentials. Finite retries, permanent failures and unknown SMTP
+outcomes are recorded; explicit delivery-only recovery does not repeat inference.
+Historical jobs are excluded from first-enablement mail delivery. Studio generation
+remains a separate human action; the automatic chain stops at the saved handoff.
+
+All 348 offline tests passed: collector 94, analyzer 119, Product 16, Controller
+32, Studio 38, repository 49. The manual-query integration fixture delivered exactly
+two mock SMTP messages, verified exact JSON bytes, and suppressed duplicate mail.
+Six Firefox mobile checks passed, including actual file upload, simulated clipboard
+input, shared votes/comments, regeneration, history and final approval. No Etsy,
+OpenAI, external SMTP or Ollama inference calls occurred; development spend was zero.
+The additive upgrade preview/apply was exercised on temporary configurations;
+backups, configuration modes and paid settings were preserved. Rendered optional
+mail units passed systemd-analyze verification. Production was not modified.
+
+README documents explicit mail enablement, independent SMTP credentials and
+updated units; pulling source alone does not enable mail. Pillow is optional for
+mock use and required for reference processing/development image observation.
+The first notifier payload incorrectly used event and returned HTTP 400. After
+the user's contract correction, messageType START was accepted with HTTP 200.
+Private test evidence, previews and reports remain outside this repository.

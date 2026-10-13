@@ -19,6 +19,11 @@ def server(root, port=8093, definition_config=None, operations_root=None):
     lock = threading.Lock()
     wake = threading.Event()
     stop = threading.Event()
+    if policy and policy['mail']['enabled']:
+        from pipeline_mail import write,read
+        activation=root/'mail-activation.json'
+        if not activation.exists():write(activation,{'at':now()})
+        mail_since=read(activation)['at']
 
     def worker():
         while not stop.is_set():
@@ -27,18 +32,30 @@ def server(root, port=8093, definition_config=None, operations_root=None):
                 stop.wait(1); continue
             for path in sorted(inbox.glob('*.json')):
                 receipt = path.with_suffix('.result')
-                if receipt.exists():
-                    continue
+                if receipt.exists() and (not policy or not policy['mail']['enabled'] or path.with_suffix('.mail').exists()):continue
                 try:
                     record = json.loads(path.read_text())
-                    if policy and policy['enhanced_enabled']:
+                    if receipt.exists():
+                        result=json.loads(receipt.read_text())
+                    elif policy and policy['enhanced_enabled']:
                         from .definition import enhanced, OllamaDefinition
                         result = enhanced(record['body'].encode(), root / 'definition-outbox', OllamaDefinition(policy['model'],policy['ollama_url']), qualification_root=policy['qualification_root'])
                     else:
                         result = process(record['body'].encode(), root / 'studio-outbox')
                 except Exception as error:
                     result = {'status': 'failed', 'error_type': type(error).__name__, 'automatic_retry': False}
-                write_json(receipt, result)
+                if not receipt.exists():write_json(receipt, result)
+                mail_receipt=path.with_suffix('.mail')
+                if policy and policy['mail']['enabled'] and result.get('directory') and record.get('received_at','')>=mail_since and not mail_receipt.exists():
+                    try:
+                        from .automatic_mail import prepare
+                        prepared=prepare(result,root,policy['mail']);write_json(mail_receipt,{'status':'queued','outbox':str(prepared)})
+                    except Exception as error:write_json(mail_receipt,{'status':'preparation_failed','error_type':type(error).__name__,'definition_unaffected':True})
+            if policy and policy['mail']['enabled']:
+                try:
+                    from .automatic_mail import deliver
+                    deliver(root,policy['mail'])
+                except Exception as error:write_json(root/'mail-worker-error.json',{'error_type':type(error).__name__})
             wake.wait(1)
             wake.clear()
 

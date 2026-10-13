@@ -18,8 +18,12 @@
 `deploy/launch.py` starts exactly one service using an allowlisted environment.
 Inherited keys, collector environment and proxy variables are discarded.
 Systemd `LoadCredential` exposes Etsy credentials only to the collector and
-OpenAI credentials only to the two analyzer daemons. The analyzer paid adapter
-opens its credential only after admission. Product/controller/Studio load neither.
+OpenAI credentials only to the two analyzer daemons in normal production units.
+The analyzer paid adapter opens its credential only after admission. Product and
+Controller load neither Etsy nor OpenAI credentials. Studio uses an independent
+OpenAI credential only in explicitly enabled development mode. Optional units
+rendered with `--with-mail` expose `gmail_smtp.env` to Market Analyst and Product;
+no other daemon receives SMTP credentials. See [automatic mail](mail.md).
 
 Collector credential validation uses the kernel's read-access decision and
 descriptor metadata, with no expected UID, GID or exact permission-mode value.
@@ -113,6 +117,16 @@ not deploy it or wire Product's existing outbox. Its unit binds loopback on 8096
 and uses no credentials. See [Studio](studio.md) for intake and trusted-network
 dashboard access. Existing deployments can prepare the new files without
 overwriting their previous settings, then activate only Studio after review.
+
+For an existing installation, source pull/release selection does not merge runtime
+settings. Follow the README's **Upgrade an existing deployment** procedure and
+`deploy/upgrade_config.py` preview/apply steps for automatic mail. Render SMTP-enabled
+units only after provisioning the dedicated credential. This preserves state and
+does not migrate or reset any paid, quota, completion, mail or offer ledger.
+Studio uploads and development image observation require system-visible Pillow;
+`/usr/bin/python3 -I -c 'import PIL'` checks availability without installing it.
+Core mock operation does not need it. No Studio generation belongs to the automatic
+search→analysis→Product→email chain in this release.
 
 ## Operations and rollback
 

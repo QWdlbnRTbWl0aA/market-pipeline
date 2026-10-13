@@ -1,4 +1,5 @@
 :root{font-family:Arial,system-ui,sans-serif;color:#49464c;background:#faf7f5;font-size:16px;--ink:#6a6a85}
+#reference-previews{display:flex;gap:12px;flex-wrap:wrap}#reference-previews img{width:100px;height:100px;object-fit:contain;border-radius:12px}#reference-previews>div{display:grid;gap:6px}#reference-paste:focus{outline:2px solid #a998b0}#accepted-samples>img{width:80px;height:80px;object-fit:contain}
 *{box-sizing:border-box}
 body{margin:0}
 header{max-width:1500px;margin:auto;padding:34px 5%;display:flex;justify-content:space-between;align-items:center;gap:20px}

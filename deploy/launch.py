@@ -62,12 +62,14 @@ def command(service, config, state, port=None, bind='127.0.0.1', credential_dire
         if credential_directory:
             # Only the paid adapter may open this file, immediately before an admitted request.
             env['PIPELINE_OPENAI_KEY_FILE'] = str(Path(credential_directory)/'openai.env')
+            if service=='market-analyst':env['PIPELINE_SMTP_CREDENTIAL_FILE']=str(Path(credential_directory)/'gmail_smtp.env')
         env['PIPELINE_SAVED_RUNS_ROOT'] = str(state/'collector'/'runs')
         args = ['-m','analyzer.services','--config',str(config),'--watch','--service',
                 'search_refinement' if service == 'search-refiner' else 'market_insights']
     elif service == 'controller':
         args = ['-m','pipeline_control','--config',str(config),'serve','--port',str(port or 8094)]
     elif service == 'product':
+        if credential_directory:env['PIPELINE_SMTP_CREDENTIAL_FILE']=str(Path(credential_directory)/'gmail_smtp.env')
         args = ['-m','product_service','serve','--data',str(state/'product'),'--port',str(port or 8093),
                 '--definition-config',str(config),'--operations-root',str(state/'controller'/'operations')]
     elif service == 'studio':
