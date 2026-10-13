@@ -161,6 +161,7 @@ function renderStatistics(c){
 async function updatePipeline(){
  try{
   const state=await api('/api/pipeline');
+  cycleExecutionEnabled=Boolean(state.execution_enabled);renderCycles(state.cycles||[]);
   $('pipeline-note').textContent=`${state.execution_enabled?'Reviewed execution enabled':'Refinement execution disabled'} · ${state.counts.pending_proposals} proposals awaiting review · supervisor ${state.supervisor.status}. Existing daily searches use their saved configuration.`;
   $('pipeline-proposals').replaceChildren();$('pipeline-cohorts').replaceChildren();$('pipeline-timeline').replaceChildren();$('pipeline-workers').replaceChildren();
   function proposal(row,cohort=false){
@@ -205,8 +206,29 @@ async function updatePipeline(){
   }
  }catch(e){$('pipeline-note').textContent='Pipeline status unavailable: '+e.message;}
 }
+let researchCycles=[],cycleExecutionEnabled=false;
+function renderCycles(rows){
+ researchCycles=rows;const box=$('research-cycles');box.replaceChildren();const filter=$('cycle-filter').value.toLocaleLowerCase();
+ for(const row of rows){
+  const manifest=row.manifest;const keywords=manifest.parameters.niches.map(n=>n.keywords);
+  if(!(manifest.name+' '+keywords.join(' ')).toLocaleLowerCase().includes(filter))continue;
+  const card=text('article','','listing');card.append(text('h3',manifest.name),text('p',`${row.status} · ${row.cadence} · ${row.manual_override?'manual override':'automatic detection'}`),text('p',`Keywords: ${keywords.join(' · ')} · shops: ${manifest.parameters.shop_ids.join(', ')||'all Etsy'} · limit: ${manifest.parameters.limit??'unlimited'}`),text('p',`Next collection: ${timestamp(row.next_due_at)} · ${row.exhaustion.reason}`,'muted'));
+  card.append(text('p',`Safety bounds: ${manifest.bounds.max_pages} pages per search/shop · ${manifest.bounds.max_requests} requests · ${manifest.bounds.max_shops} shop follow-ups.`,'muted'));
+  const actions=text('div','','actions');
+  for(const [action,label] of [['auto','Automatic cadence'],['daily','Daily'],['weekly','Weekly'],['pause','Pause'],['finalize','Finalize for weekly monitoring'],...(row.pending_job?[['reconcile','Check saved submission']]:[])]){
+   const button=text('button',label,'secondary');button.onclick=async()=>{button.disabled=true;try{await api(`/api/pipeline/cycles/${row.cycle_id}/decision`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,manifest_sha256:row.manifest_sha256})});await updatePipeline();}catch(e){notice(e.message);}finally{button.disabled=false;}};actions.append(button);
+  }card.append(actions);box.append(card);
+ }
+ if(!rows.length)box.append(text('p','No named cycles saved yet.','muted'));
+}
 async function init(){
  setBusy(true);
+ $('cycle-filter').oninput=()=>renderCycles(researchCycles);
+ $('cycle-create').onclick=async()=>{
+  const parameters=trialParameters();const button=$('cycle-create');button.disabled=true;
+  try{await api('/api/pipeline/cycles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('cycle-name').value,keywords:parameters.niches.map(n=>n.keywords),shop_ids:parameters.shop_ids,limit:parameters.limit})});notice(cycleExecutionEnabled?'Named cycle saved. Its first scheduled collection is tomorrow; earlier finalized cycles remain saved.':'Named cycle saved. Controller execution is disabled; no collection is queued. Earlier finalized cycles remain saved.');await updatePipeline();}
+  catch(e){notice(e.message);}finally{button.disabled=false;}
+ };
  $('pipeline-refresh').onclick=updatePipeline;
  $('search-form').onsubmit=e=>{e.preventDefault();start();};$('save-scheduled').onclick=saveScheduled;$('toggle-daily').onclick=toggleDaily;
  $('refresh').onclick=()=>refreshDashboard().catch(e=>notice(e.message));$('badge-only').onchange=render;

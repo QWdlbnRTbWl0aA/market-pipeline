@@ -1,5 +1,29 @@
 # Preparation verification — 2026-10-11
 
+## Historical opportunities and named cycles — 2026-10-13
+
+328 offline tests pass across the latest component checks: collector 94, analyzer
+119, Product 15, Controller 32, Studio 33 and repository 35. They cover recency
+weighting, persistent offer suppression, immutable assessment histories, qualified
+ten-item consumer handoffs, honest shortfalls, shop-age/inventory/counter-reset
+holds, no sales allocation, local-only saved pictures, persistent development
+admission before key loading, named-profile preservation, daily-to-weekly settling,
+manual overrides, finite jobs, paused challenges and GET-only unknown reconciliation.
+Legacy input, independent service and modern receipt regressions continue to pass.
+
+Six offline Firefox checks passed at a 390px mobile viewport: critical panels,
+cycle creation, preserved finalized profiles, readable filtering, restart/refresh
+persistence and manual weekly cadence. Temporary fixture servers were stopped.
+No installed service or state was modified. JavaScript syntax and whitespace checks
+passed. Detailed logs, screenshots, raw copied-evidence audit and sanitation results
+remain outside the source repository.
+
+Mechanical qualification of eight copied saved datasets (largest: 10,120 records)
+yielded no evidence-qualified opportunities. Historical shop/listing observations
+were insufficient; no model inference was used to invent supporting evidence.
+New development spend was $0. Official pricing and workload assumptions are in
+[Research cycles](research-cycles.md); standalone weekly trend reporting is deferred.
+
 ## Legacy compatibility correction — 2026-10-12
 
 232 offline tests passed, including eight new analyzer regressions (83 analyzer

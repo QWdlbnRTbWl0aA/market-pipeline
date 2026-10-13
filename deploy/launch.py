@@ -57,6 +57,7 @@ def command(service, config, state, port=None, bind='127.0.0.1', credential_dire
                 '--host',bind,'--port',str(port or 8090),'--defer-today']
         env['PIPELINE_CONTROL_AUTH_FILE'] = str(state/'control-auth')
         env['PIPELINE_OPERATIONS_ROOT'] = str(state/'controller'/'operations')
+        env['PIPELINE_CONTROLLER_URL'] = 'http://127.0.0.1:8094'
     elif service in ('search-refiner','market-analyst'):
         if credential_directory:
             # Only the paid adapter may open this file, immediately before an admitted request.

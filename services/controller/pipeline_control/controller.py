@@ -7,7 +7,7 @@ from pathlib import Path
 import urllib.request
 from .storage import clean_environment, digest, event, Guard, identity, local_url, LocalHTTP, now, read, run_identity, write
 
-VERSION = 'bounded-refinement-v1.2'
+VERSION = 'bounded-refinement-v1.3'
 
 
 def phrase(value):
@@ -118,7 +118,7 @@ class Controller:
             manifest = {'schema_version': 1, 'recipe': VERSION, 'proposal_id': key, 'source_run_id': source['run_id'], 'source_sha256': sha,
                         'root_cycle_id': lineage.get('root_cycle_id', source['run_id']), 'parent_run_id': source['run_id'], 'iteration': 1,
                         'phrases': proposed, 'rejected': rejected, 'searches': queries, 'shop_ids': list(source['settings'].get('shop_ids', [])),
-                        'limits': {'results_per_phrase': 100, 'max_pages': 1, 'max_shops': 10, 'max_requests': 25, 'max_paid_calls': 4, 'paid_reservation_maximum_usd': .4284, 'iterations': 1},
+                        'limits': {'results_per_phrase': 100, 'max_pages': 1, 'max_shops': 10, 'max_requests': 25, 'max_paid_calls': 4, 'paid_reservation_maximum_usd': .462, 'iterations': 1},
                         'exclusions': {'exclude_fetched_listings': False, 'exclude_fetched_shops': False},
                         'comparison_policy': {'minimum_relevance_gain': .10, 'maximum_contamination_increase': 0, 'human_reference_required': True, 'human_sample_per_phrase': 10, 'sample_method': 'Stable listing-ID hash, up to ten unique identities per phrase; disclosed nonrepresentative reference sample'},
                         'review_rubric': 'Same bounded raw samples, blind reviewed printable relevance labels; novelty is not relevance.',
@@ -163,7 +163,7 @@ class Controller:
             if row['status'] not in ('approved','budget_waiting') or approval.get('manifest_sha256') != digest(row['manifest']) or dt.datetime.now(dt.timezone.utc) >= dt.datetime.fromisoformat(approval['expires_at']): raise ValueError('Current exact unexpired approval required')
             if self.settings.get('paid_ledger_root'):
                 from .admission import reserve
-                try: row['paid_envelope'] = reserve(self.settings['paid_ledger_root'], key, self.settings['paid_policy'])
+                try: row['paid_envelope'] = reserve(self.settings['paid_ledger_root'], key, self.settings['paid_policy'],row['manifest']['limits']['paid_reservation_maximum_usd'])
                 except ValueError as error:
                     row.update(status='budget_waiting', reason=str(error)); write(path,row); return row
             m = row['manifest']; limit = m['limits']; slots = len(m['searches']) * max(1, len(m['shop_ids'])) + limit['max_shops']
@@ -292,6 +292,8 @@ class Controller:
         results = []
         for path in sorted((self.root / 'inbox').glob('*.json')):
             try:
+                from .cycles import observe
+                observe(self,read(path)['payload'])
                 row = self.prepare(path.stem)
                 if row['status'] in ('approved','budget_waiting') and self.settings['execution_enabled']: row = self.submit(path.stem)
                 if row['status'] in ('submitted','awaiting_human_labels','accepted','rejected_comparison'): row = self.complete(path.stem)
@@ -301,5 +303,7 @@ class Controller:
                 write(self.root / 'errors' / (path.stem + '.json'), {'at': now(), 'error_type': type(error).__name__, 'message': str(error)[:300], 'automatic_retry': False})
         from .tracking import tick as tracking_tick
         tracking_tick(self, self.send_job)
+        from .cycles import tick as cycle_tick
+        cycle_tick(self, self.send_job)
         write(self.root / 'heartbeat.json', {'at': now(), 'status': 'running', 'execution_enabled': self.settings['execution_enabled'], 'proposals': results})
         return results

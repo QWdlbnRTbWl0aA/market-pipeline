@@ -19,9 +19,12 @@ def semantic(identity):
     paid = identity.get('paid_policy') or {}
     context = identity.get('semantic_context')
     if isinstance(context,dict) and not any(context.values()): context=None
-    return {k: (context if k=='semantic_context' else identity.get(k)) for k in ('service', 'input_sha256', 'source_run_id', 'recipe_version',
+    result={k: (context if k=='semantic_context' else identity.get(k)) for k in ('service', 'input_sha256', 'source_run_id', 'recipe_version',
             'model', 'model_digest', 'sample_size', 'research_policy', 'semantic_context')} | {
         'paid_stages': {k: paid.get(k) for k in ('enabled', 'cheap_model', 'final_model')}}
+    if identity.get('opportunity_recipe'):
+        result.update(opportunity_recipe=identity['opportunity_recipe'],opportunity_policy=identity.get('opportunity_policy'))
+    return result
 
 
 def migrate(root):
@@ -127,6 +130,7 @@ def envelope(payload, metadata):
     lineage = metadata.get('lineage') or {}
     return {'schema_version': 1, 'event_type': 'analysis_completed', 'root_cycle_id': lineage.get('root_cycle_id') or payload['source_run_id'],
             'parent_run_id': lineage.get('parent_run_id'), 'experiment_id': lineage.get('experiment_id'),
+            'cycle_id':lineage.get('cycle_id'),
             'iteration': lineage.get('iteration', 0), 'artifact_kind': metadata.get('artifact_kind', 'discovery'),
             'input_sha256': payload['source']['input_sha256'], 'recipe': payload['recipe_version'],
             'analysis_job_id': payload['job_id']}

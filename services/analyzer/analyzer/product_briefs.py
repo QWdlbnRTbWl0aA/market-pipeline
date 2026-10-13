@@ -4,6 +4,15 @@ import datetime as dt
 import json
 from .ports import ModelRequest
 
+
+def compact_cross_checks(value):
+    """Bound transport/model evidence; full intervals remain in saved evidence."""
+    result={k:v for k,v in value.items() if k not in ('history_qualification','shop_history_qualification','examples')}
+    result['examples']=[{**row,'shop_sales_intervals':row.get('shop_sales_intervals',[])[-3:],
+        'listing_engagement_intervals':{k:v[-3:] for k,v in row.get('listing_engagement_intervals',{}).items()}} for row in value.get('examples',[])[:3]]
+    result['interval_scope']='Most recent three intervals for at most three examples; full history remains in evidence.json'
+    return result
+
 def cross_checks(dataset, candidate):
     identities=set(candidate['listing_ids']);sellers={r['seller_id'] for r in dataset['records'] if r['id'] in identities}
     related=dataset['metadata'].get('history',{}).get('related_observations',[])
@@ -74,10 +83,10 @@ def request(base):
     system=base.system+' Select at most two focused product concepts. For each, generate the product_brief: a concrete audience, customer job, digital deliverables and formats, meaningful differentiation, testable acceptance checks, validation plan and risks. Label proposed choices design_hypothesis; observed claims need supporting excerpt citations. Do not copy designs, use trademarks, or infer unmet needs from missing examples. Cross-examine linked shop counters and repeated listing engagement; a successful shop never proves demand for the chosen listing. Never call a product launch-ready. Acknowledge cheap-product crowding when benchmark shares are high. Images are interpreted locally; local image notes are unverified. Do not invent image observations, file dimensions or content absent in evidence. Proposed dimensions/counts may be design_hypothesis only. Output concise, useful briefs.'
     return ModelRequest(system,json.dumps(context,ensure_ascii=False,separators=(',',':')),schema)
 
-def validate(value,candidates):
+def validate(value,candidates,maximum=5):
     from .research import grounded_prose,validate_selection
     core={**value,'items':[{k:v for k,v in item.items() if k!='product_brief'} for item in value.get('items',[])]}
-    validate_selection(json.dumps(core),candidates)
+    validate_selection(json.dumps(core),candidates,maximum=maximum)
     by_id={c['candidate_id']:c for c in candidates};briefs={}
     fields={'product_concept','intended_customer','customer_job','deliverables','differentiation','acceptance_checks','validation_plan','risks'}
     def string(v):

@@ -66,3 +66,16 @@ class ControlJobTests(unittest.TestCase):
   self.request['approval']['expires_at']='2020-01-01T00:00:00Z'
   with self.assertRaises(ValueError):self.app.control_jobs.submit(self.request)
   self.assertEqual(list(self.app.control_jobs.root.glob('*.json')),[])
+ def test_named_cycle_revisits_shops_with_existing_quota_protection(self):
+  self.request.update(kind='cycle_search',lineage={'root_cycle_id':'d'*64,'parent_run_id':'d'*64,'cycle_id':'d'*64,'iteration':0},bounds={'max_requests':100,'max_pages':10,'max_shops':20})
+  self.request['parameters'].update(limit=None,shop_ids=['123'])
+  settings=effective(self.app,self.request)
+  self.assertEqual(settings['quota_reserve'],self.app.settings['quota_reserve']);self.assertEqual(settings['requests_per_second'],self.app.settings['requests_per_second'])
+  self.assertEqual(settings['max_pages'],10);self.assertFalse(settings['exclude_fetched_shops'])
+  with patch.object(self.app,'start') as start:
+   self.app.control_jobs.submit(self.request);self.app.control_jobs.tick();self.assertEqual(start.call_args.args[-1]['artifact_kind'],'discovery')
+ def test_named_cycle_rejects_inadequate_reservation_and_exclusions(self):
+  self.request.update(kind='cycle_search',lineage={'root_cycle_id':'d'*64,'parent_run_id':'d'*64,'cycle_id':'d'*64,'iteration':0},bounds={'max_requests':2,'max_pages':10,'max_shops':20})
+  with self.assertRaises(ValueError):effective(self.app,self.request)
+  self.request['bounds']['max_requests']=100;self.request['parameters']['exclude_fetched_shops']=True
+  with self.assertRaises(ValueError):effective(self.app,self.request)

@@ -249,7 +249,8 @@ class ServiceTests(unittest.TestCase):
         self.snapshot['status']='running';self.snapshot['finished_at']=None;self.save()
         config_path=self.root/'independent.json';write_json(config_path,self.config)
         sleeps=[]
-        def sleep(_):
+        def sleep(timeout=None):
+            if timeout is None:return True # Thread.start's internal Event.wait is unrelated to polling.
             sleeps.append(1)
             if len(sleeps)==1:
                 self.snapshot['status']='success';self.snapshot['finished_at']='2026-10-10T00:00:01Z';self.save()

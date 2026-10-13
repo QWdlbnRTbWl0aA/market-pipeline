@@ -27,8 +27,8 @@ def inventory(settings, root):
                        'at': v.get('finished_at') or v.get('started_at'), 'source_run_id': v.get('source_run_id') or v.get('run_id')}
                 stages.append(row)
             except (ValueError, OSError, KeyError, TypeError) as e: errors.append({'stage':kind,'file':p.name,'error_type':type(e).__name__})
-    proposals, cohorts = [], []
-    for kind, target in [('proposals',proposals),('cohorts',cohorts)]:
+    proposals, cohorts, cycles = [], [], []
+    for kind, target in [('proposals',proposals),('cohorts',cohorts),('cycles',cycles)]:
         for p in sorted((root/kind).glob('*.json'))[-100:]:
             try: target.append(read(p))
             except (ValueError, OSError): errors.append({'stage':kind,'file':p.name,'error_type':'InvalidRecord'})
@@ -38,7 +38,7 @@ def inventory(settings, root):
         except (ValueError,OSError): pass
     supervisor = root/'supervisor'/'status.json'
     return {'schema_version':1,'at':now(),'execution_enabled':settings['execution_enabled'], 'timeline':sorted(stages,key=lambda r:r.get('at') or '',reverse=True),
-            'proposals':proposals,'cohorts':cohorts,'heartbeats':heartbeats,'errors':errors,
+            'proposals':proposals,'cohorts':cohorts,'cycles':[{k:v for k,v in row.items() if k!='observations'} for row in cycles],'heartbeats':heartbeats,'errors':errors,
             'supervisor':read(supervisor) if supervisor.exists() else {'status':'not_activated'},
             'counts':{'pending_proposals':sum(r.get('status')=='awaiting_approval' for r in proposals), 'errors':len(errors)},
             'holds':{'live_experiment':'exact manifest/rubric approval required','tracking':'exact cohort approval required','enhanced_product':'rubric and sample review required','deployment':'prepared independently; host installation is separate'}}
@@ -83,6 +83,12 @@ def server(settings, port=8094):
                 elif re.fullmatch('/cohorts/[a-f0-9]{64}/decision',self.path):
                     from .tracking import decide
                     value=json.loads(body);result=decide(controller,self.path.split('/')[2],value['action'],value['manifest_sha256'],value['reviewer'])
+                elif self.path=='/cycles':
+                    from .cycles import create
+                    result=create(controller,json.loads(body))
+                elif re.fullmatch('/cycles/[a-f0-9]{64}/decision',self.path):
+                    from .cycles import decide
+                    result=decide(controller,self.path.split('/')[2],json.loads(body))
                 elif self.path=='/operations':
                     value=json.loads(body)
                     if set(value)!={'stage','action','record_id','reason'} or value['stage'] not in ('search_refinement','market_insights','product','collector','controller') or value['action'] not in ('pause','resume','reconcile','retry') or not isinstance(value['reason'],str) or not value['reason'].strip():raise ValueError('Scoped operator instruction required')
@@ -102,6 +108,8 @@ def server(settings, port=8094):
                         if not target.exists():write(target,{**value,'at':now(),'status':'queued','operation_id':operation_id,'automatic_retry':False})
                         result={'recorded':True,'status':read(target)['status'],'operation_id':operation_id,'automatic_retry':False}
                 else:self.reply(404,{'error':'Unknown route'});return
+                if self.path=='/cycles' or self.path.startswith('/cycles/'):
+                    result={k:v for k,v in result.items() if k!='observations'}
                 self.reply(200,result)
             except (ValueError,KeyError,TypeError,AttributeError):self.reply(400,{'error':'Invalid operation or report'})
             except OSError:self.reply(503,{'error':'Intake storage unavailable'})

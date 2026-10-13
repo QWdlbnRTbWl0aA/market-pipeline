@@ -24,7 +24,7 @@ def load_config(path):
         raise ValueError('Only independent JSON configuration files allowed; env files forbidden')
     config = json.loads(config_path.read_text())
     reject_secrets(config)
-    allowed = {'saved_runs_root', 'output_root', 'model', 'model_digest', 'ollama_url', 'sample_size', 'poll_seconds', 'endpoints', 'research', 'paid', 'email_config', 'operations_root', 'cohort_root', 'delivery'}
+    allowed = {'saved_runs_root', 'output_root', 'model', 'model_digest', 'ollama_url', 'sample_size', 'poll_seconds', 'endpoints', 'research', 'paid', 'email_config', 'operations_root', 'cohort_root', 'delivery', 'opportunities'}
     if not isinstance(config, dict) or set(config) - allowed:
         raise ValueError('Independent analyzer configuration has unknown fields')
     if set(config.get('endpoints', {})) != set(SERVICES):
@@ -41,6 +41,8 @@ def load_config(path):
     if 'research' in config:
         from .production_config import validate_policy
         validate_policy(config)
+        from .assessments import policy
+        config['opportunities'] = policy(config.get('opportunities'))
     local_url(config['ollama_url'])
     for endpoint in config['endpoints'].values():
         local_url(endpoint)
@@ -59,6 +61,8 @@ def run_service(service, intake, model, config, retry_failed=False, transport=No
                 'source_run_id': batch.metadata['source_run_id'], 'recipe_version': RESEARCH_VERSION if 'research' in config else RECIPE_VERSION,
                 'model': config['model'], 'model_digest': config.get('model_digest'), 'sample_size': config['sample_size'],
                 'research_policy': config.get('research'), 'paid_policy': config.get('paid'),
+                'opportunity_policy': config.get('opportunities'),
+                'opportunity_recipe': 'commercial-assessments-v1' if service == 'market_insights' and config.get('opportunities',{}).get('enabled') else None,
                 'semantic_context': batch.metadata.get('semantic_context'),
                 'history_sha256': hashlib.sha256(json.dumps(batch.metadata.get('history'),sort_keys=True).encode()).hexdigest()}
     job_id, directory = resolve(config['output_root'], identity)
@@ -105,7 +109,17 @@ def run_service(service, intake, model, config, retry_failed=False, transport=No
                 paid=config['paid']
                 cheap=OpenAIModel(paid['cheap_model'],paid,experiment_id=batch.metadata.get('lineage',{}).get('experiment_id')) if paid['enabled'] else None
                 good=OpenAIModel(paid['final_model'],paid,experiment_id=batch.metadata.get('lineage',{}).get('experiment_id')) if paid['enabled'] else None
-                report=analyze(service,dataset,directory,config,model,cheap,good)
+                if service == 'market_insights' and config.get('opportunities',{}).get('enabled'):
+                    from .opportunities import analyze as opportunity_analysis
+                    report=opportunity_analysis(dataset,directory,config,model,cheap,good)
+                else:
+                    report=analyze(service,dataset,directory,config,model,cheap,good)
+                if service == 'search_refinement':
+                    from .search_memory import analyze as search_memory
+                    history=search_memory(config.get('saved_runs_root',str(Path(batch.provenance['artifact_directory']).parent)),batch)
+                    write_json(directory/'search-history.json',history)
+                    report['search_history']={**history,'observations':history['observations'][-30:],'observation_count':len(history['observations']),
+                                              'full_history_artifact':'search-history.json'}
                 write_json(directory/'validation.json',{'passed':True,'scope':'Deterministic facts and per-candidate citation membership; semantic review required'})
                 payload.update(status='completed',report=report,normalization_dqa=dataset['dqa'],semantic_review_required=True)
             else:

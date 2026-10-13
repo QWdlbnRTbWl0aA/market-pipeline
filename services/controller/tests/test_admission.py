@@ -9,7 +9,7 @@ class PaidEnvelopeTests(unittest.TestCase):
  def test_reservation_protects_four_slots_from_other_daily_work(self):
   with tempfile.TemporaryDirectory() as tmp:
    policy={'daily_usd':.5,'total_usd':1.0,'daily_calls':10};r=reserve(tmp,'e'*64,policy)
-   self.assertEqual(r['maximum_calls'],4);self.assertEqual(reserve(tmp,'e'*64,policy),r)
+   self.assertEqual(r['maximum_calls'],4);self.assertEqual(r['maximum_usd'],.462);self.assertEqual(reserve(tmp,'e'*64,policy),r)
    budget=Budget(tmp,.5,1,10)
    for i in range(6):budget.reserve(str(i),.001);budget.settle(str(i),.001,{})
    with self.assertRaises(BudgetExceeded):budget.reserve('seventh',.001)

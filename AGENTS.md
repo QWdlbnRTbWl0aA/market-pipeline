@@ -19,6 +19,16 @@ host security settings without explicit authorization.
   Do not bypass access challenges or automatically retry actual challenges.
 - Tracking is daily and persists until explicitly paused/disabled; no automatic
   fourteen-day expiry. Missing time-series evidence must be reported honestly.
+- Named research cycles are separate from daily tracking and legacy daily searches.
+  Preserve human-searchable finalized keyword/shop profiles. Conservative automatic
+  weekly collection requires complete, comparable low-novelty stable assessments
+  spanning seven days; manual overrides take precedence. Standalone weekly aggregate
+  trend analysis is deferred. Preserve cycle receipts and never resend unknown jobs.
+- Market reports weight prior assessments, cross-examine comparable listing/shop
+  histories, suppress prior offers and target five to ten qualified novel product
+  briefs without padding. Retain insufficiency reasons and never allocate shop sales
+  to listings. This assignment's paid development allowance is $0.50 within the
+  preserved shared ledger; it does not change Studio's separate development budget.
 - Deterministic code performs parsing, normalization, grouping, mechanical DQA
   and admission. Use local Ollama and bounded cheap calls before costly models.
 - Analyzer intake is limited to saved collector artifacts. Analyzer/product/

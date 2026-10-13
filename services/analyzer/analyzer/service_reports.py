@@ -33,7 +33,7 @@ def statistics(dataset):
             'scope': 'Saved observed listings only; token counts are not search volume and shop counts are not listing sales.'}
 
 
-def saved_images(sample, dataset):
+def saved_images(sample, dataset, limit=2):
     root = Path(dataset['provenance']['artifact_directory']).resolve()
     rows = {row['id']: row for row in dataset['records']}
     encoded, audit = [], []
@@ -60,7 +60,7 @@ def saved_images(sample, dataset):
             if Path(relative).suffix.lower() not in {'.png', '.jpg', '.jpeg'} or not Path(relative).parts or Path(relative).parts[0] != 'images' or Path(relative).is_absolute() or '..' in Path(relative).parts or path.is_symlink() or not path.resolve().is_relative_to(image_root.resolve()):
                 audit.append({'record_id': row['id'], 'status': 'unsafe_local_path_rejected'})
                 continue
-            if len(encoded) >= 2:
+            if len(encoded) >= limit:
                 audit.append({'record_id': row['id'], 'status': 'image_sample_bound'})
                 continue
             try:

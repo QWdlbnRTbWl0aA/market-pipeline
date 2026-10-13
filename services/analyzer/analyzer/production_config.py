@@ -16,7 +16,11 @@ def validate_policy(config):
         if not references or any(not isinstance(k,str) or len(k)!=3 or not k.isascii() or not k.isupper() or not number(v,0,1000) for k,v in references.items()):raise ValueError('Invalid currency references')
     elif not number(references,0,1000):raise ValueError('Invalid price reference')
     required={'enabled','cheap_model','final_model','daily_usd','total_usd','daily_calls','max_output_tokens','max_input_token_bound','ledger_root'}
-    if not isinstance(paid,dict) or set(paid)!=required or type(paid['enabled']) is not bool:raise ValueError('Explicit paid policy required')
+    if not isinstance(paid,dict) or set(paid)-{'development'}!=required or type(paid['enabled']) is not bool:raise ValueError('Explicit paid policy required')
+    if 'development' in paid:
+        import re
+        envelope=paid['development']
+        if not isinstance(envelope,dict) or set(envelope)!={'id','total_usd'} or not isinstance(envelope['id'],str) or not re.fullmatch('[a-z0-9-]{1,80}',envelope['id']) or not number(envelope['total_usd'],0,.5):raise ValueError('Invalid development envelope')
     if paid['cheap_model']!='gpt-6-luna' or paid['final_model']!='gpt-6.1-sol':raise ValueError('Priced stage allowlist required')
     for name in ('daily_usd','total_usd'):
         if name=='daily_usd' and paid[name] is None:continue

@@ -111,6 +111,12 @@ def model_request(service,evidence,candidates,images=()):
         c={k:v for k,v in candidate.items() if k not in ('listing_ids','evidence','shop_observations','prices')}
         cross=c.get('performance_cross_check',{})
         c['performance_cross_check']={**cross,'examples':cross.get('examples',[])[:2]}
+        if 'commercial_assessment' in c:
+            assessment=c['commercial_assessment'];memory=assessment['assessment_history']
+            c['commercial_assessment']={**assessment,'shops':assessment['shops'][:5],'assessment_history':{**memory,'assessments':memory['assessments'][-3:]}}
+            from .product_briefs import compact_cross_checks
+            c['performance_cross_check']=compact_cross_checks(c['performance_cross_check'])
+            c['historical_engagement']=c.get('historical_engagement',[])[-3:]
         c['prices']={k:v for k,v in sorted(candidate['prices'].items(),key=lambda x:-x[1]['observations'])[:2]}
         c['shop_observations']=candidate['shop_observations'][:2]
         c['evidence']=[{k:(v[:180] if k=='description_excerpt' else v[:220] if k=='title' else v[:8] if k=='tags' else v) for k,v in e.items() if k not in ('id','listing_id')} for e in candidate['evidence']]
@@ -143,13 +149,13 @@ def grounded_prose(text):
         if not re.search(negation,prefix,re.I):
             raise ValueError('Unsupported commercial assertion')
 
-def validate_selection(text,candidates):
+def validate_selection(text,candidates,maximum=5):
     value=json.loads(text)
     if not isinstance(value,dict) or set(value)!={'summary','items','limitations'}:raise ValueError('Invalid selection fields')
     if not isinstance(value['summary'],str) or not 1<=len(value['summary'])<=2000:raise ValueError('Invalid summary')
     grounded_prose(value['summary'])
     if not isinstance(value['limitations'],list) or not 1<=len(value['limitations'])<=5 or any(not isinstance(x,str) or not 1<=len(x)<=1000 for x in value['limitations']):raise ValueError('Invalid limitations')
-    if not isinstance(value['items'],list) or len(value['items'])>5:raise ValueError('Invalid items')
+    if not isinstance(value['items'],list) or len(value['items'])>maximum:raise ValueError('Invalid items')
     by_id={c['candidate_id']:c for c in candidates};seen=set()
     for item in value['items']:
         if not isinstance(item,dict) or set(item)!={'candidate_id','reason','evidence_ids'}:raise ValueError('Invalid candidate fields')

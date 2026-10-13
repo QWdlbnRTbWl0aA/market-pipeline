@@ -66,13 +66,13 @@ class OpenAIModel:
                 value=json.loads(result_path.read_text());return ModelResponse(value['text'],{**value['metadata'],'cache_hit':True},value['raw'])
             with (root/'network.lock').open('a') as network_lock:
                 fcntl.flock(network_lock,fcntl.LOCK_EX)
-                key=self.key_provider() # Only paid, valid, bounded requests load this independent key.
-                budget=Budget(root,self.policy['daily_usd'],self.policy['total_usd'],self.policy['daily_calls'])
+                budget=Budget(root,self.policy['daily_usd'],self.policy['total_usd'],self.policy['daily_calls'],self.policy.get('development'))
                 budget.reserve(identity,(bound*rates[0]+cap*rates[1])/1e6, self.experiment_id)
                 write_json(cache/'request.json',payload) # No headers/key stored.
-                call=urllib.request.Request('https://api.openai.com/v1/responses',data=body,headers={'Content-Type':'application/json','Authorization':'Bearer '+key})
                 opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
                 try:
+                    key=self.key_provider() # Admission, including development cap, precedes credential loading.
+                    call=urllib.request.Request('https://api.openai.com/v1/responses',data=body,headers={'Content-Type':'application/json','Authorization':'Bearer '+key})
                     with (self.transport or opener.open)(call,timeout=90) as response:
                         raw=response.read(2_000_001)
                     if len(raw)>2_000_000:raise ValueError('Paid response exceeds bound')

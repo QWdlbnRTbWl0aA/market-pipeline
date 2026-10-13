@@ -9,7 +9,7 @@ from pathlib import Path
 from .storage import now, write
 
 
-def reserve(root, key, policy, maximum_usd=.4284):
+def reserve(root, key, policy, maximum_usd=.462):
     root=Path(root);root.mkdir(parents=True,exist_ok=True)
     with (root/'budget.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX);path=root/'budget.json'

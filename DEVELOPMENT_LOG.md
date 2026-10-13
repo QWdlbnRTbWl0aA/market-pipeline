@@ -279,3 +279,50 @@ miscount Hanukkah symbols or bundle items and are not print-ready deliverables.
 Private reports, provider artifacts, screenshots and usage receipts remain outside
 source. The development Studio stays on port 8096 with its preserved ledger;
 production state/releases/services/accounts/firewall and Etsy were untouched.
+
+## 2026-10-13 — historical opportunities and named research cycles
+
+User requested prior-assessment weighting, listing/shop commercial qualification,
+novel-offer suppression, bounded five-to-ten product-team handoffs, and preserved
+named keyword/shop profiles that settle into weekly monitoring. User approved
+conservative automatic detection with manual override. A standalone weekly trend
+report service is explicitly deferred. Development allowance is at most $0.50;
+the shared preparation ledger and Studio's independent envelope remain intact.
+
+Implemented dated assessment manifests, a serialized durable offer registry,
+recency weighting and conservative age/diversity/history/similar-inventory gates.
+Kept whole-shop activity distinct from listing sales. Shortfalls are explicit;
+model output cannot pad an unsupported top ten. Saved images can inform bounded
+local/cheap refinement; final briefs remain model-authored. Full evidence stays
+local while model/HTTP summaries use bounded history examples. Admissions now
+precede independent paid-key loading and support a persistent development cap.
+Adjusted newly reviewed experiment reservations for the 4,000-token output cap;
+existing reservations are preserved rather than enlarged.
+
+Added Controller-owned named profiles, per-run observation files, daily/weekly
+admission, conservative exhaustion detection, sticky overrides, finalization and
+GET-only unknown-submission reconciliation. Collector jobs retain existing quota
+protection and finite reservation bounds. Dashboard controls preserve prior named
+profiles, filter readable names and report actual schedule/holds. Existing daily
+collector configuration and independently reviewed tracking cohorts are separate.
+
+Latest component verification totals 328 passing offline tests: collector 94,
+analyzer 119, Product 15, Controller 32, Studio 33, repository 35. A full suite
+passed before the last assessment-history regression; affected analyzer/Controller
+suites and opportunity tests passed again after their respective changes. Six
+Firefox mobile checks passed using temporary local fixtures, with no collection
+or inference. JavaScript syntax and whitespace checks passed.
+
+An offline check of eight copied historical normalized evidence sets, including
+one with 10,120 records, qualified no commercial opportunities: comparable shop
+and multi-shop listing histories were insufficient. This is mechanical evidence
+qualification, not a new model-quality baseline or a claim about current installed
+data. No Etsy/OpenAI/Ollama generation/SMTP calls or development spend occurred.
+Official pricing supports an illustrative $0.077 per combined analysis, roughly
+$2.30/month daily or $0.33/month weekly per named cycle; actual usage may differ.
+
+The running development Studio was checked read-only on request and remains
+available on port 8096. No installed production files, daemons, ledgers, deployment
+or host security settings were changed. Source is committed locally; publication
+and activation remain separate. Private evidence/results/report are outside source.
+Local notifier attempts returned “Job id doesn't exist”; notifier was not modified.

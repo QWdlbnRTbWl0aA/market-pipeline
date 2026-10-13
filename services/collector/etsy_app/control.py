@@ -38,10 +38,11 @@ def effective(app, payload):
     if expires.tzinfo is None or dt.datetime.now(dt.timezone.utc) >= expires: raise ValueError('Approval expired')
     bounds = payload['bounds']
     if not isinstance(bounds, dict) or set(bounds) != {'max_requests', 'max_pages', 'max_shops'}: raise ValueError('Explicit hard bounds required')
-    for key, maximum in [('max_requests', 25), ('max_pages', 1), ('max_shops', 10)]:
+    ceilings=(100,10,20) if payload['kind']=='cycle_search' else (25,1,10)
+    for (key, maximum) in zip(('max_requests','max_pages','max_shops'),ceilings):
         if type(bounds[key]) is not int or not (0 if key == 'max_shops' else 1) <= bounds[key] <= maximum: raise ValueError('Experiment bounds exceeded')
     lineage = payload['lineage']
-    if not isinstance(lineage, dict) or set(lineage) - {'root_cycle_id', 'parent_run_id', 'experiment_id', 'iteration', 'max_paid_calls', 'cohort_id'}: raise ValueError('Unsupported lineage')
+    if not isinstance(lineage, dict) or set(lineage) - {'root_cycle_id', 'parent_run_id', 'experiment_id', 'iteration', 'max_paid_calls', 'cohort_id', 'cycle_id'}: raise ValueError('Unsupported lineage')
     if any(not isinstance(lineage.get(k), str) or not re.fullmatch('[A-Za-z0-9][A-Za-z0-9_-]{0,99}', lineage[k]) for k in ('root_cycle_id', 'parent_run_id')): raise ValueError('Valid parent/root lineage required')
     if payload['kind'] == 'experiment':
         if lineage.get('experiment_id') != payload['job_id'] or lineage.get('iteration') != 1 or lineage.get('max_paid_calls') != 4: raise ValueError('One follow-up/four paid calls only')
@@ -54,6 +55,15 @@ def effective(app, payload):
             raise ValueError('Price-filtered daily configuration needs a separately matched experiment')
         settings.update(limit=100, page_size=100, max_pages=1, max_shops=bounds['max_shops'], max_requests_per_run=bounds['max_requests'],
                         search_parameters={}, daily_mode='search', capture_images=False)
+    elif payload['kind'] == 'cycle_search':
+        parameters=payload['parameters']
+        if not isinstance(lineage.get('cycle_id'),str) or not re.fullmatch('[a-f0-9]{64}',lineage['cycle_id']) or lineage.get('iteration')!=0:raise ValueError('Named cycle lineage required')
+        settings=app.trial_settings(parameters)
+        if len(settings['niches'])>4 or len(settings['shop_ids'])>5 or parameters.get('exclude_fetched_listings') is not False or parameters.get('exclude_fetched_shops') is not False:raise ValueError('Comparable bounded named cycle required')
+        demand=len(settings['niches'])*max(1,len(settings['shop_ids']))*bounds['max_pages']+bounds['max_shops']
+        if demand>bounds['max_requests']:raise ValueError('Cycle demand exceeds its reservation')
+        settings.update(page_size=100,max_pages=bounds['max_pages'],max_shops=bounds['max_shops'],max_requests_per_run=bounds['max_requests'],
+                        search_parameters={},daily_mode='search',capture_images=False)
     elif payload['kind'] == 'tracking':
         ids = payload['parameters']
         if not isinstance(ids, dict) or set(ids) != {'listing_ids', 'shop_ids'} or len(ids['listing_ids']) > 10 or len(ids['shop_ids']) > 5 or len(ids['listing_ids']) + len(ids['shop_ids']) > 15: raise ValueError('Bounded tracked cohort required')
@@ -117,7 +127,7 @@ class Jobs:
                     settings = effective(self.app, row['request'])
                     row.update(status='dispatching', dispatched_at=now()); atomic_json(path, row)
                     context = {'run_id': row['run_id'], 'control_job_id': row['job_id'], 'lineage': row['request']['lineage'],
-                               'artifact_kind': 'tracking' if row['request']['kind'] == 'tracking' else 'experiment',
+                               'artifact_kind': {'tracking':'tracking','experiment':'experiment','cycle_search':'discovery'}[row['request']['kind']],
                                'manifest_sha256': row['request']['manifest_sha256']}
                     self.app.start(settings['niches'], 'approved-' + row['request']['kind'], row['request']['kind'] == 'tracking', settings, context)
                     row['status'] = 'running'; atomic_json(path, row)
@@ -130,7 +140,7 @@ def controller_request(app, route, payload=None):
     """Fixed loopback proxy; never expose auth file/token or accept arbitrary URLs."""
     import urllib.request
     if not app.controller_url: raise ValueError('Pipeline controller not configured')
-    if not re.fullmatch(r'/(status|proposals/[a-f0-9]{64}/(decision|labels)|cohorts/[a-f0-9]{64}/decision|operations)', route): raise ValueError('Unsupported controller route')
+    if not re.fullmatch(r'/(status|proposals/[a-f0-9]{64}/(decision|labels)|cohorts/[a-f0-9]{64}/decision|cycles(/[a-f0-9]{64}/decision)?|operations)', route): raise ValueError('Unsupported controller route')
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, *args): raise ValueError('Controller redirects forbidden')
     url = app.controller_url + route

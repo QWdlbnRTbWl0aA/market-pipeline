@@ -31,15 +31,17 @@
   },
   "paid": {
     "enabled": true,
+    "development": {"id":"market-history-development", "total_usd":0.5},
     "cheap_model": "gpt-6-luna",
     "final_model": "gpt-6.1-sol",
     "daily_usd": null,
     "total_usd": 2,
     "daily_calls": null,
-    "max_output_tokens": 2400,
+    "max_output_tokens": 4000,
     "max_input_token_bound": 90000,
     "ledger_root": "/var/lib/market-pipeline/paid-ledger"
   },
+  "opportunities": {"enabled": true},
   "operations_root": "/var/lib/market-pipeline/controller/operations",
   "cohort_root": "/var/lib/market-pipeline/controller/cohorts"
 }

@@ -49,6 +49,11 @@ views. Shop sales are shop-wide counters; favorites/views are listing metrics.
 Missing listing sales, purchase demand or search volume remain unknown.
 Sparse history does not become a claim of verified high demand or thin supply.
 
+History-aware opportunity qualification, prior-offer suppression, named daily/weekly
+research cycles and development-cost estimates are described in
+[Research cycles](docs/research-cycles.md). Reports target five to ten qualified new
+product briefs and disclose shortfalls; weekly aggregate trend reporting is deferred.
+
 ## Verify without credentials
 
 ```sh

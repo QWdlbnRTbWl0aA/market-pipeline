@@ -164,6 +164,7 @@ class HistoryIntake:
                 if not selected and not shops: continue
                 related.append({'run_id': run_id, 'input_sha256': prior.provenance['input_sha256'], 'finished_at': prior.metadata['finished_at'],
                     'artifact_kind': prior.metadata.get('artifact_kind'), 'shops': shops,
+                    'shop_inventory_profiles':{seller:[{k:r.get(k) for k in ('id','title','tags','category','digital')} for r in prior.records if r.get('seller_id')==seller] for seller in sellers},
                     'listings': [{k: r.get(k) for k in ('id', 'seller_id', 'observed_at', 'metrics', 'price', 'currency', 'state', 'original_created_at', 'last_modified_at', 'images', 'provenance')} for r in selected]})
                 if prior.metadata['query_context'] == batch.metadata['query_context']:
                     deltas = []
