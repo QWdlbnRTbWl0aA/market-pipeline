@@ -326,3 +326,13 @@ available on port 8096. No installed production files, daemons, ledgers, deploym
 or host security settings were changed. Source is committed locally; publication
 and activation remain separate. Private evidence/results/report are outside source.
 Local notifier attempts returned “Job id doesn't exist”; notifier was not modified.
+
+## 2026-10-13 — authorized publication after leak testing
+
+User explicitly requested a secrets/privacy audit and GitHub push. Nine targeted
+publication/privacy regression tests passed, including personal/escaped paths,
+real versus reserved IP addresses, observed/private hostnames, filenames and
+unreachable Git objects. The full working-tree/object audit compared four known
+credential values without exposing them and reported zero findings. Runtime
+evidence and audit reports remain outside source. Only sanitized source commits
+are approved for the configured repository; production state/services are unchanged.
