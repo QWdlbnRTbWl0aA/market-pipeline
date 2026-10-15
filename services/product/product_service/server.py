@@ -32,7 +32,7 @@ def server(root, port=8093, definition_config=None, operations_root=None):
                 stop.wait(1); continue
             for path in sorted(inbox.glob('*.json')):
                 receipt = path.with_suffix('.result')
-                if receipt.exists() and (not policy or not policy['mail']['enabled'] or path.with_suffix('.mail').exists()):continue
+                if receipt.exists() and (not policy or not policy['mail']['enabled'] or path.with_suffix('.mail').exists()) and (not policy or not policy['studio_delivery']['enabled'] or path.with_suffix('.studio').exists()):continue
                 try:
                     record = json.loads(path.read_text())
                     if receipt.exists():
@@ -45,6 +45,11 @@ def server(root, port=8093, definition_config=None, operations_root=None):
                 except Exception as error:
                     result = {'status': 'failed', 'error_type': type(error).__name__, 'automatic_retry': False}
                 if not receipt.exists():write_json(receipt, result)
+                if policy and policy['studio_delivery']['enabled'] and result.get('directory') and not path.with_suffix('.studio').exists():
+                    try:
+                        from .studio_delivery import prepare as queue_studio
+                        queued=queue_studio(result,root,policy['studio_delivery']);write_json(path.with_suffix('.studio'),{'status':'queued','brief_ids':queued})
+                    except Exception as error:write_json(path.with_suffix('.studio'),{'status':'preparation_failed','error_type':type(error).__name__})
                 mail_receipt=path.with_suffix('.mail')
                 if policy and policy['mail']['enabled'] and result.get('directory') and record.get('received_at','')>=mail_since and not mail_receipt.exists():
                     try:
@@ -56,6 +61,11 @@ def server(root, port=8093, definition_config=None, operations_root=None):
                     from .automatic_mail import deliver
                     deliver(root,policy['mail'])
                 except Exception as error:write_json(root/'mail-worker-error.json',{'error_type':type(error).__name__})
+            if policy and policy['studio_delivery']['enabled']:
+                try:
+                    from .studio_delivery import tick as deliver_studio
+                    deliver_studio(root,policy['studio_delivery'])
+                except Exception as error:write_json(root/'studio-worker-error.json',{'error_type':type(error).__name__})
             wake.wait(1)
             wake.clear()
 

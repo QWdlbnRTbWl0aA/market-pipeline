@@ -96,3 +96,5 @@ nav button{min-width:140px;max-width:190px}
 .comment-panel textarea{font-size:12px}
 .extra{padding:14px 2px}
 }
+
+.brief-text{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;font:inherit;line-height:1.6}

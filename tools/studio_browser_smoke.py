@@ -70,7 +70,18 @@ def run(url, driver, output):
         http('POST',base+'/element/'+element+'/value',{'text':str(reference),'value':list(str(reference))})
         wait("document.querySelectorAll('#reference-previews img').length === 2")
         checks.append('Simulated clipboard input and real file upload are resized before intake')
-        click('#brief-form button[type=submit]');ready()
+        click('#brief-form button[type=submit]')
+        wait("document.querySelector('#phase').textContent === 'בריף שמור · מוכן לבחירה'")
+        assert state()['rounds']==[]
+        assert js("return !document.querySelector('#library-brief').hidden")
+        assert js("return document.querySelector('#library-source').textContent.includes('concept')")
+        js("document.querySelector('#library-brief details').open=true")
+        assert js("return document.documentElement.scrollWidth <= window.innerWidth")
+        capture('00-passive-library-mobile')
+        fill('#batch-comments','stale comment from another project')
+        click('#start-sketches');alert();ready()
+        assert state()['interaction'][-1]['payload']['comments']==''
+        checks.append('Library intake stays idle until explicit Start sketches consent')
         wait("document.querySelectorAll('.sample').length === 3")
         saved=state();assert saved['reference_images'][0]['width']<=512 and saved['reference_images'][0]['bytes']<=80000
         checks.append('Hebrew RTL intake, fixed compressed reference and three sketches')

@@ -405,3 +405,45 @@ coverage/qualification check using default policy, not today's deployed data or
 a model-quality assessment. Production configuration/state was permission denied;
 today's report, normalized metadata and run ID were requested from the user.
 Private copies, audit output and test logs remain outside source.
+
+
+## 2026-10-15 — passive Studio library connection
+
+User requested Product-to-Studio wiring that only loads briefs into a browseable
+library. Investigation confirmed old sufficient-brief intake queued sketches
+immediately. Both public HTTP intake routes now save passive library entries;
+metadata edits never queue generation. Missing fields and complete original
+Product JSON are available in the Hebrew UI. Explicit Start sketches confirmation
+and a revision/idempotency-checked action are required before first generation.
+Existing human-started projects and their ledgers remain preserved.
+
+Product gains optional passive-only HTTP delivery with immutable exact-payload
+outboxes, stable IDs, finite retries, terminal failure records and explicit
+delivery-only recovery. Saved completed briefs can be backfilled without analysis,
+definition or email. Receiver failure does not block Product mail/definition;
+old receiver routes fail closed with no auto-generating fallback. Existing
+configuration defaults disabled; a preview/apply helper enables the transport
+without altering promotion-review identity or unrelated settings. Production
+activation and backfill remain explicit administrator operations.
+
+User asked about feedback(): it assumed a last round existed and dereferenced
+at(-1).candidates. New library entries have no rounds. It now safely supplies empty
+reviews before first generation, covering Start sketches and metadata edits. JSON
+form import also maps Product field names and structured text deliverables.
+
+All 361 offline tests passed: collector 94, analyzer 125, Product 23, Controller
+32, Studio 38, repository 49. Seven mock Firefox mobile checks passed, including
+passive import, readable full source brief, mobile width, first-generation consent,
+three-sample feedback, refresh and final approval. Local HTTP tests verified
+Product worker delivery, legacy/enhanced saved backfill, duplicates, no model or
+broker/paid-ledger activity before human start, bounded retry/recovery, old receiver
+rejection and tamper holds. Temporary configuration enablement preserved settings,
+mode and backup. No paid/OpenAI/Etsy/Ollama inference or external SMTP calls;
+spend was zero. Private reports, test artifacts and mock screenshots remain outside
+source. Production configuration, state and services were not modified.
+
+The empty-round feedback fallback also clears comments so a new library brief
+cannot inherit another project's batch text. The idle development Studio was
+reloaded with the same configuration/state; the paid-ledger SHA was unchanged,
+health passed, and no generation was triggered. Product delivery remains disabled
+until explicit configuration enablement; installed production was untouched.

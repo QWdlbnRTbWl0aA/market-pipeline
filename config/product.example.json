@@ -4,5 +4,16 @@
   "ollama_url": "http://127.0.0.1:11434",
   "qualification_root": "/var/lib/market-pipeline/controller/qualifications",
   "promotion_review": null,
-  "mail": {"enabled": false, "recipients": [], "max_attempts": 5, "retry_seconds": 60}
+  "mail": {
+    "enabled": false,
+    "recipients": [],
+    "max_attempts": 5,
+    "retry_seconds": 60
+  },
+  "studio_delivery": {
+    "enabled": false,
+    "endpoint": "http://127.0.0.1:8096/api/library/briefs",
+    "max_attempts": 5,
+    "retry_seconds": 60
+  }
 }

@@ -1,12 +1,25 @@
 # Studio preliminary implementation
 
-Studio is independent of collection, analysis and Product. It receives a saved
-brief through `POST /api/briefs` (JSON, `Idempotency-Key` required), or through the
-dashboard's form/import control. The saved Product-service `studio_brief.json`
-is supported: vision, customer, customer job and deliverables normalize into the
-Studio contract. Missing visual direction or other requirements are requested
-from the human. Product's existing outbox is unchanged; automatic producer
-delivery is a future integration, not an installed production connection.
+Studio is independently runnable. HTTP brief intake (`POST /api/briefs` and
+`POST /api/library/briefs`, JSON with `Idempotency-Key`) saves a passive library
+entry. Opening, refreshing, importing or editing an entry never generates images,
+calls a model or publishes a broker message. The Hebrew UI shows the normalized
+brief, missing fields and the complete original Product JSON. Complete missing
+fields, save, and explicitly click **התחלת סקיצות** to authorize generation.
+
+Configured Product delivery uses only `/api/library/briefs`, with a persistent
+outbox, exact saved payloads, bounded retries and duplicate suppression. Its
+receiver must be upgraded before enabling the connection. See
+[Studio library deployment and existing-brief backfill](studio-library.md).
+Product `product.json` fields are normalized by the intake adapter; the dashboard
+JSON import also maps Product concept/customer/job/deliverable fields. A batch
+`studio-handoff.json` manifest is not an individual brief. Visual examples still
+require uploaded/pasted or embedded images; Etsy URLs are never fetched.
+
+Existing active projects and their paid ledgers are preserved. Previously queued
+human-authorized generation is not canceled or replayed by this feature. The core
+workflow tests retain a legacy direct-call fixture path; the public HTTP routes
+always use passive library admission, regardless of fields in the submitted JSON.
 
 ## Run and review
 

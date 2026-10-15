@@ -147,7 +147,8 @@ class Handler(BaseHTTPRequestHandler):
         if len(body) != length: raise Invalid('Incomplete body')
         payload = json.loads(body, parse_constant=lambda _: (_ for _ in ()).throw(Invalid('Non-finite JSON')))
         key = self.headers.get('Idempotency-Key')
-        if path == '/api/briefs': return self.reply(200, self.server.studio.create(payload, key))
+        if path in ('/api/briefs','/api/library/briefs'):
+            return self.reply(200,self.server.studio.create(payload,key,library=True))
         match = re.fullmatch(r'/api/projects/([a-f0-9]{32})/actions/([a-z_]+)', path)
         if match: return self.reply(200, self.server.studio.command(*match.groups(), payload, key))
         self.reply(404, {'error': 'Not found'})

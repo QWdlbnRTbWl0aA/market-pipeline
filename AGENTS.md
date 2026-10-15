@@ -65,6 +65,13 @@ host security settings without explicit authorization.
   abandoned interaction as negative context, and explicit expensive-loop consent.
   Final approval records a blocked listing handoff. Do not wire Etsy publishing
   until the Studio is finalized; Studio must not load collector credentials.
+  Product-to-Studio delivery is a passive, durable library import. HTTP brief
+  intake and metadata edits must not queue generation, inference, paid calls or
+  broker publication. Show imported briefs and missing fields in the Hebrew UI;
+  first sketch generation requires an explicit human Start sketches action.
+  Preserve completed delivery IDs and bounded independent retries; no fallback
+  from the passive endpoint to a legacy auto-generating receiver. Existing saved
+  Product briefs may be backfilled without definition, inference or email.
 - Studio development uses an explicitly enabled OpenAI adapter with a separate
   **$1 total** development/testing envelope, including human UI use, shared across
   products and preserved across restarts. Reserve conservative cost before key

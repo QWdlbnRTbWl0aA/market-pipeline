@@ -75,7 +75,7 @@ class Development(unittest.TestCase):
         assets=adapter.generate(request);self.assertEqual(assets[0].metadata['features']['subject'],'boy');self.assertEqual(assets[0].media_type,'image/png')
         adapter.generate(request);self.assertEqual(len(calls),2);self.assertLess(adapter.budget.summary('product')['product_usd'],.01)
     def test_boy_girl_example_deduplicates_and_distinguishes_subject_not_blue(self):
-        studio=Studio(self.root,development=True);project=studio.create(BRIEF,'intake')['project']['id'];studio.tick();state=studio.get(project)
+        studio=Studio(self.root,development=True);project=studio.create(BRIEF,'intake',library=False)['project']['id'];studio.tick();state=studio.get(project)
         frame=state['rounds'][0]
         for i,subject in enumerate(('boy','girl','boy')):
             candidate=frame['candidates'][i];candidate['metadata']={'features':{'subject':subject,'palette':'blue'}}
@@ -112,20 +112,20 @@ class Development(unittest.TestCase):
         self.assertEqual(result['preferences'][0]['avoid'],'');self.assertIn('הפלטה',result['preferences'][0]['prefer'])
         self.assertIn('take precedence',result['next_direction'])
     def test_single_sample_feedback_replaces_only_one_and_logs_every_update(self):
-        studio=Studio(self.root,development=True);project=studio.create(BRIEF,'intake')['project']['id'];studio.tick();state=studio.get(project)
+        studio=Studio(self.root,development=True);project=studio.create(BRIEF,'intake',library=False)['project']['id'];studio.tick();state=studio.get(project)
         ids=[c['id'] for c in state['rounds'][-1]['candidates']]
         studio.command(project,'review_sample',{'revision':state['revision'],'candidate_id':ids[0],'reviews':{ids[0]:{'decision':'accept_with_comments','comment':'Use a boy, keep blue'}}},'review');studio.tick();state=studio.get(project)
         self.assertEqual(len(state['rounds'][-1]['candidates']),3);self.assertEqual([c['id'] for c in state['rounds'][-1]['candidates']][1:],ids[1:])
         self.assertEqual(state['accepted_samples'][0]['id'],ids[0]);self.assertEqual(len(list((studio.directory(project)/'reasoning-log').glob('*.json'))),1)
         self.assertIn('understanding',state)
     def test_replace_without_decision_is_not_a_rejection(self):
-        studio=Studio(self.root);project=studio.create(BRIEF,'intake')['project']['id'];studio.tick();state=studio.get(project)
+        studio=Studio(self.root);project=studio.create(BRIEF,'intake',library=False)['project']['id'];studio.tick();state=studio.get(project)
         candidate=state['rounds'][-1]['candidates'][0]['id']
         studio.command(project,'replace_sample',{'revision':state['revision'],'candidate_id':candidate},'replace');studio.tick()
         self.assertEqual(aggregate(studio.get(project))['evidence'],[])
     def test_budget_rejection_preserves_feedback_and_current_samples(self):
         adapter=OpenAIDev(self.root,credentials=lambda:self.fail('Key opened'),transport=lambda *a,**k:self.fail('Network called'))
-        studio=Studio(self.root,understanding=adapter,development=True);project=studio.create(BRIEF,'intake')['project']['id'];studio.tick();state=studio.get(project)
+        studio=Studio(self.root,understanding=adapter,development=True);project=studio.create(BRIEF,'intake',library=False)['project']['id'];studio.tick();state=studio.get(project)
         adapter.budget.reserve('spent','other',1_000_000,'fixture');adapter.budget.settle('spent',1_000_000,{})
         chosen=state['rounds'][-1]['candidates'][0]['id'];studio.command(project,'review_sample',{'revision':state['revision'],'candidate_id':chosen,'reviews':{chosen:{'decision':'reject','comment':'Change palette'}}},'review');studio.tick();state=studio.get(project)
         self.assertEqual(state['phase'],'generation_failed');self.assertEqual(state['rounds'][-1]['reviews'][chosen]['decision'],'reject');self.assertEqual(len(state['rounds'][-1]['candidates']),3)

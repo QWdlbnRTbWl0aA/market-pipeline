@@ -134,3 +134,15 @@ the existing default commercial history gates; pooling is necessary but does not
 guarantee ten supported recommendations. Today's installed state was unreadable
 by the development account and was not modified. No live collection, paid model,
 Ollama inference or external SMTP calls occurred.
+
+
+## Passive Studio library (2026-10-15)
+
+All 361 offline tests passed. Seven mock Firefox mobile checks passed, including
+passive brief import, expanded full source JSON, mobile layout and explicit first
+sketch consent. Actual localhost Product-to-Studio HTTP tests covered saved basic
+and enhanced briefs, daemon worker wiring, duplicate delivery, no generation until
+human action, finite retries/recovery, payload tamper and old receiver rejection.
+A temporary enablement preview/apply preserved unrelated configuration and mode.
+No paid inference, live collection or external SMTP delivery occurred. Installed
+production activation and designated-account isolation were not exercised.

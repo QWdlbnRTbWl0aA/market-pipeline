@@ -2,19 +2,23 @@
 const $=id=>document.getElementById(id);
 let project=null,editing=false,busy=false,draft={},round=null,chosen=null,references=[],lastSpending='',pending=null;
 const fields=['concept','audience','purpose','deliverables','visual_direction','requirements'];
-const phases={needs_information:'נשלים כמה פרטים',sketch_review:'בוחרים כיוון',professional_review:'מלטשים את היצירה',generating_sketch:'מבינים ויוצרים',generating_professional:'מכינים דוגמאות מקצועיות',generation_failed:'היצירה נעצרה',approved:'היצירה אושרה'};
+const phases={brief_ready:'בריף שמור · מוכן לבחירה',needs_information:'נשלים כמה פרטים',sketch_review:'בוחרים כיוון',professional_review:'מלטשים את היצירה',generating_sketch:'מבינים ויוצרים',generating_professional:'מכינים דוגמאות מקצועיות',generation_failed:'היצירה נעצרה',approved:'היצירה אושרה'};
 try{pending=JSON.parse(sessionStorage.getItem('studio-pending')||'null');}catch(_){}
 function show(id,visible){$(id).hidden=!visible;}
 function notify(message,error=false){$('message').textContent=message;$('message').classList.toggle('error',error);}
 async function request(path,body,key){const response=await fetch(path,body?{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':key},body:JSON.stringify(body)}:{cache:'no-store'});const result=await response.json();if(!response.ok)throw Error(result.error||'הפעולה לא הושלמה');return result;}
 async function projects(){const data=await request('/api/projects');$('projects').replaceChildren();for(const item of data.projects){const button=document.createElement('button');button.textContent=item.title;button.onclick=()=>load(item.id);$('projects').append(button);}}
 async function load(id){try{project=(await request('/api/projects/'+id)).project;editing=false;render();await projects();}catch(e){notify(e.message,true);}}
-function fillBrief(brief={}){for(const field of fields)$('brief-form').elements[field].value=Array.isArray(brief[field])?brief[field].join('\n'):brief[field]||'';}
+function fillBrief(document={}){const brief=document.source_requirements||document.product_brief||document;const text=v=>typeof v==='string'?v:v?.text||'';
+ const values={concept:text(brief.concept||brief.product_concept||document.vision),audience:text(brief.audience||brief.intended_customer||document.customer),purpose:text(brief.purpose||brief.customer_job||document.customer_job),deliverables:(brief.deliverables||document.deliverables||[]).map(text).join('\n'),visual_direction:text(brief.visual_direction||document.visual_direction)||(document.design_directions||[]).map(d=>text(d.name||d.title)).join(' / '),requirements:text(brief.requirements||document.requirements)};
+ for(const field of fields)$('brief-form').elements[field].value=values[field]||'';}
 function render(){
+ $('brief-form').querySelector('button[type=submit]').textContent=project?.library_import&&!project.generation_started?'שמירת הבריף':'נתחיל ליצור';
  show('intake',!project||editing);show('reference-input',!project);show('project',!!project&&!editing);if(!project||editing)return;
  $('title').textContent=project.title;$('phase').textContent=phases[project.phase]||'יצירה';$('round-info').textContent='סבב '+project.epoch;
  const generating=project.phase.startsWith('generating_'),professional=project.phase.includes('professional'),frame=project.rounds.at(-1);
  show('generation',generating);show('review',!!frame&&project.phase!=='approved');show('missing',project.phase==='needs_information');show('failure',project.phase==='generation_failed');show('expensive',professional);show('approved',project.phase==='approved');show('final',!professional);show('approve',professional);
+ show('library-brief',!!project.library_import&&!project.generation_started);$('library-summary').textContent=fields.map(field=>({concept:'רעיון',audience:'למי',purpose:'מטרה',deliverables:'תכולה',visual_direction:'סגנון',requirements:'הנחיות'}[field])+': '+(Array.isArray(project.brief[field])?project.brief[field].join(' · '):project.brief[field]||'—')).join('\n');$('library-source').textContent=JSON.stringify(project.source_brief||{},null,2);$('start-sketches').disabled=project.phase!=='brief_ready'||busy;
  $('generation-error').textContent=project.generation_error||'';$('download').href='/api/projects/'+project.id+'/download';
  $('questions').replaceChildren();for(const item of project.missing_information){const li=document.createElement('li');li.textContent=item.question;$('questions').append(li);}
  if(frame){
@@ -50,7 +54,7 @@ async function submit(path,payload){
  catch(error){notify(error.message,true);}
  finally{busy=false;if(project)await load(project.id);}
 }
-function feedback(){const ids=project.rounds.at(-1).candidates.slice(0,3).map(c=>c.id);return {reviews:Object.fromEntries(ids.filter(id=>draft[id]).map(id=>[id,draft[id]])),comments:$('batch-comments').value};}
+function feedback(){const frame=project?.rounds?.at(-1);if(!frame)return {reviews:{},comments:''};const ids=frame.candidates.slice(0,3).map(c=>c.id);return {reviews:Object.fromEntries(ids.filter(id=>draft[id]).map(id=>[id,draft[id]])),comments:$('batch-comments').value};}
 async function action(name,extra={}){if(project)await submit('/api/projects/'+project.id+'/actions/'+name,{revision:project.revision,...feedback(),...extra});}
 async function compress(file){
  if(!/^image\/(png|jpeg|webp)$/.test(file.type)||file.size>20_000_000)throw Error('בחרו תמונה עד 20MB בפורמט PNG, JPEG או WebP.');
@@ -66,9 +70,12 @@ $('reference-paste').onpaste=e=>{const data=e.clipboardData;const files=[...(dat
 $('new-project').onclick=()=>{project=null;round=null;draft={};references=[];editing=false;fillBrief();renderReferences();render();};
 $('brief-form').onsubmit=async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.target));data.deliverables=data.deliverables.split('\n').map(x=>x.trim()).filter(Boolean);
  if(project)await action('update_brief',{brief:data});else await submit('/api/briefs',{...data,reference_images:references});};
-$('import').onchange=async event=>{try{const file=event.target.files[0];if(file.size>800000)throw Error('הבריף גדול מדי.');const data=JSON.parse(await file.text());const images=data.reference_images||[];if(!Array.isArray(images)||images.length>3||images.some(i=>typeof i!=='string'||i.length>110000||!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(i)))throw Error('תמונות לדוגמה לא תקינות.');project=null;round=null;references=images;fillBrief(data.source_requirements||data.product_brief||data);renderReferences();render();}catch(e){notify(e.message,true);}};
+$('import').onchange=async event=>{try{const file=event.target.files[0];if(file.size>800000)throw Error('הבריף גדול מדי.');const data=JSON.parse(await file.text());const images=data.reference_images||[];if(!Array.isArray(images)||images.length>3||images.some(i=>typeof i!=='string'||i.length>110000||!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(i)))throw Error('תמונות לדוגמה לא תקינות.');project=null;round=null;references=images;fillBrief(data);renderReferences();render();}catch(e){notify(e.message,true);}};
 $('regenerate').onclick=async()=>{const expensive=project.phase==='professional_review';if(expensive&&!confirm('זהו סבב יקר יותר. להמשיך?'))return;await action('regenerate_batch',{consent_expensive:expensive});};
-$('edit-brief').onclick=()=>{editing=true;fillBrief(project.brief);references=[];render();$('reference-input').hidden=true;};
+function editBrief(){editing=true;fillBrief(project.brief);references=[];render();$('reference-input').hidden=true;}
+$('edit-brief').onclick=editBrief;$('library-edit').onclick=editBrief;
+$('start-sketches').onclick=()=>{if(confirm('להתחיל ליצור סקיצות? הפעולה תשתמש במודל המוגדר ועשויה לעלות כסף.'))action('start_sketches');};
+$('library-refresh').onclick=()=>projects().catch(e=>notify(e.message,true));
 $('final').onclick=()=>{if(!Object.values(draft).some(r=>r.decision==='accept')&&!project.accepted_samples.length){notify('בחרו לפחות דוגמה אחת שאהבתם.');return;}$('settings').showModal();};
 $('cancel-settings').onclick=()=>$('settings').close();
 $('settings-form').onsubmit=async event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.target));for(const name of ['width','height','dpi','bleed_mm'])values[name]=Number(values[name]);$('settings').close();await action('generate_final',{settings:values,consent_expensive:true});};

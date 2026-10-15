@@ -32,7 +32,7 @@ class Workflow(unittest.TestCase):
         self.studio=Studio(self.tmp.name,sketches=self.generator,professional=self.generator); self.sequence=0
     def tearDown(self): self.tmp.cleanup()
     def create(self, brief=None):
-        state=self.studio.create(brief or BRIEF,'intake')['project']; self.project=state['id']; self.studio.tick(); return self.state()
+        state=self.studio.create(brief or BRIEF,'intake',library=False)['project']; self.project=state['id']; self.studio.tick(); return self.state()
     def state(self): return self.studio.get(self.project)
     def act(self, action, **extra):
         self.sequence+=1;return self.studio.command(self.project,action,{'revision':self.state()['revision'],**extra},str(self.sequence))['project']
@@ -49,7 +49,8 @@ class Workflow(unittest.TestCase):
         self.assertIn('למי מיועד המוצר?',event['message']);self.assertEqual(event['brief']['concept'],'Planner')
         self.studio.tick();self.assertEqual(len(list(message.parent.glob('*.json'))),1)
         self.assertEqual(self.state()['notification']['delivery']['status'],'recorded')
-        self.act('update_brief',brief=BRIEF);self.studio.tick();self.assertEqual(len(self.state()['rounds'][-1]['candidates']),3)
+        self.act('update_brief',brief=BRIEF);self.studio.tick();self.assertEqual(self.state()['phase'],'brief_ready');self.assertEqual(len(self.generator.requests),0)
+        self.act('start_sketches');self.studio.tick();self.assertEqual(len(self.state()['rounds'][-1]['candidates']),3)
 
     def test_sketch_round_carries_accepted_comments_and_rejected_references(self):
         state=self.create();self.assertEqual(len(state['rounds'][0]['candidates']),3)
@@ -139,8 +140,8 @@ class Workflow(unittest.TestCase):
         Studio(self.tmp.name).tick();self.assertEqual(self.state()['rounds'],state['rounds'])
 
     def test_intake_key_conflict_and_restart_preserve_work(self):
-        self.create();self.assertTrue(self.studio.create(BRIEF,'intake')['duplicate'])
-        with self.assertRaises(Conflict):self.studio.create({**BRIEF,'concept':'Other'},'intake')
+        self.create();self.assertTrue(self.studio.create(BRIEF,'intake',library=False)['duplicate'])
+        with self.assertRaises(Conflict):self.studio.create({**BRIEF,'concept':'Other'},'intake',library=False)
         self.studio=Studio(self.tmp.name,sketches=self.generator);self.studio.tick();self.assertEqual(len(self.generator.requests),1)
 
     def test_all_rejected_samples_can_iterate_and_invalid_comments_fail(self):
@@ -150,7 +151,7 @@ class Workflow(unittest.TestCase):
         with self.assertRaises(Invalid):self.act('save_feedback',reviews={self.state()['rounds'][-1]['candidates'][0]['id']:{'decision':'accept_with_comments'}})
 
     def test_interrupted_generation_never_automatically_repeats(self):
-        self.project=self.studio.create(BRIEF,'intake')['project']['id']
+        self.project=self.studio.create(BRIEF,'intake',library=False)['project']['id']
         state=self.state();folder=self.studio.directory(self.project)/'generations'/state['active_operation']
         write(folder/'operation.json',{'status':'started'})
         self.studio.tick();self.assertEqual(self.state()['phase'],'generation_failed');self.assertEqual(len(self.generator.requests),0)
@@ -159,7 +160,7 @@ class Workflow(unittest.TestCase):
     def test_parallel_workers_do_not_mark_live_generation_interrupted(self):
         entered=threading.Event();release=threading.Event();generator=self.generator
         def slow(request):entered.set();release.wait(3);return MockGenerator().generate(request)
-        generator.generate=slow;self.project=self.studio.create(BRIEF,'intake')['project']['id']
+        generator.generate=slow;self.project=self.studio.create(BRIEF,'intake',library=False)['project']['id']
         worker=threading.Thread(target=self.studio.tick);worker.start();self.assertTrue(entered.wait(2))
         Studio(self.tmp.name).tick();self.assertEqual(self.state()['phase'],'generating_sketch')
         release.set();worker.join(3);self.assertFalse(worker.is_alive());self.assertEqual(self.state()['phase'],'sketch_review')
@@ -187,7 +188,7 @@ class Workflow(unittest.TestCase):
     def test_no_credentials_no_network_and_listing_injection_blocked(self):
         with patch.dict(os.environ,{'ETSY_API_KEY':'fixture-never-loaded'}):
             with self.assertRaises(Invalid):Studio(self.tmp.name)
-        with self.assertRaises(Invalid):self.studio.create({**BRIEF,'credentials':{}},'secret')
+        with self.assertRaises(Invalid):self.studio.create({**BRIEF,'credentials':{}},'secret',library=False)
         with patch('socket.create_connection',side_effect=AssertionError('Network forbidden')):
             self.professional()
             class Forbidden:
@@ -218,6 +219,8 @@ class HTTP(unittest.TestCase):
     def test_http_brief_actions_assets_and_mobile_ui(self):
         status,body,headers=self.call('/');self.assertEqual(status,200);self.assertIn(b'name="viewport"',body);self.assertIn('Content-Security-Policy',headers)
         status,body,_=self.call('/api/briefs',BRIEF);self.assertEqual(status,200);project=json.loads(body)['project']
+        self.assertEqual(project['phase'],'brief_ready');self.server.studio.tick();self.assertEqual(self.server.studio.get(project['id'])['rounds'],[])
+        self.call('/api/projects/'+project['id']+'/actions/start_sketches',{'revision':project['revision']},{'Idempotency-Key':'start'})
         self.server.studio.tick();state=self.server.studio.get(project['id']);candidate=state['rounds'][0]['candidates'][0]
         status,body,_=self.call('/api/projects/'+project['id']+'/asset/'+candidate['id']);self.assertEqual(status,200);self.assertTrue(body.startswith(b'<svg'))
         self.assertEqual(self.call('/api/projects/'+project['id']+'/download')[0],409)

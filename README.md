@@ -25,10 +25,15 @@ flowchart LR
   M --> ME[Analyzer email: readable report + exact analysis JSON]
   P --> O[Saved studio brief]
   P --> PE[Product email: full exact Studio briefs]
-  O -.->|separate manual intake| S[Studio HTTP intake + human approval]
+  O -->|configured passive library intake| S[Studio library + human approval]
   S --> B[Abstract broker · mock]
   S --> A[Approved artifact + blocked listing handoff]
 ```
+
+Product can now deliver saved briefs into Studio's passive library. Import and
+browsing never generate images; the user must explicitly start sketches. Existing
+installations require enablement and an upgraded receiver; see
+[Studio library wiring and backfill](docs/studio-library.md).
 
 ## Components
 

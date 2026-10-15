@@ -17,7 +17,7 @@ from test_development import png
 class Batches(unittest.TestCase):
     def setUp(self):self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.generator=RecordingGenerator();self.studio=Studio(self.tmp.name,sketches=self.generator,development=True)
     def project(self,**extra):
-        project=self.studio.create({**BRIEF,**extra},'intake')['project']['id'];self.studio.tick();return project,self.studio.get(project)
+        project=self.studio.create({**BRIEF,**extra},'intake',library=False)['project']['id'];self.studio.tick();return project,self.studio.get(project)
     def test_all_three_reviews_and_shared_comment_are_required_and_aggregated(self):
         project,state=self.project();samples=state['rounds'][-1]['candidates'];self.assertEqual(len(samples),3)
         reviews={c['id']:{'decision':'reject' if i==1 else 'accept','comment':''} for i,c in enumerate(samples)}
@@ -36,7 +36,7 @@ class Batches(unittest.TestCase):
         with self.assertRaises(Invalid):self.studio.command(project,'start_over',{'revision':state['revision'],'reference_images':[]},'changed-references')
     def test_invalid_remote_and_too_many_references_stop_before_generation(self):
         for refs in (['https://example.com/image.png'],['data:image/png;base64,invalid'],['x']*4):
-            with self.assertRaises(Invalid):self.studio.create({**BRIEF,'reference_images':refs},str(len(refs)))
+            with self.assertRaises(Invalid):self.studio.create({**BRIEF,'reference_images':refs},str(len(refs)),library=False)
         self.assertEqual(self.generator.requests,[])
     @unittest.skipUnless(importlib.util.find_spec('PIL'),'Optional Pillow runtime unavailable')
     def test_large_input_is_reduced_and_metadata_removed(self):

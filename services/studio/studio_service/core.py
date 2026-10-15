@@ -37,6 +37,7 @@ class Studio:
         state['spending'] = self.budget.summary(project)
         state['spending']['development']=self.development
         state['accepted_samples']=self.references(state)
+        if state.get('library_import'):state['source_brief']=read(self.directory(project)/'original-brief.json')
         if state['phase'].startswith('generating_'):
             pending=read(self.directory(project)/'generations'/state['active_operation']/'request.json')
             state['pending_sample']=pending.get('replacement')
@@ -66,7 +67,7 @@ class Studio:
         if not path.exists(): write(path, event)
         state['notification'] = {'event_id': event['event_id'], 'message': event['message'], 'status': 'queued'}
 
-    def create(self, document, key):
+    def create(self, document, key, library=True):
         action_key(key); normalized = briefs.normalize(document)
         project = digest({'intake_key': key})[:32]
         directory = self.root / 'projects' / project
@@ -79,7 +80,7 @@ class Studio:
                 return {'project': state, 'duplicate': True}
             from .references import save as save_references
             reference_images=save_references(directory,document.get('reference_images',[]))
-            write(directory / 'original-brief.json', {**document,'reference_images':reference_images})
+            write(directory / 'original-brief.json', {**document,**({'reference_images':reference_images} if 'reference_images' in document else {})})
             state = {'schema_version': 1, 'id': project, 'revision': 0, 'epoch': 1,
                      'title': normalized['concept'] or 'Untitled brief', 'brief': normalized,
                      'source_sha256': digest(document), 'phase': 'needs_information',
@@ -87,7 +88,10 @@ class Studio:
                      'negative_summary': {}, 'interaction': [], 'action_receipts': {}, 'final_settings': None,
                      'missing_information': briefs.missing(normalized), 'providers': getattr(self.sketches,'name','mock'), 'etsy_connected': False,
                      'reference_images':reference_images}
-            if state['missing_information']: self.notify_missing(state)
+            if library:
+                state['library_import']=True;state['generation_started']=False
+                state['phase']='needs_information' if state['missing_information'] else 'brief_ready'
+            elif state['missing_information']: self.notify_missing(state)
             else: self.queue(directory, state, 'sketch', 'Initial sufficient brief')
             self.save(directory, state)
             return {'project': state, 'duplicate': False}
@@ -192,11 +196,15 @@ class Studio:
             if phase == 'approved': raise Conflict('Final approval is immutable; submit a new brief for another product')
             state['interaction'].append({'action': action, 'key': key, 'at': now(), 'payload': payload})
             if action == 'update_brief':
-                if phase != 'needs_information': raise Conflict('Brief updates require the information stage')
+                if phase not in ('needs_information','brief_ready'): raise Conflict('Brief updates require the information stage')
                 state['brief'] = briefs.normalize(payload.get('brief')); state['title'] = state['brief']['concept'] or 'Untitled brief'
                 state['missing_information'] = briefs.missing(state['brief'])
-                if state['missing_information']: self.notify_missing(state)
-                else: self.queue(directory, state, 'sketch', 'Updated sufficient brief')
+                state['library_import']=True;state['generation_started']=False
+                state['phase']='needs_information' if state['missing_information'] else 'brief_ready'
+            elif action == 'start_sketches':
+                if phase!='brief_ready' or state['missing_information']:raise Conflict('Complete the brief before starting sketches')
+                state['generation_started']=True
+                self.queue(directory,state,'sketch','Human explicitly started saved library brief')
             elif action == 'start_over':
                 if state['missing_information']: raise Conflict('Complete the brief before generating sketches')
                 if phase in ('sketch_review', 'professional_review'): self.feedback(state, payload)
