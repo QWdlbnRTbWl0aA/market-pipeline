@@ -63,8 +63,9 @@ def series_summary(rows, metrics, scope):
 
 
 class HistoryIntake:
-    def __init__(self, root, run_id, limit=None, days=None, cohort_root=None, as_of=None):
+    def __init__(self, root, run_id, limit=None, days=None, cohort_root=None, as_of=None, saved_pool=False):
         self.current = SavedCollectionIntake(root, run_id); self.days = days; self.cohort_root=Path(cohort_root) if cohort_root else None; self.as_of=as_of
+        self.saved_pool=saved_pool
         if days is not None and (type(days) is not int or not 7 <= days <= 90): raise ValueError('Invalid explicit history date window')
 
     def floor(self, finished):
@@ -149,8 +150,13 @@ class HistoryIntake:
             refresh=instant(self.as_of)
             if refresh is None or refresh<finished or refresh>dt.datetime.now(dt.timezone.utc):raise ValueError('Explicit refresh time must be between source finalization and now')
             finished=refresh;batch.metadata['refresh_as_of']=refresh.isoformat()
+        pool_sha=None
+        if self.saved_pool:
+            from .pool import extend
+            pool_sha=extend(batch,self.current.root,finished,self.floor(finished))
         self.cohort_records(batch,finished)
         batch.metadata['semantic_context']={'refresh_as_of':batch.metadata.get('refresh_as_of'),'cohort_context_sha256':hashlib.sha256(json.dumps(batch.metadata.get('cohort_context'),sort_keys=True).encode()).hexdigest() if batch.metadata.get('cohort_context') else None}
+        if pool_sha:batch.metadata['semantic_context']['saved_pool_sha256']=pool_sha
         records = {r['id']: r for r in batch.records if isinstance(r,dict) and r.get('id')}
         sellers = {r.get('seller_id') for r in records.values() if r.get('seller_id')}
         candidates, indexed = self.candidates(records, sellers, finished)
@@ -171,9 +177,11 @@ class HistoryIntake:
                     for row in selected:
                         for name in ('views','favorites'):
                             before, after = metric(row,name), metric(records[row['id']],name)
-                            if type(before) in (int,float) and type(after) in (int,float):
+                            old_time=instant(row.get('observed_at')) or stamp
+                            new_time=instant(records[row['id']].get('observed_at')) or (finished if not self.saved_pool else None)
+                            if type(before) in (int,float) and type(after) in (int,float) and new_time and new_time>old_time:
                                 deltas.append({'listing_id': row['id'], 'metric': name, 'before': before, 'after': after, 'change': after-before,
-                                               'negative_change': after < before, 'days': (finished-stamp).total_seconds()/86400})
+                                               'negative_change': after < before, 'days': (new_time-old_time).total_seconds()/86400})
                     exact.append({'run_id': run_id, 'input_sha256': prior.provenance['input_sha256'], 'finished_at': prior.metadata['finished_at'], 'matched_query': True, 'listing_deltas': deltas})
                 for row in selected:
                     for image in row.get('images') or []:
@@ -181,8 +189,10 @@ class HistoryIntake:
                             saved = {**image, 'artifact_run_id': run_id}
                             if saved not in (records[row['id']].get('images') or []): records[row['id']].setdefault('images',[]).append(saved)
             except (OSError,ValueError,TypeError,KeyError) as error: issues.append({'run_id': run_id, 'error_type': type(error).__name__})
-        listing_series = {key: [{**row, 'source_run_id': batch.metadata['source_run_id']}] for key,row in records.items()}
-        shop_series = {str(s['shop_id']): [{**s, 'source_run_id': batch.metadata['source_run_id']}] for s in batch.metadata.get('shops', []) if str(s.get('shop_id')) in sellers}
+        listing_series = {key: [{**row, 'source_run_id': row.get('provenance',{}).get('artifact_run_id',batch.metadata['source_run_id'])}] for key,row in records.items()}
+        shop_series = {}
+        for shop in batch.metadata.get('shops',[]):
+            if str(shop.get('shop_id')) in sellers:shop_series.setdefault(str(shop['shop_id']),[]).append({**shop,'source_run_id':shop.get('source_run_id',batch.metadata['source_run_id'])})
         for observation in related:
             for row in observation['listings']: listing_series[row['id']].append({**row, 'source_run_id': observation['run_id']})
             for row in observation['shops']: shop_series.setdefault(str(row['shop_id']), []).append({**row, 'source_run_id': observation['run_id']})

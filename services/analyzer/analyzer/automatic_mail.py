@@ -27,6 +27,11 @@ def prepare(directory,config):
     else:
         text='Market analysis — '+payload['source_run_id']+'\n\n'+report.get('summary','Analysis did not produce a complete product recommendation.')+'\nStatus: '+str(payload.get('status'))+'\n\nThe attached JSON is the exact payload prepared for Product. No opportunity or product has been invented to fill an evidence gap.'
         markup='<html><body><pre>'+html.escape(text)+'</pre></body></html>'
+    scope=report.get('data_scope') or {}
+    if 'pooled_listing_count' in scope:
+        note=f"Collection additions: {scope['current_run_listing_count']}; saved candidate pool: {scope['pooled_listing_count']} listings across {scope['shop_count']} shops. Historical observations keep their original dates."
+        text=note+'\n\n'+text
+        markup=markup.replace('<body>','<body><p>'+html.escape(note)+'</p>',1)
     return enqueue(Path(config['output_root'])/'mail-outbox','analyzer',payload['source_run_id'],
                    'Market analysis — '+payload['source_run_id'],text,markup,[('market-analysis.json',body)],settings)
 

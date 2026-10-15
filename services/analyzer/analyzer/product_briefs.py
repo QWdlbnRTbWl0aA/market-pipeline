@@ -19,13 +19,13 @@ def cross_checks(dataset, candidate):
     listing_series={};shop_series={}
     for record in dataset['records']:
         if record['id'] in identities:
-            listing_series.setdefault(record['id'],[]).append({'observed_at':record['observed_at'],'metrics':record['metrics'],'source_run_id':dataset['metadata'].get('source_run_id')})
+            listing_series.setdefault(record['id'],[]).append({'observed_at':record['observed_at'],'metrics':record['metrics'],'source_run_id':record.get('provenance',{}).get('artifact_run_id',dataset['metadata'].get('source_run_id'))})
     observations=[{'run_id':dataset['metadata'].get('source_run_id'),'shops':dataset['metadata'].get('shops',[]),'listings':[]}]+related
     for observation in observations:
         for row in observation.get('listings',[]):
             if row['id'] in identities:listing_series.setdefault(row['id'],[]).append({'observed_at':row['observed_at'],'metrics':row['metrics'],'source_run_id':observation['run_id']})
         for row in observation.get('shops',[]):
-            if str(row['shop_id']) in sellers:shop_series.setdefault(str(row['shop_id']),[]).append({**row,'source_run_id':observation['run_id']})
+            if str(row['shop_id']) in sellers:shop_series.setdefault(str(row['shop_id']),[]).append({**row,'source_run_id':row.get('source_run_id',observation['run_id'])})
     def intervals(series, metric):
         values={}
         for row in series:
@@ -48,7 +48,7 @@ def cross_checks(dataset, candidate):
         shop_rows=[r for r in dataset['records'] if r['seller_id']==row['seller_id']]
         profile={'saved_listing_count':len(shop_rows),'category_counts':dict(Counter(r['category'] or 'unknown' for r in shop_rows)),
             'candidate_listing_count':sum(r['id'] in identities for r in shop_rows),
-            'scope':'Listings present in this saved query only; not full shop inventory or sales mix'}
+            'scope':'Selected saved listings, including historical pool when enabled; not full shop inventory or sales mix'}
         changes={name:intervals(series,name) for name in ('views','favorites')}
         latest=max(shop,key=lambda s:s.get('observed_at') or '') if shop else None
         sales=intervals(shop,'transaction_sold_count')

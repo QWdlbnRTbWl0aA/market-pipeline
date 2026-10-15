@@ -371,3 +371,37 @@ mock use and required for reference processing/development image observation.
 The first notifier payload incorrectly used event and returned HTTP 400. After
 the user's contract correction, messageType START was accepted with HTTP 200.
 Private test evidence, previews and reports remain outside this repository.
+
+
+## 2026-10-15 — cumulative Market Insights intake
+
+User reported a deduplicated daily collection retaining thirteen new listings,
+with no opportunities, despite substantial earlier collection. Investigation found
+that HistoryIntake joined old observations only for identities already in today's
+batch (plus approved cohorts); older discovery candidates were not unioned in.
+Market Insights now rebuilds an as-of pool from saved successful artifacts,
+matching any current niche and selected shops/price/taxonomy, with latest identity
+observations and original source dates/hashes. No fetch, inference or delivery is
+needed to build or audit it. Search refinement retains current-query semantics.
+
+Saved pool manifests participate in inference identity, and summary/email counts
+separate current additions from historical/total records. Existing watcher cursors,
+completed reports, offer suppression, paid ledgers and delivery receipts remain
+intact. Prior saved images and shop/listing interval provenance keep their real
+source runs. No installed services, production state or collector settings changed.
+
+Six new regressions cover thirteen-plus-one-hundred records, empty current runs,
+as-of/probe/failed/niche/shop/price/cycle restrictions, saved tracking and images,
+repeated-trigger idempotency, and ten mock recommendations from sufficient
+historical evidence. Full offline suite passed 354 tests: collector 94, analyzer
+125, Product 16, Controller 32, Studio 38, repository 49. No live Etsy, paid model,
+Ollama inference or external SMTP calls were made; development spend was zero.
+
+An offline audit of copied private pre-migration snapshots expanded a six-row
+collection to 4,654 listings and 1,162 shops across seven contributing snapshots.
+All eighty groups still failed the current listing/shop longitudinal qualification
+rules; thirty-nine also lacked adequate comparable prices. This is an archived
+coverage/qualification check using default policy, not today's deployed data or
+a model-quality assessment. Production configuration/state was permission denied;
+today's report, normalized metadata and run ID were requested from the user.
+Private copies, audit output and test logs remain outside source.

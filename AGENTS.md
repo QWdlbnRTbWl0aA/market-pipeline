@@ -29,6 +29,10 @@ host security settings without explicit authorization.
   briefs without padding. Retain insufficiency reasons and never allocate shop sales
   to listings. This assignment's paid development allowance is $0.50 within the
   preserved shared ledger; it does not change Studio's separate development budget.
+  Market candidate intake combines new discoveries with the relevant saved listing
+  and shop pool; fetch exclusions must not exclude prior saved candidates from
+  analysis. Preserve real observation dates, as-of boundaries and per-artifact
+  provenance. Report current additions and cumulative pool size separately.
 - Deterministic code performs parsing, normalization, grouping, mechanical DQA
   and admission. Use local Ollama and bounded cheap calls before costly models.
 - Analyzer intake is limited to saved collector artifacts. Analyzer/product/

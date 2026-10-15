@@ -123,3 +123,14 @@ The documented additive configuration upgrade passed preview/apply checks on
 temporary files, preserving paid settings and configuration modes with backups.
 Optional SMTP systemd units passed static verification. These checks do not claim
 installed production delivery or designated-account isolation was exercised.
+
+
+## Cumulative saved-pool correction (2026-10-15)
+
+All 354 offline tests passed, including six new candidate-pool regressions.
+A real archived-data audit (no inference/delivery) expanded one six-row snapshot
+to 4,654 relevant saved listings from 1,162 shops. Zero of eighty groups passed
+the existing default commercial history gates; pooling is necessary but does not
+guarantee ten supported recommendations. Today's installed state was unreadable
+by the development account and was not modified. No live collection, paid model,
+Ollama inference or external SMTP calls occurred.

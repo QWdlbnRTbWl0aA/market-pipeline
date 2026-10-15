@@ -130,6 +130,7 @@ def locked(dataset,directory,config,settings,local,cheap,good):
         'recommendations':recommendations,'summary':f'{len(recommendations)} new evidence-qualified opportunities; target {settings["minimum_target"]}–{settings["maximum_opportunities"]}.',
         'target_count_met':len(recommendations)>=settings['minimum_target'],'shortfall':max(0,settings['minimum_target']-len(recommendations)),
         'candidate_counts':{'initial':len(assessed),'previously_suggested_removed':len(suppressed),'qualified_novel':len(novel),'consumer':len(recommendations)},
+        'data_scope':{k:v for k,v in dataset['metadata'].get('saved_pool',{}).items() if k not in ('members','sources','issues','query_context','source_normalization')} | {'source_run_count':len(dataset['metadata'].get('saved_pool',{}).get('sources',[])),'pool_issue_count':len(dataset['metadata'].get('saved_pool',{}).get('issues',[]))},
         'assessment_updates':[{'key':r['key'],'phrase':r['phrase'],'qualified':r['qualified'],'assessment':summary(r['assessment'])} for r in assessed],
         'shortfall_reasons':dict(__import__('collections').Counter(reason for r in assessed for reason in r['assessment']['hold_reasons'])),
         'final_model_completed':any(s['stage']=='final' for s in stages),'local_image_notes_unverified':visual_notes,'stages':stages,

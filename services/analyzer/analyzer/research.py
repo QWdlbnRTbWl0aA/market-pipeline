@@ -90,7 +90,7 @@ def build_evidence(dataset, policy):
                            'listing_count':len(rows),'shop_count':len(sellers),'largest_shop_share':max(sellers.values())/len(rows) if sellers else None,
                            'prices':prices,'engagement':metric,'performance_cross_check':cross,'historical_engagement':momentum,
                            'shop_observations':shop_observations[:10],'shop_observations_scope':'Whole-shop lifetime sales and active inventory; never attributed to this niche or any listing','evidence':evidence,'listing_ids':sorted(identities),
-                           'supply_scope':'observed digital listings matching phrase in this saved query; marketplace supply unknown',
+                           'supply_scope':'observed digital listings matching phrase in selected saved artifacts, including historical pool when enabled; marketplace supply unknown',
                            'demand_status':'unverified','current_demand':None,'marketplace_supply':None,'sales':None})
         if len(candidates)>=policy['max_candidates']:break
     return {'version':VERSION,'candidate_selection':'Broad controls plus multiword groups stratified across three to twenty, twenty-one to fifty and fifty-one to one hundred observed shops, then remaining groups; sampling heuristic, not an opportunity score','query_context':queries,'observed_listings':len(records),

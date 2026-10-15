@@ -42,6 +42,11 @@ flowchart LR
 | Studio | Hebrew dashboard and HTTP intake, port 8096 | Three-sample batch feedback, compressed brief references, Studio-owned generator prompts, persistent sketch/professional loops; mock defaults and optional $1 development mode |
 
 The analyzers never load Etsy credentials, call Etsy or modify collector input.
+Market Insights rebuilds its candidate pool from eligible saved collections as
+of each query's finalization, rather than treating a deduplicated collection as
+the entire market. Reports distinguish new rows from pooled historical rows.
+Historical snapshots must be present in the configured `saved_runs_root`; private
+development archives are not automatically imported. See [saved candidate pool](docs/saved-pool.md).
 They run independently; one failing does not suppress the other. Completed work
 is identified semantically and retained across budget/configuration changes.
 HTTP delivery is persisted before acknowledgment and retried without repeating

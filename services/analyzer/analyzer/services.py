@@ -100,6 +100,8 @@ def run_service(service, intake, model, config, retry_failed=False, transport=No
         try:
             dataset = normalize(batch)
             write_json(directory / 'normalized.json', dataset)
+            if dataset['metadata'].get('saved_pool'):
+                write_json(directory / 'saved-pool.json', dataset['metadata']['saved_pool'])
             if dataset['metadata'].get('history'):
                 write_json(directory / 'history-v2.json', dataset['metadata']['history'])
             if not dataset['records']:
@@ -174,7 +176,7 @@ def run_cycle(config, run_id, models=None, retry_failed=False, transport=None, s
                     from .adapters.cached import CachedLocalModel
                     model=CachedLocalModel(model,Path(config['paid']['ledger_root']).parent/'local-cache',{'model':config['model'],'digest':config.get('model_digest')})
             from .history import HistoryIntake
-            intake=HistoryIntake(config['saved_runs_root'],run_id,cohort_root=config.get('cohort_root') if service=='market_insights' else None,as_of=config.get('refresh_as_of')) if 'research' in config else SavedCollectionIntake(config['saved_runs_root'],run_id)
+            intake=HistoryIntake(config['saved_runs_root'],run_id,cohort_root=config.get('cohort_root') if service=='market_insights' else None,as_of=config.get('refresh_as_of'),saved_pool=service=='market_insights') if 'research' in config or service=='market_insights' else SavedCollectionIntake(config['saved_runs_root'],run_id)
             results.append(run_service(service, intake, model,
                                        config, retry_failed, transport))
         except Exception as error:
