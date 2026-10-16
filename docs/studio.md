@@ -263,3 +263,18 @@ individual comments and shared batch comments reach the image prompt. The
 compiled prompt is bounded at 20KB; oversized context fails explicitly before
 image generation rather than silently dropping brief content.
 Explicit current edits/feedback take priority over conflicting original fields.
+
+
+Legacy briefs saved before passive library imports may have no `library_import`
+flag. The API now exposes these old information-stage entries as ready library
+entries with the complete original brief; the UI offers Start sketches for every
+`brief_ready` entry. Merely clicking a library title only opens it. Generation
+still requires Start sketches, so library browsing never makes a paid call.
+
+For a runtime with real AI providers and no mock notification transport, set
+`broker_provider: "file"`. This transport persists actual human-facing messages in
+`broker-inbox/<event-id>.json`, with idempotent receipts and collision rejection.
+It is a local durable inbox, not a hosted message-broker integration. Sketches,
+professional samples and feedback understanding can all use `openai_dev`; Etsy
+publishing remains blocked regardless of these settings. Mock providers remain
+available for offline tests and explicit mock configurations only.

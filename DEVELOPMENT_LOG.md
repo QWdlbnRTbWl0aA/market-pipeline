@@ -486,3 +486,29 @@ were made; image quality itself is not established by mock contract tests.
 Validation: all 365 offline tests passed (Collector 94, Analyzer 125, Product 23,
 Controller 32, Studio 42, repository 49), along with nine Firefox mobile checks.
 The all-object sanitation scan found zero issues. No paid or Etsy calls were made.
+
+
+## Real Studio preview and legacy library entry visibility
+
+A user selected a legacy information-blocked brief in the preview, but no Start
+button appeared: read-side phase compatibility did not also provide the passive
+library flags expected by the UI. Fixed this without a read-side state rewrite:
+legacy entries expose ready status, library metadata and original source; library
+lists agree, and every ready entry shows its Start control. Explicit start persists
+the compatibility metadata. Added regression coverage for the exact absent-flags
+structure. Added a configurable durable local file notification inbox, leaving
+mock transport for explicit fixtures. Real generation never falls back to mock.
+
+Restarted only the development preview, preserving the same state and original
+one-dollar ledger. User explicitly authorized a real run of the selected preschool
+Hanukkah brief. One three-image operation completed: image generation and visual
+observation, two actual OpenAI calls, $0.018326 total recorded usage, $0.881325
+remaining in the original envelope. Three PNG assets are saved and served by the
+preview. Visual inspection confirms subject-specific coloring artwork; malformed
+lettering remains a draft quality issue. No quality rerun was attempted. Production
+Studio was untouched and Etsy listing remains blocked. Exact request/response and
+usage evidence remains in private runtime storage, not Git.
+
+Validation: all 366 offline tests passed. Read-only Firefox inspection of the
+live preview confirmed three real 1024-square PNGs at mobile width, correct
+provider/budget labels and no overflow. Sanitation found zero issues.

@@ -22,7 +22,7 @@ def configuration(path=None):
     if isinstance(config,dict):config={'development_openai':False,**config}
     if not isinstance(config, dict) or set(config) != set(DEFAULT): raise Invalid('Unexpected Studio configuration')
     for key in ('schema_version', 'sketch_provider', 'professional_provider', 'broker_provider', 'listing_provider'):
-        allowed=('mock','openai_dev') if key in ('sketch_provider','professional_provider') else (DEFAULT[key],)
+        allowed=('mock','openai_dev') if key in ('sketch_provider','professional_provider') else ('mock','file') if key=='broker_provider' else (DEFAULT[key],)
         if config[key] not in allowed: raise Invalid('Unknown provider or live listing is forbidden')
     if type(config['development_openai']) is not bool:raise Invalid('Explicit development setting required')
     if any(config[k]=='openai_dev' for k in ('sketch_provider','professional_provider')) and not config['development_openai']:raise Invalid('OpenAI is development-only')
@@ -111,6 +111,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/projects': return self.reply(200, {'projects': studio.list()})
         if path == '/api/runtime':return self.reply(200,{'sketch_provider':getattr(studio.sketches,'name','mock'),
             'professional_provider':getattr(studio.professional,'name','mock'),'development':studio.development,
+            'understanding_provider':getattr(studio.understanding,'name','local'),
+            'broker_provider':getattr(studio.broker,'name','custom'),'listing_provider':'blocked',
             'spending':studio.budget.summary('')})
         payload_match=re.fullmatch(r'/api/projects/([a-f0-9]{32})/payloads(?:/([a-f0-9]{64})(/body)?)?',path)
         if payload_match:

@@ -1,4 +1,4 @@
-"""Explicit mock generation/broker and blocked listing adapter. No network clients."""
+"""Mock generation, durable local notifications and blocked listing adapters."""
 import html
 from pathlib import Path
 import re
@@ -61,13 +61,19 @@ def checked_asset(asset):
     return asset
 
 
-class MockBroker:
+class FileBroker:
+    """Durable local human-notification inbox, with idempotent publication."""
+    name='file'
     def __init__(self, root): self.root = Path(root)
     def publish(self, message):
         path = self.root / (message['event_id']+'.json')
         if path.exists() and digest(read(path)) != digest(message): raise Conflict('Broker identity collision')
         if not path.exists(): write(path, message)
-        return {'provider': 'mock-broker', 'status': 'recorded', 'event_id': message['event_id']}
+        return {'provider': self.name, 'status': 'recorded', 'event_id': message['event_id']}
+
+
+class MockBroker(FileBroker):
+    name='mock-broker'
 
 
 class BlockedListing:

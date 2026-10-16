@@ -174,9 +174,14 @@ class Workflow(unittest.TestCase):
     def test_partial_legacy_project_can_start_without_state_migration(self):
         state=self.studio.create({'concept':'Planner'},'intake')['project'];self.project=state['id']
         state['phase']='needs_information';state['missing_information']=[{'field':'visual_direction','question':'Style?'}]
+        state.pop('library_import',None);state.pop('generation_started',None)
         from studio_service.storage import write
         write(self.studio.directory(self.project)/'state.json',state)
         self.assertEqual(self.state()['phase'],'brief_ready')
+        self.assertTrue(self.state()['library_import']);self.assertFalse(self.state()['generation_started'])
+        self.assertEqual(self.state()['source_brief'],{'concept':'Planner'})
+        self.assertEqual(self.studio.list()[0]['phase'],'brief_ready')
+        self.assertEqual(read(self.studio.directory(self.project)/'state.json')['phase'],'needs_information')
         self.act('start_sketches');self.studio.tick();self.assertEqual(self.state()['phase'],'sketch_review')
 
     def test_product_handoff_without_style_is_usable(self):

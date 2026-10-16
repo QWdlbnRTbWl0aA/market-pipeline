@@ -17,6 +17,19 @@ class GenerationFlow(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name)
 
+    def test_local_file_broker_is_durable_and_idempotent(self):
+        from studio_service.adapters import FileBroker
+        from studio_service.server import configuration,DEFAULT
+        from studio_service.storage import Conflict
+        path=self.root/'config.json';write(path,{**DEFAULT,'broker_provider':'file'})
+        self.assertEqual(configuration(path)['broker_provider'],'file')
+        message={'event_id':'notification','message':'נדרשת בחירה'}
+        broker=FileBroker(self.root/'inbox');receipt=broker.publish(message)
+        self.assertEqual(receipt['provider'],'file')
+        self.assertEqual(FileBroker(broker.root).publish(message),receipt)
+        self.assertEqual(read(broker.root/'notification.json'),message)
+        with self.assertRaises(Conflict):broker.publish({**message,'message':'Different'})
+
     def test_any_bounded_brief_is_passive_and_can_start(self):
         for index,brief in enumerate(({},'חנוכה בצבעי מים',{'vision':'Five holiday prints'},{'custom_notes':'Paint five candles'})):
             with patch('socket.socket.connect',side_effect=AssertionError('Network forbidden')):

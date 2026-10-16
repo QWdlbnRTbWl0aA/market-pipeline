@@ -7,13 +7,17 @@ from .server import Server, configuration
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Independent mock Studio and approval dashboard')
+    parser = argparse.ArgumentParser(description='Independent Studio and approval dashboard')
     parser.add_argument('action', choices=('serve', 'tick'))
     parser.add_argument('--data', required=True); parser.add_argument('--config')
     parser.add_argument('--host', default='127.0.0.1'); parser.add_argument('--port', type=int, default=8096)
     args = parser.parse_args(); logging.basicConfig(level=logging.INFO)
     config = configuration(args.config)
     providers={}
+    if config['broker_provider']=='file':
+        from pathlib import Path
+        from .adapters import FileBroker
+        providers['broker']=FileBroker(Path(args.data)/'broker-inbox')
     if config['development_openai']:
         from .openai_dev import OpenAIDev
         paid=OpenAIDev(args.data);providers['understanding']=paid

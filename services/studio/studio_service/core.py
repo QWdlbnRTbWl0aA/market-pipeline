@@ -43,7 +43,9 @@ class Studio:
         # Old imports must become usable without rewriting saved history on read.
         if state['phase']=='needs_information':
             state['phase']='brief_ready';state['missing_information']=[]
-        if state.get('library_import'):state['source_brief']=read(self.directory(project)/'original-brief.json')
+            state['library_import']=True;state['generation_started']=False
+        if state.get('library_import') or state['phase']=='brief_ready':
+            state['source_brief']=read(self.directory(project)/'original-brief.json')
         if state['phase'].startswith('generating_'):
             pending=read(self.directory(project)/'generations'/state['active_operation']/'request.json')
             state['pending_sample']=pending.get('replacement')
@@ -57,6 +59,7 @@ class Studio:
         for path in (self.root / 'projects').glob('*/state.json'):
             if path.is_symlink() or path.parent.is_symlink(): continue
             state = read(path)
+            if state['phase']=='needs_information':state['phase']='brief_ready'
             result.append({k: state.get(k) for k in ('id', 'title', 'phase', 'revision', 'epoch', 'updated_at')})
         return sorted(result, key=lambda r: r['updated_at'], reverse=True)
 
@@ -234,6 +237,7 @@ class Studio:
             phase = state['phase']
             if phase=='needs_information':
                 phase='brief_ready';state['phase']=phase;state['missing_information']=[]
+                state['library_import']=True;state['generation_started']=False
             if phase == 'approved': raise Conflict('Final approval is immutable; submit a new brief for another product')
             state['interaction'].append({'action': action, 'key': key, 'at': now(), 'payload': payload})
             if action == 'update_brief':
