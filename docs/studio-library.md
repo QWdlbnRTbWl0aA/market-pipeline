@@ -2,7 +2,7 @@
 
 Product can deliver saved individual `product.json` briefs over HTTP. Studio
 stores the complete brief, displays it in its Hebrew library, and identifies
-missing fields using deterministic code. Intake, browsing, refresh, duplicate
+bounded input using deterministic code; all initial content fields are optional. Intake, browsing, refresh, duplicate
 delivery and pre-generation metadata edits perform no model calls, image
 generation, paid reservations, external image downloads or broker publication.
 Only the explicit **התחלת סקיצות** action starts generation after required fields

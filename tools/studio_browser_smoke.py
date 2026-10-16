@@ -88,7 +88,17 @@ def run(url, driver, output):
         assert js("return document.querySelectorAll('.candidate-comment').length === 0")
         assert js("return document.querySelectorAll('#batch-comments').length === 1")
         assert js("return document.querySelector('.controls').getBoundingClientRect().right <= document.querySelector('.visual').getBoundingClientRect().left")
+        assert js("return document.querySelector('#budget').getBoundingClientRect().height > 0 && document.querySelector('#budget').textContent.includes('$1')")
+        assert js("return document.querySelector('#provider-status').textContent.includes('mock')")
+        assert js("return document.querySelector('#round-info').textContent.includes('סבב 1')")
         revision=saved['revision'];click('#samples .sample:nth-child(1) .accept')
+        assert js("return document.querySelector('#samples .sample:nth-child(1) .accept').getAttribute('aria-pressed') === 'true'")
+        click('#samples .sample:nth-child(1) .reject')
+        assert js("return document.querySelector('#samples .sample:nth-child(1) .accept').getAttribute('aria-pressed') === 'false' && document.querySelector('#samples .sample:nth-child(1) .reject').getAttribute('aria-pressed') === 'true'")
+        click('#samples .sample:nth-child(1) .reject')
+        assert js("return document.querySelector('#samples .sample:nth-child(1) .reject').getAttribute('aria-pressed') === 'false'")
+        click('#samples .sample:nth-child(1) .accept')
+        checks.append('Visible budget/provider and exclusive toggleable vote selection')
         assert js("return document.querySelector('#regenerate').disabled")
         assert state()['revision']==revision
         click('#samples .sample:nth-child(2) .reject');click('#samples .sample:nth-child(3) .accept')
@@ -98,6 +108,7 @@ def run(url, driver, output):
         wait("!document.querySelector('#generation').hidden")
         capture('01-batch-spinner-mobile')
         wait("document.querySelector('.sample').dataset.candidate !== "+json.dumps(saved['rounds'][-1]['candidates'][0]['id']));ready()
+        assert js("return document.querySelector('#round-info').textContent.includes('סבב 2')")
         assert len(state()['rounds'][-1]['candidates'])==3
         assert len(state()['rounds'][-2]['reviews'])==3
         assert state()['rounds'][-2]['comments']=='לשמור את הצבע הכחול ולהגדיל את הרווחים'
@@ -117,6 +128,16 @@ def run(url, driver, output):
         with opener.open(download,timeout=3) as response:(output/'approved-product.zip').write_bytes(response.read())
         assert state()['listing']['etsy_api_called'] is False
         checks.append('Professional three-sample loop, final approval, download and Etsy block')
+        click('#new-project')
+        assert js("return !document.querySelector('[name=concept]').required")
+        fill('[name=concept]','רעיון ללא סגנון')
+        click('#brief-form button[type=submit]')
+        wait("document.querySelector('#phase').textContent === 'בריף שמור · מוכן לבחירה'")
+        assert state()['brief']['visual_direction']=='' and state()['rounds']==[]
+        js("document.querySelector('#api-details').open=true")
+        click('#load-payloads')
+        wait("document.querySelector('#api-payload').textContent.includes('אין בקשות')")
+        checks.append('Optional style remains ready and passive; mock payload panel truthfully reports no API calls')
         report={'passed':True,'checks':checks,'providers':'mock','etsy_calls':0,'paid_calls':0}
         (output/'browser-results.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
     except Exception:

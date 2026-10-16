@@ -1,6 +1,6 @@
 'use strict';
 const $=id=>document.getElementById(id);
-let project=null,editing=false,busy=false,draft={},round=null,chosen=null,references=[],lastSpending='',pending=null;
+let project=null,editing=false,busy=false,draft={},round=null,chosen=null,references=[],lastSpending='',pending=null,importedBrief=null;
 const fields=['concept','audience','purpose','deliverables','visual_direction','requirements'];
 const phases={brief_ready:'בריף שמור · מוכן לבחירה',needs_information:'נשלים כמה פרטים',sketch_review:'בוחרים כיוון',professional_review:'מלטשים את היצירה',generating_sketch:'מבינים ויוצרים',generating_professional:'מכינים דוגמאות מקצועיות',generation_failed:'היצירה נעצרה',approved:'היצירה אושרה'};
 try{pending=JSON.parse(sessionStorage.getItem('studio-pending')||'null');}catch(_){}
@@ -8,14 +8,14 @@ function show(id,visible){$(id).hidden=!visible;}
 function notify(message,error=false){$('message').textContent=message;$('message').classList.toggle('error',error);}
 async function request(path,body,key){const response=await fetch(path,body?{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':key},body:JSON.stringify(body)}:{cache:'no-store'});const result=await response.json();if(!response.ok)throw Error(result.error||'הפעולה לא הושלמה');return result;}
 async function projects(){const data=await request('/api/projects');$('projects').replaceChildren();for(const item of data.projects){const button=document.createElement('button');button.textContent=item.title;button.onclick=()=>load(item.id);$('projects').append(button);}}
-async function load(id){try{project=(await request('/api/projects/'+id)).project;editing=false;render();await projects();}catch(e){notify(e.message,true);}}
+async function load(id){try{if(project?.id!==id){$('payload-list').replaceChildren();$('api-payload').textContent='';show('payload-download',false);}project=(await request('/api/projects/'+id)).project;editing=false;render();await projects();}catch(e){notify(e.message,true);}}
 function fillBrief(document={}){const brief=document.source_requirements||document.product_brief||document;const text=v=>typeof v==='string'?v:v?.text||'';
  const values={concept:text(brief.concept||brief.product_concept||document.vision),audience:text(brief.audience||brief.intended_customer||document.customer),purpose:text(brief.purpose||brief.customer_job||document.customer_job),deliverables:(brief.deliverables||document.deliverables||[]).map(text).join('\n'),visual_direction:text(brief.visual_direction||document.visual_direction)||(document.design_directions||[]).map(d=>text(d.name||d.title)).join(' / '),requirements:text(brief.requirements||document.requirements)};
  for(const field of fields)$('brief-form').elements[field].value=values[field]||'';}
 function render(){
  $('brief-form').querySelector('button[type=submit]').textContent=project?.library_import&&!project.generation_started?'שמירת הבריף':'נתחיל ליצור';
  show('intake',!project||editing);show('reference-input',!project);show('project',!!project&&!editing);if(!project||editing)return;
- $('title').textContent=project.title;$('phase').textContent=phases[project.phase]||'יצירה';$('round-info').textContent='סבב '+project.epoch;
+ $('title').textContent=project.title;$('phase').textContent=phases[project.phase]||'יצירה';$('round-info').textContent='סבב '+(project.round_number??project.rounds.length)+' · התחלה '+project.epoch;
  const generating=project.phase.startsWith('generating_'),professional=project.phase.includes('professional'),frame=project.rounds.at(-1);
  show('generation',generating);show('review',!!frame&&project.phase!=='approved');show('missing',project.phase==='needs_information');show('failure',project.phase==='generation_failed');show('expensive',professional);show('approved',project.phase==='approved');show('final',!professional);show('approve',professional);
  show('library-brief',!!project.library_import&&!project.generation_started);$('library-summary').textContent=fields.map(field=>({concept:'רעיון',audience:'למי',purpose:'מטרה',deliverables:'תכולה',visual_direction:'סגנון',requirements:'הנחיות'}[field])+': '+(Array.isArray(project.brief[field])?project.brief[field].join(' · '):project.brief[field]||'—')).join('\n');$('library-source').textContent=JSON.stringify(project.source_brief||{},null,2);$('start-sketches').disabled=project.phase!=='brief_ready'||busy;
@@ -32,7 +32,7 @@ function render(){
    for(const [decision,label] of [['reject','לא אהבתי'],['accept','אהבתי']]){
     const button=document.createElement('button');button.className=decision;button.textContent=label;button.disabled=generating||busy;
     button.setAttribute('aria-pressed',String(draft[candidate.id]?.decision===decision));
-    button.onclick=()=>{draft[candidate.id]={decision,comment:''};if(decision==='accept')chosen=candidate.id;render();};controls.append(button);
+    button.onclick=()=>{if(draft[candidate.id]?.decision===decision){delete draft[candidate.id];if(chosen===candidate.id)chosen=null;}else{draft[candidate.id]={decision,comment:''};if(decision==='accept')chosen=candidate.id;else if(chosen===candidate.id)chosen=null;}render();};controls.append(button);
    }card.append(controls,visual);$('samples').append(card);
   }
   $('regenerate').disabled=generating||busy||frame.candidates.slice(0,3).some(c=>!draft[c.id]);
@@ -42,7 +42,8 @@ function render(){
  $('understanding').textContent=project.understanding?.summary||'סמנו את שלוש הדוגמאות והוסיפו הערה משותפת כדי לדייק את הכיוון.';
  $('history').textContent=project.archives.length+' התחלות קודמות שמורות.';$('notification').textContent=project.notification?.message||'';
  $('brief-details').textContent=fields.map(field=>field+': '+(Array.isArray(project.brief[field])?project.brief[field].join(', '):project.brief[field]||'')).join('\n');
- const spending=project.spending;show('reasoning',!!spending?.development);$('budget').textContent=spending?.development?'פיתוח: $'+spending.product_usd.toFixed(4)+' ליצירה · $'+spending.remaining_usd.toFixed(4)+' נותרו מתוך $1.':'';
+ const spending=project.spending;show('reasoning',!!spending?.development);$('budget').textContent='תקציב פיתוח OpenAI: $'+spending.product_usd.toFixed(4)+' ליצירה · $'+spending.charged_or_reserved_usd.toFixed(4)+' נוצלו או שמורים · $'+spending.remaining_usd.toFixed(4)+' נותרו מתוך $1 · תוצאות לא ידועות: '+spending.unknown_outcomes;
+ const providers=project.runtime_providers||{sketch:project.providers,professional:project.providers};$('provider-status').textContent='ספק סקיצות: '+providers.sketch+' · מקצועי: '+providers.professional+(providers.sketch==='mock'?' · הדמיה בלבד: תבניות בדיקה, ללא יצירת תמונות מהבריף וללא חיוב. להפעלת תמונות אמיתיות יש להגדיר openai_dev.':'');
  if(spending?.development){const marker=JSON.stringify([project.id,spending]);if(marker!==lastSpending){console.log('[Studio development] OpenAI cumulative spend per product',{product_id:project.id,product_usd:spending.product_usd,total_charged_or_reserved_usd:spending.charged_or_reserved_usd,remaining_usd:spending.remaining_usd});lastSpending=marker;}}
  for(const id of ['final','approve','start-over','back'])$(id).disabled=generating||busy;
 }
@@ -67,10 +68,10 @@ function renderReferences(){$('reference-previews').replaceChildren();for(const 
 async function addReferences(files){try{for(const file of files){if(references.length>=3)throw Error('עד שלוש תמונות לדוגמה.');references.push(await compress(file));}renderReferences();}catch(e){notify(e.message,true);}}
 $('reference-files').onchange=e=>addReferences([...e.target.files]);
 $('reference-paste').onpaste=e=>{const data=e.clipboardData;const files=[...(data?.items||[])].filter(item=>item.kind==='file').map(item=>item.getAsFile()).filter(Boolean);if(files.length){e.preventDefault();addReferences(files);}else notify('לא נמצאה תמונה בלוח. אפשר להשתמש בכפתור העלאת התמונה.');};
-$('new-project').onclick=()=>{project=null;round=null;draft={};references=[];editing=false;fillBrief();renderReferences();render();};
+$('new-project').onclick=()=>{project=null;round=null;draft={};references=[];importedBrief=null;editing=false;fillBrief();renderReferences();render();};
 $('brief-form').onsubmit=async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.target));data.deliverables=data.deliverables.split('\n').map(x=>x.trim()).filter(Boolean);
- if(project)await action('update_brief',{brief:data});else await submit('/api/briefs',{...data,reference_images:references});};
-$('import').onchange=async event=>{try{const file=event.target.files[0];if(file.size>800000)throw Error('הבריף גדול מדי.');const data=JSON.parse(await file.text());const images=data.reference_images||[];if(!Array.isArray(images)||images.length>3||images.some(i=>typeof i!=='string'||i.length>110000||!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(i)))throw Error('תמונות לדוגמה לא תקינות.');project=null;round=null;references=images;fillBrief(data);renderReferences();render();}catch(e){notify(e.message,true);}};
+ if(project)await action('update_brief',{brief:data});else await submit('/api/briefs',{...data,...(importedBrief?{imported_brief:importedBrief}:{}),reference_images:references});};
+$('import').onchange=async event=>{try{const file=event.target.files[0];if(file.size>800000)throw Error('הבריף גדול מדי.');const parsed=JSON.parse(await file.text());const data=typeof parsed==='string'?{concept:parsed}:parsed;if(!data||Array.isArray(data)||typeof data!=='object')throw Error('בחרו בריף JSON או טקסט JSON.');const images=data.reference_images||[];if(!Array.isArray(images)||images.length>3||images.some(i=>typeof i!=='string'||i.length>110000||!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(i)))throw Error('תמונות לדוגמה לא תקינות.');project=null;round=null;references=images;importedBrief=Object.fromEntries(Object.entries(data).filter(([key])=>key!=='reference_images'));fillBrief(data);renderReferences();render();}catch(e){notify(e.message,true);}};
 $('regenerate').onclick=async()=>{const expensive=project.phase==='professional_review';if(expensive&&!confirm('זהו סבב יקר יותר. להמשיך?'))return;await action('regenerate_batch',{consent_expensive:expensive});};
 function editBrief(){editing=true;fillBrief(project.brief);references=[];render();$('reference-input').hidden=true;}
 $('edit-brief').onclick=editBrief;$('library-edit').onclick=editBrief;
@@ -85,3 +86,7 @@ $('retry').onclick=()=>{const expensive=project.final_settings!==null;if(!expens
 $('reasoning').onclick=async()=>{try{const data=await request('/api/projects/'+project.id+'/reasoning');$('reasoning-log').textContent=JSON.stringify(data.entries,null,2);show('reasoning-log',true);}catch(e){notify(e.message,true);}};
 setInterval(async()=>{if(project&&project.phase.startsWith('generating_')&&!busy)await load(project.id);},800);
 projects().then(()=>{render();if(pending){notify('פעולה קודמת ממתינה לאימות. שלחו שוב עם אותם נתונים כדי לשמור על זהות הפעולה.');}}).catch(e=>notify(e.message,true));
+
+$('load-payloads').onclick=async()=>{try{const id=project.id;const data=await request('/api/projects/'+id+'/payloads');if(project.id!==id)return;$('payload-list').replaceChildren();$('api-payload').textContent=data.calls.length?'בחרו בקשה.':'אין בקשות OpenAI שמורות ליצירה זו. ספק mock אינו שולח בקשות.';show('payload-download',false);for(const call of data.calls){const button=document.createElement('button');button.className='quiet';button.textContent=call.at+' · '+call.endpoint+' · '+call.status;button.onclick=async()=>{try{const result=await request('/api/projects/'+id+'/payloads/'+call.id);if(project.id!==id)return;$('api-payload').textContent=JSON.stringify(result,null,2);$('payload-download').href='/api/projects/'+id+'/payloads/'+call.id+'/body';show('payload-download',true);}catch(e){notify(e.message,true);}};$('payload-list').append(button);}}catch(e){notify(e.message,true);}};
+
+request('/api/runtime').then(data=>{if(project)return;const s=data.spending;$('budget').textContent='תקציב פיתוח OpenAI: $'+s.remaining_usd.toFixed(4)+' נותרו מתוך $1 · $'+s.charged_or_reserved_usd.toFixed(4)+' נוצלו או שמורים';$('provider-status').textContent='ספק סקיצות: '+data.sketch_provider+(data.sketch_provider==='mock'?' · הדמיה בלבד: תבניות בדיקה, ללא יצירת תמונות מהבריף.':'');}).catch(e=>notify(e.message,true));

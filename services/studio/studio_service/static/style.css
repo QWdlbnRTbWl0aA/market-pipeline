@@ -98,3 +98,7 @@ nav button{min-width:140px;max-width:190px}
 }
 
 .brief-text{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;font:inherit;line-height:1.6}
+
+.sample .accept[aria-pressed="true"]{background:#60815e;color:white;border:2px solid #395638;box-shadow:0 0 0 2px #d9e6d7}
+.sample .reject[aria-pressed="true"]{background:#9b6a68;color:white;border:2px solid #724b49;box-shadow:0 0 0 2px #f0dbd7}
+#payload-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}

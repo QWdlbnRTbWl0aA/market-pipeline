@@ -42,15 +42,13 @@ class Workflow(unittest.TestCase):
     def professional(self):
         self.create();self.act('generate_final',reviews=self.accept(),settings=SETTINGS,consent_expensive=True);self.studio.tick();return self.state()
 
-    def test_missing_information_broker_durable_and_idempotent(self):
-        state=self.create({'concept':'Planner'});self.assertEqual(state['phase'],'needs_information')
-        self.assertEqual(len(self.generator.requests),0);self.assertEqual(len(state['missing_information']),4)
-        message=next((Path(self.tmp.name)/'mock-broker').glob('*.json'));event=read(message)
-        self.assertIn('למי מיועד המוצר?',event['message']);self.assertEqual(event['brief']['concept'],'Planner')
-        self.studio.tick();self.assertEqual(len(list(message.parent.glob('*.json'))),1)
-        self.assertEqual(self.state()['notification']['delivery']['status'],'recorded')
-        self.act('update_brief',brief=BRIEF);self.studio.tick();self.assertEqual(self.state()['phase'],'brief_ready');self.assertEqual(len(self.generator.requests),0)
-        self.act('start_sketches');self.studio.tick();self.assertEqual(len(self.state()['rounds'][-1]['candidates']),3)
+    def test_partial_brief_is_ready_without_missing_information_or_broker(self):
+        state=self.studio.create({'concept':'Planner'},'intake')['project'];self.project=state['id']
+        self.assertEqual(state['phase'],'brief_ready');self.assertEqual(state['missing_information'],[])
+        self.studio.tick();self.assertEqual(self.generator.requests,[])
+        self.assertFalse(list((Path(self.tmp.name)/'mock-broker').glob('*.json')))
+        self.act('start_sketches');self.studio.tick()
+        self.assertEqual(len(self.state()['rounds'][-1]['candidates']),3)
 
     def test_sketch_round_carries_accepted_comments_and_rejected_references(self):
         state=self.create();self.assertEqual(len(state['rounds'][0]['candidates']),3)
@@ -173,17 +171,18 @@ class Workflow(unittest.TestCase):
         self.assertEqual(read(folder/'operation.json')['error_type'],'Invalid')
         self.generator.generate=MockGenerator().generate;self.act('retry_generation');self.studio.tick();self.assertEqual(self.state()['phase'],'sketch_review')
 
-    def test_broker_failure_does_not_generate_or_lose_message_and_is_bounded(self):
-        class Broken:
-            def publish(self,message):raise RuntimeError('Unavailable')
-        self.studio.broker=Broken();self.create({'concept':'Planner'})
-        for _ in range(6):self.studio.tick()
-        self.assertEqual(self.state()['notification']['delivery']['attempts'],3)
-        self.assertEqual(self.state()['phase'],'needs_information');self.assertEqual(len(self.generator.requests),0)
+    def test_partial_legacy_project_can_start_without_state_migration(self):
+        state=self.studio.create({'concept':'Planner'},'intake')['project'];self.project=state['id']
+        state['phase']='needs_information';state['missing_information']=[{'field':'visual_direction','question':'Style?'}]
+        from studio_service.storage import write
+        write(self.studio.directory(self.project)/'state.json',state)
+        self.assertEqual(self.state()['phase'],'brief_ready')
+        self.act('start_sketches');self.studio.tick();self.assertEqual(self.state()['phase'],'sketch_review')
 
-    def test_product_handoff_normalizes_and_requests_missing_style(self):
+    def test_product_handoff_without_style_is_usable(self):
         state=self.create({'vision':'Meal planner','customer':{'text':'Families'},'customer_job':{'text':'Plan meals'},'deliverables':['Grid']})
-        self.assertEqual(state['brief']['audience'],'Families');self.assertEqual(state['missing_information'][0]['field'],'visual_direction')
+        self.assertEqual(state['brief']['audience'],'Families');self.assertEqual(state['missing_information'],[])
+        self.assertEqual(state['phase'],'sketch_review')
 
     def test_no_credentials_no_network_and_listing_injection_blocked(self):
         with patch.dict(os.environ,{'ETSY_API_KEY':'fixture-never-loaded'}):
@@ -232,6 +231,23 @@ class HTTP(unittest.TestCase):
         self.assertEqual(self.call('/../../config/studio.example.json')[0],404)
         self.assertEqual(self.call('/api/briefs',[]) [0],400)
         self.assertEqual(self.call('/health')[0],200)
+
+    def test_payload_inspection_is_scoped_and_download_matches_wire_body(self):
+        from studio_service.storage import digest
+        status,body,_=self.call('/api/briefs',{})
+        self.assertEqual(status,200);project=json.loads(body)['project']['id']
+        payload={'model':'fixture','prompt':'Five watercolor candles'};call_id=digest(payload)
+        studio=self.server.studio;studio.budget.reserve(call_id,project,100,'fixture')
+        write(studio.root/'development-openai'/'calls'/call_id/'request.json',{'endpoint':'images/generations','body':payload})
+        path='/api/projects/'+project+'/payloads'
+        self.assertEqual(json.loads(self.call(path)[1])['calls'][0]['id'],call_id)
+        status,body,headers=self.call(path+'/'+call_id+'/body')
+        self.assertEqual(status,200);self.assertEqual(json.loads(body),payload)
+        self.assertIn('attachment',headers['Content-Disposition'])
+        _,body,_=self.call('/api/briefs',{}, {'Idempotency-Key':'another'})
+        other=json.loads(body)['project']['id']
+        self.assertEqual(self.call('/api/projects/'+other+'/payloads/'+call_id)[0],404)
+        self.assertEqual(self.call('/api/runtime')[0],200)
 
 
 if __name__=='__main__':unittest.main()

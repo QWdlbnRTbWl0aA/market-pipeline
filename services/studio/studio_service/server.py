@@ -109,6 +109,15 @@ class Handler(BaseHTTPRequestHandler):
             filename, media = {'/': ('index.html', 'text/html; charset=utf-8'), '/app.js': ('app.js', 'text/javascript; charset=utf-8'), '/style.css': ('style.css', 'text/css; charset=utf-8')}[path]
             return self.reply(200, (STATIC / filename).read_bytes(), media)
         if path == '/api/projects': return self.reply(200, {'projects': studio.list()})
+        if path == '/api/runtime':return self.reply(200,{'sketch_provider':getattr(studio.sketches,'name','mock'),
+            'professional_provider':getattr(studio.professional,'name','mock'),'development':studio.development,
+            'spending':studio.budget.summary('')})
+        payload_match=re.fullmatch(r'/api/projects/([a-f0-9]{32})/payloads(?:/([a-f0-9]{64})(/body)?)?',path)
+        if payload_match:
+            project,call_id,body_only=payload_match.groups()
+            result=studio.payloads(project,call_id)
+            if body_only:return self.reply(200,result['body'],filename='studio-api-body.json')
+            return self.reply(200,result)
         match = re.fullmatch(r'/api/projects/([a-f0-9]{32})(?:/(download|asset|reasoning)/?([a-f0-9]{32}-[0-9]{1,2})?)?', path)
         if match:
             project, kind, candidate_id = match.groups(); state = studio.get(project)

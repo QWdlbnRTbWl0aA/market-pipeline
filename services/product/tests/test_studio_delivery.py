@@ -36,7 +36,7 @@ class StudioDelivery(unittest.TestCase):
         result=self.result();keys=prepare(result,self.root/'product',self.settings)
         states=tick(self.root/'product',self.settings);self.assertEqual(states[0]['status'],'delivered')
         project=states[0]['project_id'];saved=self.studio.get(project)
-        self.assertEqual(saved['phase'],'needs_information');self.assertEqual(saved['rounds'],[]);self.assertEqual(self.generator.calls,0)
+        self.assertEqual(saved['phase'],'brief_ready');self.assertEqual(saved['rounds'],[]);self.assertEqual(self.generator.calls,0)
         self.assertEqual(saved['source_brief'],json.loads((Path(result['directory'])/'product-01/product.json').read_bytes()))
         self.assertEqual(backfill(self.root/'product',self.settings),keys)
         tick(self.root/'product',self.settings);self.assertEqual(len(self.studio.list()),1)

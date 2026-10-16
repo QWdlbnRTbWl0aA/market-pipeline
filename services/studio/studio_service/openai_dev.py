@@ -9,7 +9,7 @@ import stat
 import urllib.request
 from .dev_budget import Budget, BudgetBlocked
 from .ports import Asset
-from .storage import Invalid, canonical, digest, guard, read, write
+from .storage import Invalid, canonical, digest, guard, read, write, now
 from .understanding import SCHEMA, validate
 
 TEXT_MODEL='gpt-4.1-mini-2025-04-14'
@@ -66,7 +66,9 @@ class OpenAIDev:
             try:
                 req=urllib.request.Request('https://api.openai.com/v1/'+endpoint,data=canonical(payload),
                     headers={'Authorization':'Bearer '+self.credentials(),'Content-Type':'application/json'})
+                write(folder/'dispatch.json',{'status':'dispatch_started_outcome_unknown','at':now(),'body_sha256':digest(payload)})
                 with self.transport(req,timeout=180) as response:raw=response.read(90_000_001)
+                write(folder/'dispatch.json',{'status':'response_received','at':now(),'body_sha256':digest(payload)})
                 if len(raw)>90_000_000:raise Invalid('Provider response exceeds bound')
                 value=json.loads(raw);write(folder/'provider-response.json',value)
                 usage=value.get('usage')

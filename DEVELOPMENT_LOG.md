@@ -447,3 +447,42 @@ cannot inherit another project's batch text. The idle development Studio was
 reloaded with the same configuration/state; the paid-ledger SHA was unchanged,
 health passed, and no generation was triggered. Product delivery remains disabled
 until explicit configuration enablement; installed production was untouched.
+
+
+## Studio brief fidelity and review controls
+
+Read-only runtime health inspection identified an installed mock provider: its
+fixture SVGs do not perform semantic image generation. No installed configuration,
+production state, services or paid ledger were changed. Documented explicit
+OpenAI development-provider activation and systemd credential handoff; defaults
+remain opt-in and the existing global one-dollar envelope remains unchanged.
+
+All initial content fields are now optional, including style; empty, partial and
+plain-text JSON briefs remain passive until explicit human start. Legacy
+information-blocked entries can start without rewriting their saved history on
+read. Rich original Product structures and JSON imports are retained in generator
+context, together with individual and batch comments. Current edits and explicit
+feedback take priority. Oversized compiled context fails explicitly, without
+silently discarding content. Existing operation receipts and paid image recovery
+remain intact.
+
+Restored a budget line outside collapsed details, added truthful runtime provider
+status and project-scoped exact API-body inspection/download without credentials
+or headers. Persisted dispatch markers distinguish preparation, uncertain transport
+and response receipt. The UI counts generated rounds separately from start-over
+epochs. Like/dislike states are visibly exclusive and toggle off on repeated click.
+General layout, palette, three-sample review and shared comments are preserved.
+
+Offline regression tests exercise two rounds through the actual OpenAI adapter
+with fake transport, asserting concrete brief details, updated feedback, new round
+identities and exact recorded/wire-body equality. Tests cover optional intake,
+legacy readiness, scoped payload HTTP access, unknown reservations, durable
+recovery and passive Product delivery. Mobile Firefox checks cover toggles,
+budget/provider visibility, round advancement, optional style, payload panel,
+refresh, professional review and blocked Etsy publishing. Test artifacts and the
+assignment report remain outside Git. No paid requests or production generation
+were made; image quality itself is not established by mock contract tests.
+
+Validation: all 365 offline tests passed (Collector 94, Analyzer 125, Product 23,
+Controller 32, Studio 42, repository 49), along with nine Firefox mobile checks.
+The all-object sanitation scan found zero issues. No paid or Etsy calls were made.

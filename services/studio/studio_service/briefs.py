@@ -18,11 +18,15 @@ def text(value, maximum=8000):
 
 
 def normalize(document):
-    if not isinstance(document, dict): raise Invalid('Brief object required')
+    if isinstance(document, str): document = {'concept': text(document)}
+    if not isinstance(document, dict): raise Invalid('Brief object or text required')
     reject_secrets(document)
     source = document.get('source_requirements', document.get('product_brief', document))
+    if isinstance(source,str):source={'concept':text(source)}
     if not isinstance(source, dict): raise Invalid('Structured brief required')
     deliverables = source.get('deliverables', document.get('deliverables', []))
+    if deliverables is None:deliverables=[]
+    if isinstance(deliverables,str):deliverables=[text(deliverables)] if deliverables.strip() else []
     if not isinstance(deliverables, list) or len(deliverables) > 30: raise Invalid('At most thirty deliverables required')
     directions = document.get('design_directions')
     visual = source.get('visual_direction', document.get('visual_direction'))
@@ -36,13 +40,8 @@ def normalize(document):
 
 
 def missing(brief):
-    result = []
-    for name in QUESTIONS:
-        value = brief[name]
-        if name == 'deliverables': good = bool(value) and all(v and v.casefold() not in PLACEHOLDERS for v in value)
-        else: good = bool(value) and value.casefold() not in PLACEHOLDERS
-        if not good: result.append({'field': name, 'question': QUESTIONS[name]})
-    return result
+    # Content suggestions must never gate an initial human-requested attempt.
+    return []
 
 
 def settings(value):

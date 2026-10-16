@@ -58,23 +58,29 @@ host security settings without explicit authorization.
   Studio briefs. Preserve separate durable outboxes and uncertain SMTP outcomes;
   retry delivery independently without repeating inference. Legacy manually
   prepared mail retains its exact-message review requirement.
-- Studio receives saved Product briefs through its HTTP intake, checks missing
-  information, and publishes concise human-facing messages through an abstract
-  broker. Initially all generation and broker providers are mocked. Persist
+- Studio receives saved Product briefs through its HTTP intake. All initial
+  content fields are optional; partial, empty and text briefs may start an initial
+  human-requested attempt. Never require style or visual direction. Broker
+  messages remain abstracted for other workflow notifications. Initially all generation and broker providers are mocked. Persist
   three-sketch and three-professional-sample human feedback loops, compaction of
   abandoned interaction as negative context, and explicit expensive-loop consent.
   Final approval records a blocked listing handoff. Do not wire Etsy publishing
   until the Studio is finalized; Studio must not load collector credentials.
   Product-to-Studio delivery is a passive, durable library import. HTTP brief
   intake and metadata edits must not queue generation, inference, paid calls or
-  broker publication. Show imported briefs and missing fields in the Hebrew UI;
+  broker publication. Show imported briefs in the Hebrew UI;
   first sketch generation requires an explicit human Start sketches action.
   Preserve completed delivery IDs and bounded independent retries; no fallback
   from the passive endpoint to a legacy auto-generating receiver. Existing saved
   Product briefs may be backfilled without definition, inference or email.
 - Studio development uses an explicitly enabled OpenAI adapter with a separate
   **$1 total** development/testing envelope, including human UI use, shared across
-  products and preserved across restarts. Reserve conservative cost before key
+  products and preserved across restarts. Keep budget/provider status visible,
+  show exact project-scoped API bodies without credentials, and distinguish mock
+  templates from real image generation. Preserve rich brief content and explicit
+  feedback in generator prompts. Count actual rounds; like/dislike are mutually
+  exclusive and toggle off on a second click. Preserve the general UI appearance.
+  Reserve conservative cost before key
   loading/HTTP; hold unknown outcomes and never replenish/reset the ledger.
   Production defaults remain mock. Development logs contain observable preference
   summaries and cited feedback evidence, not private chain-of-thought. The Hebrew

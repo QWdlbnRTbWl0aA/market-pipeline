@@ -37,6 +37,12 @@ class Studio:
         state['spending'] = self.budget.summary(project)
         state['spending']['development']=self.development
         state['accepted_samples']=self.references(state)
+        state['runtime_providers']={'sketch':getattr(self.sketches,'name','mock'),'professional':getattr(self.professional,'name','mock')}
+        state['round_number']=len(state['rounds'])
+        state['missing_information']=[]
+        # Old imports must become usable without rewriting saved history on read.
+        if state['phase']=='needs_information':
+            state['phase']='brief_ready';state['missing_information']=[]
         if state.get('library_import'):state['source_brief']=read(self.directory(project)/'original-brief.json')
         if state['phase'].startswith('generating_'):
             pending=read(self.directory(project)/'generations'/state['active_operation']/'request.json')
@@ -54,6 +60,34 @@ class Studio:
             result.append({k: state.get(k) for k in ('id', 'title', 'phase', 'revision', 'epoch', 'updated_at')})
         return sorted(result, key=lambda r: r['updated_at'], reverse=True)
 
+    def payloads(self, project, call_id=None):
+        """Read-only, project-scoped API bodies; never headers or credentials.
+
+        The ledger owns the call/project association, including older call files.
+        A prepared request is not evidence that transport was invoked.
+        """
+        self.directory(project)
+        root=self.root/'development-openai'
+        with guard(root):
+            ledger=read(root/'budget.json') if (root/'budget.json').exists() else {'calls':{}}
+        calls=[]
+        for identifier,row in ledger['calls'].items():
+            if len(identifier)!=64 or any(c not in '0123456789abcdef' for c in identifier):continue
+            if row['product_id']!=project or (call_id and identifier!=call_id):continue
+            folder=root/'calls'/identifier; path=folder/'request.json'
+            if folder.is_symlink() or path.is_symlink() or not path.exists():continue
+            saved=read(path)
+            dispatch=read(folder/'dispatch.json') if (folder/'dispatch.json').exists() else {}
+            status=dispatch.get('status','legacy_dispatch_unrecorded' if (folder/'response.json').exists() else 'prepared_dispatch_unconfirmed')
+            item={'id':identifier,'at':row['at'],'endpoint':saved['endpoint'],'status':status,
+                  'accounting_status':row['status'],'body_sha256':digest(saved['body'])}
+            if call_id:item['body']=saved['body']
+            calls.append(item)
+        if call_id:
+            if not calls:raise FileNotFoundError()
+            return calls[0]
+        return {'calls':sorted(calls,key=lambda r:r['at'])}
+
     def save(self, directory, state):
         state['revision'] += 1; state['updated_at'] = now(); write(directory / 'state.json', state)
 
@@ -68,7 +102,9 @@ class Studio:
         state['notification'] = {'event_id': event['event_id'], 'message': event['message'], 'status': 'queued'}
 
     def create(self, document, key, library=True):
-        action_key(key); normalized = briefs.normalize(document)
+        action_key(key)
+        if isinstance(document,str): document={'concept':briefs.text(document)}
+        normalized = briefs.normalize(document)
         project = digest({'intake_key': key})[:32]
         directory = self.root / 'projects' / project
         if directory.is_symlink(): raise Invalid('Project symlinks forbidden')
@@ -111,11 +147,14 @@ class Studio:
 
     def queue(self, directory, state, mode, reason, accepted=None, replacement=None, feedback_only=False):
         operation = uuid.uuid4().hex
+        original=read(directory/'original-brief.json')
+        source_context={k:v for k,v in original.items() if k!='reference_images'}
+        # Preserve rich source structure; explicit normalized edits take priority.
         request = {'schema_version': 1, 'operation_id': operation, 'project_id': state['id'],
                    'mode': mode, 'count': 0 if feedback_only else 1 if replacement else 3, 'epoch': state['epoch'],
                    'reference_images':state.get('reference_images',[]),
                    'replacement': replacement, 'feedback_only': feedback_only, 'feedback_context': aggregate(state),
-                   'brief': state['brief'], 'accepted': self.references(state) if accepted is None else accepted,
+                   'brief': state['brief'], 'source_context':source_context, 'accepted': self.references(state) if accepted is None else accepted,
                    'rejected': self.references(state, False), 'negative_summary': state['negative_summary'],
                    'archived_negative_examples': state['archives'],
                    'last_feedback': state['rounds'][-1]['comments'] if state['rounds'] else reason,
@@ -193,6 +232,8 @@ class Studio:
             if type(payload.get('revision')) is not int or payload['revision'] != state['revision']:
                 raise Conflict('The project changed. Refresh before submitting feedback.')
             phase = state['phase']
+            if phase=='needs_information':
+                phase='brief_ready';state['phase']=phase;state['missing_information']=[]
             if phase == 'approved': raise Conflict('Final approval is immutable; submit a new brief for another product')
             state['interaction'].append({'action': action, 'key': key, 'at': now(), 'payload': payload})
             if action == 'update_brief':
@@ -202,11 +243,10 @@ class Studio:
                 state['library_import']=True;state['generation_started']=False
                 state['phase']='needs_information' if state['missing_information'] else 'brief_ready'
             elif action == 'start_sketches':
-                if phase!='brief_ready' or state['missing_information']:raise Conflict('Complete the brief before starting sketches')
+                if phase!='brief_ready':raise Conflict('Start sketches from a saved brief')
                 state['generation_started']=True
                 self.queue(directory,state,'sketch','Human explicitly started saved library brief')
             elif action == 'start_over':
-                if state['missing_information']: raise Conflict('Complete the brief before generating sketches')
                 if phase in ('sketch_review', 'professional_review'): self.feedback(state, payload)
                 self.start_over(directory, state, briefs.text(payload.get('comments'), 4000))
             elif action == 'retry_generation':

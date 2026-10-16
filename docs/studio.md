@@ -4,8 +4,8 @@ Studio is independently runnable. HTTP brief intake (`POST /api/briefs` and
 `POST /api/library/briefs`, JSON with `Idempotency-Key`) saves a passive library
 entry. Opening, refreshing, importing or editing an entry never generates images,
 calls a model or publishes a broker message. The Hebrew UI shows the normalized
-brief, missing fields and the complete original Product JSON. Complete missing
-fields, save, and explicitly click **התחלת סקיצות** to authorize generation.
+brief and the complete original Product JSON. All initial content fields are
+optional: save any bounded brief and explicitly click **התחלת סקיצות** to authorize generation.
 
 Configured Product delivery uses only `/api/library/briefs`, with a persistent
 outbox, exact saved payloads, bounded retries and duplicate suppression. Its
@@ -36,13 +36,11 @@ changed by preparation. The separate systemd template defaults to loopback,
 has no credentials and only writes the Studio state directory. Existing
 installed services are not modified by source changes.
 
-The minimum brief describes concept, audience, purpose, deliverables and visual
-direction. These are deterministic presence/placeholder checks, not an assertion
-that arbitrary descriptions are artistically sufficient. Missing information
-creates a short human message plus structured brief in a durable broker outbox.
-The default mock broker records it locally, with a delivery receipt. Publication
-failure does not trigger generation or discard the request; automatic broker
-attempts are bounded at three. Messages are visible in the project details.
+No initial content field is mandatory, including style/visual direction. Partial,
+empty and plain-text JSON briefs are accepted; malformed types, credentials and
+oversized input are still rejected. Optional details can be edited before start.
+Legacy `needs_information` entries appear ready and can start without an offline
+state migration. Intake remains passive and never incurs model calls.
 
 The Hebrew RTL dashboard uses soft colours and collapsed secondary detail.
 Each of three samples has like/dislike buttons physically on its left. One comment
@@ -54,7 +52,7 @@ alone. The professional loop also presents three samples with explicit expensive
 consent. Legacy single-sample API actions remain for saved-client compatibility,
 but are not exposed in the current UI.
 
-Sufficient briefs initially queue three sketches (default 320×420 mock SVGs;
+Explicit human start queues three sketches (default 320×420 mock SVGs;
 development OpenAI supplies low-quality 1024×1024 PNG concept boards). Iteration
 uses unique historical accepted/rejected samples and comments, not repeated votes
 from cloned frames. Attribute contrasts and actual visual observations inform
@@ -210,3 +208,58 @@ Run `python3 tools/test.py` for all components, or Studio's independent unittest
 suite. Functional tests use offline transports/mocks. Browser smoke requires a
 mock health endpoint and refuses to run against paid mode. It exercises the
 actual static UI against a fresh standalone service, separate from production.
+
+## Diagnosing generic previews and inspecting requests
+
+A `mock` provider draws fixture SVG templates, not semantic images from a brief.
+Source updates do not change installed configuration. Check `/health` or the
+always-visible provider line in the UI. To use the existing development adapter,
+set these three fields in the private Studio configuration:
+
+```json
+{
+  "development_openai": true,
+  "sketch_provider": "openai_dev",
+  "professional_provider": "openai_dev"
+}
+```
+
+Keep the other existing configuration fields. The launcher must receive
+`--credential-directory` with the protected `openai.env`; a systemd deployment
+must load that credential explicitly. An administrator can add this drop-in to
+`market-pipeline-studio.service` during a separately authorized deployment:
+
+```ini
+[Service]
+LoadCredential=openai.env:/etc/market-pipeline/credentials/openai.env
+```
+
+The launcher takes systemd's `CREDENTIALS_DIRECTORY` and forwards only the
+`STUDIO_OPENAI_CREDENTIAL_FILE` path. Do not export the secret into the unit
+or pass a key as an argument. The default Studio unit does not install credentials. This is development mode with the existing $1 envelope, not a way to
+reset or increase it. Keep the same state directory and ledger; retain unknown
+reservations. Restarting/upgrading an installed service requires a deployment
+operation, not merely pulling source. No configuration changes are made by the UI.
+Existing mock samples stay in history; a newly submitted batch uses the currently
+configured provider. Generation failures never fall back to mock templates.
+
+Budget and provider status stay visible outside collapsed details, even in mock
+mode. Round count follows generated rounds; the start-over epoch is separate.
+Like/dislike selection is visible, exclusive, and a second click clears it.
+
+The **הבקשות שנשלחו ל־API** panel lists saved calls for the selected project.
+Select a call to inspect its exact endpoint/body and download the JSON body.
+`GET /api/projects/<id>/payloads` lists metadata; append `/<call-id>` to inspect or
+`/<call-id>/body` to download. The canonical download matches the submitted HTTP
+body; authentication headers are never exposed. Dispatch markers distinguish
+prepared/unconfirmed calls, attempted calls with unknown outcome, and received
+responses. Legacy calls without a marker are explicitly labeled unrecorded.
+These statuses do not imply successful content validation. No new calls occur
+when viewing payloads. Reference-image data URLs can be present in exact vision
+payloads; treat downloaded payloads as private artifacts, never commit them.
+
+Rich source brief structure, edited normalized fields, accepted/rejected metadata,
+individual comments and shared batch comments reach the image prompt. The
+compiled prompt is bounded at 20KB; oversized context fails explicitly before
+image generation rather than silently dropping brief content.
+Explicit current edits/feedback take priority over conflicting original fields.
