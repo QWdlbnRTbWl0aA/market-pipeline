@@ -512,3 +512,33 @@ usage evidence remains in private runtime storage, not Git.
 Validation: all 366 offline tests passed. Read-only Firefox inspection of the
 live preview confirmed three real 1024-square PNGs at mobile width, correct
 provider/budget labels and no overflow. Sanitation found zero issues.
+## Fresh-niche discovery and focused refinement
+
+Reviewed the saved first-page scissor-skills baseline before any new collection.
+Separated cross-sectional discovery hypotheses from unchanged historical trend
+qualification. Discovery requires multi-shop engagement, established shop context,
+known native-currency prices, query relevance and saved Etsy examples. Missing
+benchmarks and cheap crowding remain risks; shop transactions never become listing
+sales. Consolidated overlapping candidate groups and retained source provenance.
+
+Refinement now preserves niche intent, removes unchanged/duplicate queries,
+prioritizes content modifiers and reports observed support and comparison criteria.
+Generic printable wording cannot establish relevance; multiple query intents and
+cultural niche terms remain substantive. Real saved listing URLs are carried through
+without fetching or inventing examples.
+
+Local previews generate up to three model-authored briefs without reserving offers.
+An actual Ollama trial exposed numeric rationale and self-certified observations;
+deterministic evidence rendering and hypothesis-only local design statements now
+separate those responsibilities. Strict paid brief validation remains unchanged.
+Final replay used five saved local responses with uncached inference forbidden:
+five search experiments, three discovery briefs, nine saved Etsy example links.
+Both payloads received one HTTP 200 from the isolated capture receiver. Product
+contract validation accepted all three; no Product job or Studio delivery ran.
+Brief differentiation and acceptance checks remain too generic for launch decisions.
+
+All source hashes remained unchanged; repeat triggers reused completion receipts.
+Full component suite: 378 tests passed; final analyzer suite after the cultural-intent
+regression: 138 passed. Paid calls, Etsy calls and SMTP calls: zero. Existing paid
+ledger remains production-private; no allowance was reset. Production was not
+modified or deployed. Test outputs and the readable report remain outside Git.

@@ -11,6 +11,7 @@ from .saved_intake import SavedCollectionIntake, discover, finalization_time
 from .security import LocalHTTP, assert_clean_environment, local_url, reject_secrets
 from .service_reports import SERVICES, RECIPE_VERSION, request_for, validate
 from .research import VERSION as RESEARCH_VERSION
+from .assessments import VERSION as ASSESSMENT_VERSION
 from .lifecycle import resolve, Cursor, heartbeat, event, envelope
 from .delivery import deliver, policy as delivery_policy, recover, retry_saved, publish_failure_events
 
@@ -64,7 +65,7 @@ def run_service(service, intake, model, config, retry_failed=False, transport=No
                 'model': config['model'], 'model_digest': config.get('model_digest'), 'sample_size': config['sample_size'],
                 'research_policy': config.get('research'), 'paid_policy': config.get('paid'),
                 'opportunity_policy': config.get('opportunities'),
-                'opportunity_recipe': 'commercial-assessments-v1' if service == 'market_insights' and config.get('opportunities',{}).get('enabled') else None,
+                'opportunity_recipe': ASSESSMENT_VERSION if service == 'market_insights' and config.get('opportunities',{}).get('enabled') else None,
                 'semantic_context': batch.metadata.get('semantic_context'),
                 'history_sha256': hashlib.sha256(json.dumps(batch.metadata.get('history'),sort_keys=True).encode()).hexdigest()}
     job_id, directory = resolve(config['output_root'], identity)

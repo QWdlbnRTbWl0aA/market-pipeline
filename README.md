@@ -68,7 +68,12 @@ Sparse history does not become a claim of verified high demand or thin supply.
 History-aware opportunity qualification, prior-offer suppression, named daily/weekly
 research cycles and development-cost estimates are described in
 [Research cycles](docs/research-cycles.md). Reports target five to ten qualified new
-product briefs and disclose shortfalls; weekly aggregate trend reporting is deferred.
+product briefs and disclose shortfalls; fresh niches can produce explicitly labeled
+discovery hypotheses while historical validation remains a separate evidence tier.
+Native-currency prices remain separate. Local-only runs can generate up to three
+Ollama preview briefs without consuming future production offers. Search experiments
+retain niche terms, omit unchanged/duplicate queries and include comparison criteria.
+Weekly aggregate trend reporting is deferred.
 
 ## Verify without credentials
 

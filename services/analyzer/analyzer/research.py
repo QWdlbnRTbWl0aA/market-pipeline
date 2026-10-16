@@ -4,25 +4,39 @@ import hashlib
 import json
 import re
 import statistics
+from urllib.parse import urlsplit
 from .ports import ModelRequest
 from .io import write_json
 from .service_reports import saved_images
 
-VERSION='research-v4.1-product-briefs'
-STOP=set('a an and the to for of in on with by is it this that your you our from as at or printable print digital download downloads instant file files pdf png jpg template templates jewish'.split())
+VERSION='research-v5.1-discovery-refinement'
+STOP=set('a an and the to for of in on with by is it this that your you our from as at or printable print digital download downloads instant file files pdf png jpg template templates'.split())
 
 def words(text):return re.findall(r'[^\W\d_]{2,}',text.lower(),re.UNICODE)
+
+def listing_url(row):
+    """Expose actual saved Etsy examples only; never invent or visit a URL."""
+    value=row.get('provenance',{}).get('url')
+    if not isinstance(value,str):return None
+    try:
+        parts=urlsplit(value)
+        if parts.scheme=='https' and parts.hostname in ('etsy.com','www.etsy.com') and not parts.username and not parts.password and parts.port in (None,443) and re.fullmatch(r'/listing/\d+(?:/[^?#]*)?',parts.path):return value
+    except ValueError:pass
+    return None
 
 def build_evidence(dataset, policy):
     records=dataset['records'];queries=dataset['metadata'].get('query_context') or {}
     query=' '.join(n.get('keywords','') for n in (queries.get('niches') or []) if isinstance(n,dict)).strip()
-    terms=set(words(query));flags=[];groups=defaultdict(list);fingerprints=defaultdict(list)
+    query_terms=[set(words(n.get('keywords','')))-STOP for n in (queries.get('niches') or []) if isinstance(n,dict)]
+    query_terms=[t for t in query_terms if t]
+    terms=set().union(*query_terms) if query_terms else set();flags=[];groups=defaultdict(list);fingerprints=defaultdict(list)
     for row in records:
-        title=words(row['title']);content=set(title+words(' '.join(row['tags']))+words(row['description'][:4000]))
+        title=words(row['title']);primary=set(title+words(' '.join(row['tags'])));content=primary|set(words(row['description'][:4000]))
         reasons=[]
         if row['digital'] is False:reasons.append('physical_product')
         if terms and not terms&content:reasons.append('no_query_terms_in_saved_content')
-        elif terms and not terms<=content:reasons.append('partial_query_term_match_review_required')
+        elif query_terms and not any(t<=content for t in query_terms):reasons.append('partial_query_term_match_review_required')
+        if terms and terms&content and not terms&primary:reasons.append('query_terms_only_in_description')
         if re.search(r'ignore (all|previous)|system prompt|api[_ ]?key',row['description'],re.I):reasons.append('instruction_shaped_content')
         if reasons:flags.append({'listing_id':row['id'],'reasons':reasons,'action':'review_only','title':row['title']})
         fingerprints[' '.join(title)].append(row['id'])
@@ -75,7 +89,11 @@ def build_evidence(dataset, policy):
             if row['seller_id'] in seen_shops and len(seen_shops)<min(3,len(sellers)):continue
             seen_shops.add(row['seller_id']);examples.append(row)
             if len(examples)==3:break
-        evidence=[{'id':r['id'],'listing_id':r['id'],'evidence_id':f'c{len(candidates)+1}e{i+1}','title':r['title'],'description_excerpt':r['description'][:400],'tags':r['tags'][:13],
+        evidence=[{'id':r['id'],'listing_id':r['id'],'evidence_id':f'c{len(candidates)+1}e{i+1}',
+                   'url':listing_url(r),
+                   'observed_at':r.get('observed_at'),'original_created_at':r.get('original_created_at'),
+                   'source_provenance':r.get('provenance',{}),
+                   'title':r['title'],'description_excerpt':r['description'][:400],'tags':r['tags'][:13],
                    'digital':r['digital'],'shop_id':r['seller_id']} for i,r in enumerate(examples)]
         base=' '.join(words(query));extra=[w for w in words(phrase) if w not in set(words(base))]
         suggested=' '.join([base,*extra]).strip()[:200]
@@ -119,7 +137,7 @@ def model_request(service,evidence,candidates,images=()):
             c['historical_engagement']=c.get('historical_engagement',[])[-3:]
         c['prices']={k:v for k,v in sorted(candidate['prices'].items(),key=lambda x:-x[1]['observations'])[:2]}
         c['shop_observations']=candidate['shop_observations'][:2]
-        c['evidence']=[{k:(v[:180] if k=='description_excerpt' else v[:220] if k=='title' else v[:8] if k=='tags' else v) for k,v in e.items() if k not in ('id','listing_id')} for e in candidate['evidence']]
+        c['evidence']=[{k:(v[:180] if k=='description_excerpt' else v[:220] if k=='title' else v[:8] if k=='tags' else v) for k,v in e.items() if k not in ('id','listing_id','source_provenance')} for e in candidate['evidence']]
         public.append(c)
     ids=[c['candidate_id'] for c in candidates];refs=sorted({e['evidence_id'] for c in candidates for e in c['evidence']})
     schema={'type':'object','additionalProperties':False,'required':['summary','items','limitations'],'properties':{
@@ -198,7 +216,11 @@ def validate_local(text,candidates):
     return value
 
 def analyze(service,dataset,directory,config,local,cheap=None,good=None):
-    policy=config['research'];evidence=build_evidence(dataset,policy)
+    policy=config['research']
+    evidence=build_evidence(dataset,{**policy,'max_candidates':max(80,policy['max_candidates'])} if service=='search_refinement' else policy)
+    if service=='search_refinement':
+        from .refinement import prepare
+        evidence=prepare(evidence,dataset,policy['max_candidates'])
     write_json(directory/'evidence.json',evidence);candidates=evidence['candidates'];stages=[]
     images,audit=saved_images(list({e['id']:e for c in candidates for e in c['evidence']}.values()),dataset) if service=='market_insights' else ((),[])
     write_json(directory/'image-audit.json',audit)
@@ -266,9 +288,11 @@ def analyze(service,dataset,directory,config,local,cheap=None,good=None):
     if selected:
         for item in selected['items']:
             c=by_id[item['candidate_id']]
+            plan=c.get('search_plan')
             suggestions.append({'candidate_id':c['candidate_id'],'keywords':c['suggested_keywords'],
-                'alternative_keywords':' '.join(dict.fromkeys([*[w for w in words(' '.join(n.get('keywords','') for n in evidence['query_context'].get('niches',[]))) if w in ('printable','digital','download','template')],*words(c['phrase'])])),
-                'rationale':item['reason'],'product_brief':briefs.get(c['candidate_id']),
+                'alternative_keywords':c['suggested_keywords'] if plan else ' '.join(dict.fromkeys([*[w for w in words(' '.join(n.get('keywords','') for n in evidence['query_context'].get('niches',[]))) if w in ('printable','digital','download','template')],*words(c['phrase'])])),
+                'rationale':plan['observed_support'] if plan and good is None else item['reason'],
+                **({'search_plan':plan} if plan else {}),'product_brief':briefs.get(c['candidate_id']),
                 'evidence_ids':item['evidence_ids'],'facts':{k:v for k,v in c.items() if k not in ('listing_ids','evidence')},
                 'evidence_excerpts':[e for e in c['evidence'] if e['evidence_id'] in item['evidence_ids']],
                 'cheap_product_shares':{currency:p['at_or_below_reference_price']/p['observations'] if p['reference_price'] is not None else None for currency,p in c['prices'].items()},

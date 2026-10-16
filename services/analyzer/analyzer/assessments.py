@@ -12,12 +12,13 @@ from pathlib import Path
 import re
 from .security import reject_secrets
 
-VERSION='commercial-assessments-v1'
+VERSION='commercial-assessments-v2-discovery'
 DEFAULT={'enabled':True,'initial_candidates':80,'maximum_opportunities':10,'minimum_target':5,
          'minimum_shops':3,'minimum_active_sales_shops':2,'minimum_history_days':7,
          'minimum_shop_age_days':90,'minimum_inventory_coverage':.8,'minimum_content_similarity':.35,
          'minimum_inventory_sales_per_year':1.0,'maximum_cheap_share':.6,'maximum_shop_share':.5,
-         'assessment_half_life_days':30,'maximum_images':10,'minimum_known_price_share':.8,'minimum_query_match_share':.8}
+         'assessment_half_life_days':30,'maximum_images':10,'minimum_known_price_share':.8,'minimum_query_match_share':.8,
+         'discovery_enabled':True,'minimum_discovery_engagement_shops':2,'minimum_discovery_established_shops':2}
 
 
 def instant(value):
@@ -34,8 +35,8 @@ def key(candidate):
 
 def policy(value=None):
     value={**DEFAULT,**(value or {})}
-    if set(value)!=set(DEFAULT) or type(value['enabled']) is not bool:raise ValueError('Invalid opportunity policy')
-    for name in ('initial_candidates','maximum_opportunities','minimum_target','minimum_shops','minimum_active_sales_shops','minimum_history_days','minimum_shop_age_days','assessment_half_life_days','maximum_images'):
+    if set(value)!=set(DEFAULT) or any(type(value[name]) is not bool for name in ('enabled','discovery_enabled')):raise ValueError('Invalid opportunity policy')
+    for name in ('initial_candidates','maximum_opportunities','minimum_target','minimum_shops','minimum_active_sales_shops','minimum_history_days','minimum_shop_age_days','assessment_half_life_days','maximum_images','minimum_discovery_engagement_shops','minimum_discovery_established_shops'):
         if type(value[name]) is not int or not 1<=value[name]<=200:raise ValueError('Invalid opportunity bound')
     if not 5<=value['maximum_opportunities']<=10 or not 1<=value['minimum_target']<=value['maximum_opportunities'] or value['maximum_images']>10:raise ValueError('Invalid report/image bounds')
     for name in ('minimum_inventory_coverage','minimum_content_similarity','maximum_cheap_share','maximum_shop_share','minimum_known_price_share','minimum_query_match_share'):
@@ -58,6 +59,7 @@ def previous(root, dataset):
     for path in (Path(root)/'market_insights').glob('*/outbound.json'):
         if path.is_symlink() or path.stat().st_size>20_000_000:continue
         payload=json.loads(path.read_text());reject_secrets(payload)
+        if payload.get('report',{}).get('status')=='local_preview':continue
         source=payload.get('source_run_id');stamp=instant(payload.get('finished_at'))
         if not as_of or not stamp or stamp>=as_of or source==current or source in seen or payload.get('status')!='completed':continue
         candidates=[]
@@ -134,6 +136,7 @@ def qualify(candidate,dataset,prior,settings):
                 historical_coverage is not None and historical_coverage>=settings['minimum_inventory_coverage'] and similarity>=settings['minimum_content_similarity'] and
                 consistent>=.8 and intensity is not None and intensity>=settings['minimum_inventory_sales_per_year'])
         shops.append({'shop_id':seller,'shop_age_days':age,'observations':len(ordered),'observed_span_days':days,'actual_shop_counter_growth':growth,
+            'whole_shop_lifetime_transactions':latest.get('transaction_sold_count'),
             'active_listings':active,'saved_listings':len(saved),'candidate_listings':len(group),'inventory_coverage_lower_bound':coverage,
             'historical_inventory_coverage_lower_bound':historical_coverage,'content_similarity':similarity,'category_consistency':consistent,
             'shop_inventory_normalized_activity_per_year':intensity,'counter_reset':reset,'duplicate_timestamp_conflicts':conflict,'qualified_group_sales_context':strong,
@@ -144,7 +147,8 @@ def qualify(candidate,dataset,prior,settings):
     positive_shops=len({r['seller_id'] for r in positive});sales_shops=sum(s['qualified_group_sales_context'] for s in shops)
     known_prices=[p for p in candidate['prices'].values() if p.get('reference_price') is not None]
     denominator=sum(p['observations'] for p in known_prices);cheap=sum(p['at_or_below_reference_price'] for p in known_prices)/denominator if denominator else None
-    known_price_share=denominator/max(1,len(rows))
+    benchmark_price_share=denominator/max(1,len(rows))
+    known_price_share=sum(type(r.get('price')) in (int,float) and math.isfinite(r['price']) and r['price']>=0 and bool(r.get('currency')) for r in rows)/max(1,len(rows))
     from .research import words,STOP
     searches=[set(words(n.get('keywords','')))-STOP for n in (dataset['metadata'].get('query_context',{}).get('niches') or [])]
     searches=[s for s in searches if s]
@@ -155,7 +159,7 @@ def qualify(candidate,dataset,prior,settings):
     if positive_shops<settings['minimum_active_sales_shops']:reasons.append('insufficient_multi_shop_listing_engagement_history')
     if candidate['largest_shop_share'] is None or candidate['largest_shop_share']>settings['maximum_shop_share']:reasons.append('single_shop_concentration')
     if cheap is None or cheap>settings['maximum_cheap_share']:reasons.append('unknown_or_crowded_cheap_price_position')
-    if known_price_share<settings['minimum_known_price_share']:reasons.append('insufficient_comparable_price_coverage')
+    if benchmark_price_share<settings['minimum_known_price_share']:reasons.append('insufficient_comparable_price_coverage')
     if query_match_share<settings['minimum_query_match_share']:reasons.append('insufficient_saved_content_query_match')
     prior_context=memory(candidate,prior,as_of,settings)
     components={'listing_trend':min(1,positive_shops/3),'shop_sales_context':min(1,sales_shops/3),
@@ -163,9 +167,32 @@ def qualify(candidate,dataset,prior,settings):
                 'price_position':1-cheap if cheap is not None else 0,'history_depth':min(1,len(supported)/max(1,len(rows)))}
     current=sum(components[k]*w for k,w in [('listing_trend',.25),('shop_sales_context',.30),('diversity',.20),('price_position',.10),('history_depth',.15)])
     score=.7*current+.3*prior_context['weighted_prior_score'] if prior_context['weighted_prior_score'] is not None else current
+    engaged_shops={r['seller_id'] for r in rows if any(m.get('scope')=='listing' and m.get('name') in ('views','favorites') and type(m.get('value')) in (int,float) and m['value']>0 for m in r['metrics']) and r['seller_id']}
+    established=[s for s in shops if s['shop_age_days'] is not None and s['shop_age_days']>=settings['minimum_shop_age_days']
+                 and s['whole_shop_lifetime_transactions'] is not None and s['whole_shop_lifetime_transactions']>0
+                 and s['active_listings'] is not None and s['active_listings']>0 and not s['counter_reset'] and not s['duplicate_timestamp_conflicts']]
+    discovery_reasons=[]
+    linked_shops={e['shop_id'] for e in candidate['evidence'] if e.get('url') and e.get('shop_id')}
+    if not settings['discovery_enabled']:discovery_reasons.append('discovery_disabled')
+    if candidate['shop_count']<settings['minimum_shops']:discovery_reasons.append('insufficient_shop_diversity')
+    if candidate['largest_shop_share'] is None or candidate['largest_shop_share']>settings['maximum_shop_share']:discovery_reasons.append('single_shop_concentration')
+    if len(engaged_shops)<settings['minimum_discovery_engagement_shops']:discovery_reasons.append('insufficient_cross_sectional_listing_engagement')
+    if len(established)<settings['minimum_discovery_established_shops']:discovery_reasons.append('insufficient_established_shop_context')
+    if len(linked_shops)<2:discovery_reasons.append('insufficient_saved_etsy_examples')
+    if known_price_share<settings['minimum_known_price_share']:discovery_reasons.append('insufficient_native_currency_price_coverage')
+    if query_match_share<settings['minimum_query_match_share']:discovery_reasons.append('insufficient_saved_content_query_match')
+    discovery_score=.4*components['diversity']+.3*min(1,len(engaged_shops)/5)+.2*min(1,len(established)/3)+.1*known_price_share
+    discovery_risks=['Listing purchases, recent demand and marketplace competition are unverified.',
+                     'Whole-shop lifetime transactions establish shop context only; no sales are assigned to these listings.']
+    if reasons:discovery_risks.append('Longitudinal validation is incomplete; consult hold_reasons and saved history.')
+    if benchmark_price_share<settings['minimum_known_price_share']:discovery_risks.append('Cheap-price benchmarks cover only part of the group; compare each native currency separately.')
+    if cheap is not None and cheap>settings['maximum_cheap_share']:discovery_risks.append('Observed benchmarked listings are predominantly cheap; test differentiated value before investing.')
     return {'qualified':not reasons,'hold_reasons':reasons,'score':round(score,5),'current_score':round(current,5),
+            'evidence_tier':'trend_supported' if not reasons else 'discovery_hypothesis' if not discovery_reasons else 'insufficient_evidence',
+            'discovery':{'qualified':not discovery_reasons,'hold_reasons':discovery_reasons,'score':round(discovery_score,5),
+                         'engaged_listing_shops':len(engaged_shops),'established_shops':len(established),'risks':discovery_risks},
             'score_delta':round(score-prior_context['weighted_prior_score'],5) if prior_context['weighted_prior_score'] is not None else None,
             'score_components':components,'score_scope':'Transparent prioritization heuristic, not probability of sales or profitability',
             'shops':shops,'positive_listing_history_shops':positive_shops,'strong_sales_context_shops':sales_shops,'cheap_share':cheap,
-            'known_price_share':known_price_share,'query_content_match_share':query_match_share,'assessment_history':prior_context,
+            'known_price_share':known_price_share,'benchmark_price_share':benchmark_price_share,'query_content_match_share':query_match_share,'assessment_history':prior_context,
             'listing_sales':None,'verified_listing_purchase_demand':False,'marketplace_thin_supply_verified':False}

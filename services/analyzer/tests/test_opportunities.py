@@ -104,7 +104,9 @@ class OpportunityTests(unittest.TestCase):
                 for report in d['metadata']['history']['related_observations']:
                     for rows in report['shop_inventory_profiles'].values():
                         for r in rows:r['title']='Unrelated cat toy';r['tags']=[]
-            with self.subTest(fault=fault):self.assertFalse(qualify(self.candidate(d),d,[],policy())['qualified'])
+            with self.subTest(fault=fault):
+                if fault=='query_mismatch':self.assertEqual(build_evidence(d,POLICY)['candidates'],[])
+                else:self.assertFalse(qualify(self.candidate(d),d,[],policy())['qualified'])
     def test_recency_weight_and_stable_concept_identity(self):
         d=data();c=self.candidate(d);as_of=dt.datetime(2026,10,15,tzinfo=dt.timezone.utc)
         rows=[{'source_run_id':'old','source_finished_at':'2026-09-01T00:00:00Z','candidates':[{'key':key(c),'score':0,'suggested':False}]},

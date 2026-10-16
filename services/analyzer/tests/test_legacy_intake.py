@@ -11,7 +11,7 @@ from analyzer.io import write_json
 from analyzer.lifecycle import resolve
 from analyzer.normalize import normalize
 from analyzer.ports import ModelResponse
-from analyzer.research import build_evidence
+from analyzer.research import build_evidence, VERSION
 from analyzer.saved_intake import SavedCollectionIntake
 from analyzer.services import run_service
 
@@ -162,17 +162,22 @@ class LegacyIntakeTests(unittest.TestCase):
                         second = run_service(service, intake, model, copy.deepcopy(self.config()), transport=transport)
                         self.assertTrue(second['duplicate_trigger'])
                         self.assertEqual(first['job_id'], second['job_id'])
-                        self.assertEqual(model.calls, 1)
+                        # Legacy rows lack independent shop support, so the new
+                        # refiner abstains before inference rather than inventing
+                        # a supported experiment. The legacy market recipe still
+                        # exercises its local classification path.
+                        self.assertEqual(model.calls, 0 if service=='search_refinement' else 1)
         self.assertEqual(len(deliveries), 6)
 
     def test_existing_completed_and_failed_jobs_keep_identity_and_do_not_rerun(self):
         intake = self.save(legacy_snapshot())
         batch = intake.read()
-        # Seed identities from the deployed recipe, independent of the current constant.
+        # Seed current-recipe receipts. An intentional recipe change is a new
+        # explicit analysis; compatibility intake fixes must not change identity.
         for service, status in (('search_refinement', 'completed'), ('market_insights', 'failed')):
             identity = {'service': service, 'input_sha256': batch.provenance['input_sha256'],
                         'source_run_id': batch.metadata['source_run_id'],
-                        'recipe_version': 'research-v4.1-product-briefs', 'model': 'synthetic',
+                        'recipe_version': VERSION, 'model': 'synthetic',
                         'sample_size': 8, 'research_policy': POLICY, 'paid_policy': {'enabled': False}}
             job_id, directory = resolve(self.config()['output_root'], identity)
             write_json(directory / 'state.json', {**identity, 'job_id': job_id,

@@ -9,16 +9,48 @@ hypothesis recipe. Source changes do not update installed configuration or deplo
 daemons. Existing completed jobs retain their receipts; intentional reanalysis
 with a different recipe is a separate job, subject to the same ledger.
 
-The pipeline is deterministic candidate grouping (up to 80) → qualification →
+The pipeline is deterministic candidate grouping (up to 80) → tiered qualification →
 previous-offer suppression → bounded refinement if more than ten remain → one
 final model-authored product report. Up to twenty qualifying groups enter cheap
 refinement; at most ten enter final briefing. Saved pictures, when present, are
 interpreted by local Ollama in batches of two, at most ten pictures. URLs are
 provenance only: analyzers never fetch them or call Etsy. No cloud images are sent.
 No costly call runs when no candidate qualifies. With paid generation disabled,
-assessments are saved but no model-authored production recommendation is invented.
+Ollama may generate up to three model-authored preview briefs, one bounded request
+per candidate. These are `local_preview`, never consume the durable offer registry,
+and do not suppress candidates from a later paid-quality report. Invalid local
+responses are recorded, without automatic inference retries. The target remains
+five to ten for the full report; previews disclose their three-candidate cap.
+Local briefing responses cannot certify design choices as observations: statement
+bases become `design_hypothesis`, while rationale is rendered from saved candidate
+content. Raw model responses remain unchanged. Citation and unsupported commercial
+claim checks still apply to every brief. Paid model validation is unchanged.
 
-Qualification uses these adjustable defaults:
+Two evidence tiers allow a fresh niche to support discovery without pretending
+that one observation establishes a trend:
+
+- **`discovery_hypothesis`**: at least three independent shops, no majority shop,
+  positive cumulative listing views/favorites in at least two shops, and at least
+  two established shops with known age of 90 days, positive lifetime shop counters
+  and active inventory. Conflicting counters and observed resets do not qualify
+  a shop. At least 80% known native-currency prices and saved query-content matches
+  are required, along with saved Etsy example URLs from at least two shops.
+  Lifetime shop sales provide context only, never listing demand.
+  Missing historical inventory, unknown cheap-price benchmarks and observed cheap
+  crowding are explicit validation risks, not invented measurements. Recommendations
+  must describe an original product experiment and retain cited examples.
+- **`trend_supported`**: the existing stronger historical checks below remain
+  required. This tier still does not verify listing purchases or profitability.
+
+Set `opportunities.discovery_enabled: false` to require historical qualification
+for every candidate. Existing JSON configurations pick up the new defaults on
+release deployment; no configuration rewrite is required. Production state is not
+migrated or modified by a source checkout. The new versioned recipe creates a
+separate job on an explicit reanalysis; saved completed jobs and watcher cursors
+remain intact and are not replayed automatically. Use an isolated output root and
+local capture receiver to review development outputs before downstream delivery.
+
+Historical qualification uses these adjustable defaults:
 
 - At least three independent observed shops; no shop supplies over half a group.
 - At least two shops with three comparable counter observations over seven days,
@@ -44,8 +76,8 @@ recency decay (30-day half-life); current evidence receives 70%. These transpare
 weights prioritize validation, not probability of purchase or profitability.
 Failed qualification remains failed regardless of an old strong score.
 
-The consumer target is **five to ten new evidence-qualified business-validation
-opportunities** with concrete product briefs and citations. Fewer are reported
+The consumer target is **five to ten new product-validation candidates**, each
+labeled with its evidence tier and concrete product brief. Fewer are reported
 when evidence or novel supply is insufficient; `target_count_met`, `shortfall`
 and reason counts explain the gap. `listing_sales` remains null and verified
 demand/thin-supply flags remain false. Broad marketplace supply and conversion
@@ -60,6 +92,25 @@ delivery-only recovery reuses the original output rather than resuggesting it.
 Retain these files during migration and rollback. Do not reset the offer registry
 or paid ledger to repeat suggestions. Full histories stay in saved evidence;
 model/HTTP summaries contain bounded examples and intervals.
+
+## Search refinement
+
+The refiner reviews only the current query results. Generic words such as
+`printable` alone cannot establish niche relevance; multiple query intents are
+checked independently. Physical, unrelated, partial-match, description-only and
+instruction-shaped content remain review flags, not automatic fraud labels.
+An unchanged query is a control, not a recommendation. Query experiments retain
+the original niche terms, add content modifiers supported by multiple shops, and
+deduplicate word ordering, repeated words and simple English plurals. Specific
+modifiers take precedence over ubiquitous format wording.
+
+Every proposed experiment includes its source query, added terms, observed
+listing/shop support, expected effect and comparison criteria. Local-only rationale
+is rendered from those facts; model labels remain unverified. Only selected group
+examples receive semantic classification, not the entire result set. Reports
+disclose truncation and never infer query exhaustion from a bounded first sample.
+Actual saved Etsy listing URLs and provenance are included in evidence; no URLs
+are invented or fetched. Recommendations do not modify collector settings.
 
 ## Search cycles and operator interface
 

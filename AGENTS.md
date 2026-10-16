@@ -33,6 +33,13 @@ host security settings without explicit authorization.
   and shop pool; fetch exclusions must not exclude prior saved candidates from
   analysis. Preserve real observation dates, as-of boundaries and per-artifact
   provenance. Report current additions and cumulative pool size separately.
+  Fresh observations may support explicitly labeled discovery hypotheses using
+  multi-shop listing engagement, established shop context and native-currency
+  prices; historical trend qualification remains separate and must not be weakened.
+  Unknown benchmarks and cheap crowding remain visible risks. Local-only preview
+  briefs are capped at three and must not reserve offers or suppress a later paid
+  report. Search experiments preserve niche intent, omit unchanged/duplicate
+  queries and include evidence and measurable comparison criteria.
 - Deterministic code performs parsing, normalization, grouping, mechanical DQA
   and admission. Use local Ollama and bounded cheap calls before costly models.
 - Analyzer intake is limited to saved collector artifacts. Analyzer/product/

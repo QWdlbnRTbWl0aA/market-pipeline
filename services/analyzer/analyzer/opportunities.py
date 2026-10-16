@@ -7,7 +7,7 @@ from .assessments import VERSION, key, policy, previous, qualify
 from .io import write_json, now
 from .ports import ModelResponse
 from .research import build_evidence, model_request, validate_selection, local_request, validate_local
-from .product_briefs import request as brief_request, validate as validate_brief, compact_cross_checks
+from .product_briefs import request as brief_request, validate as validate_brief, compact_cross_checks, local_design_selection
 
 
 def stage(directory,name,model,request):
@@ -57,8 +57,25 @@ def locked(dataset,directory,config,settings,local,cheap,good):
         assessed.append({'key':key(candidate),'phrase':candidate['phrase'],'listing_ids':candidate['listing_ids'],
                          'score':assessment['score'],'qualified':assessment['qualified'],'suggested':False,'assessment':assessment})
         if assessment['assessment_history']['previously_suggested'] or (key(candidate) in claims and claims[key(candidate)]['job_id']!=directory.name):suppressed.append(candidate)
-        elif assessment['qualified']:novel.append(candidate)
-    novel.sort(key=lambda c:(-c['commercial_assessment']['score'],c['opportunity_key']))
+        elif assessment['qualified'] or assessment['discovery']['qualified']:novel.append(candidate)
+    from collections import Counter
+    from .research import words,STOP
+    frequencies=Counter(w for r in dataset['records'] for w in set(words(r['title']+' '+' '.join(r['tags']))))
+    query_terms=set(words(' '.join(n.get('keywords','') for n in evidence['query_context'].get('niches',[]))))
+    common={w for w,n in frequencies.items() if n>=max(1,len(dataset['records'])*.45)}
+    def order(candidate):
+        a=candidate['commercial_assessment']
+        specificity=len(set(words(candidate['phrase']))-query_terms-common-STOP)
+        return (not a['qualified'],-min(2,specificity),-a['discovery']['score'] if not a['qualified'] else -a['score'],candidate['opportunity_key'])
+    novel.sort(key=order)
+    distinct=[];overlapping=[]
+    for candidate in novel:
+        ids=set(candidate['listing_ids'])
+        duplicate=next((c for c in distinct if len(ids&set(c['listing_ids']))/max(1,len(ids|set(c['listing_ids'])))>.65),None)
+        if duplicate:overlapping.append({'candidate_id':candidate['candidate_id'],'overlaps_candidate_id':duplicate['candidate_id'],'reason':'substantially_same_saved_listing_group'})
+        else:distinct.append(candidate)
+    write_json(directory/'overlapping-candidates.json',overlapping)
+    novel=distinct
     write_json(directory/'evidence.json',evidence);write_json(directory/'candidate-assessments.json',assessed)
     write_json(directory/'previous-assessments.json',history)
     stages=[];visual_notes=[];shortlist=novel
@@ -90,25 +107,42 @@ def locked(dataset,directory,config,settings,local,cheap,good):
             chosen={r['candidate_id'] for r in selection['items']};shortlist=[c for c in shortlist if c['candidate_id'] in chosen]
         shortlist=shortlist[:settings['maximum_opportunities']]
     recommendations=[]
-    if shortlist and good is not None:
-        req=brief_request(model_request('market_insights',evidence,shortlist))
-        req.schema['properties']['items']['maxItems']=10
-        req.system=req.system.replace('Select at most two focused product concepts.','Select five to ten focused product concepts when supported; select fewer when evidence is insufficient. Do not pad.')
-        req.system+=' Use concise briefs: short audience/job statements, at most two deliverables and two items in each checklist. Cross-examine commercial_assessment and prior assessments. Qualified means supported for a product-validation decision, not verified listing purchases, profit or thin marketplace supply.'
-        response=stage(directory,'opportunity-final',good,req);value=json.loads(response.text)
-        selection,briefs=validate_brief(value,shortlist,maximum=10)
-        stages.append({'stage':'final','status':'completed','metadata':response.metadata})
-        by_id={c['candidate_id']:c for c in shortlist}
+    # A bounded local preview can exercise the handoff without paid admission.
+    # Cloud production briefing remains one bounded final stage. Local briefs
+    # are explicitly unverified and never masquerade as trend-supported sales.
+    batches=[shortlist] if good is not None else [[c] for c in shortlist[:3]]
+    by_id={c['candidate_id']:c for c in shortlist}
+    for index,batch in enumerate(batches):
+        if not batch:continue
+        req=brief_request(model_request('market_insights',evidence,batch))
+        req.schema['properties']['items']['maxItems']=10 if good is not None else 1
+        req.system=req.system.replace('Select at most two focused product concepts.','Select five to ten focused product concepts when supported; select fewer when evidence is insufficient. Do not pad.' if good is not None else 'Select at most one focused product concept.')
+        req.system+=' Use concise briefs: short audience/job statements, at most two deliverables and two items in each checklist. Cross-examine commercial_assessment and prior assessments. A discovery_hypothesis is a cross-sectional product experiment, not a trend-supported opportunity. Explain observed listing content and propose original deliverables. Neither tier verifies listing purchases, profit or thin marketplace supply.'
+        if good is None:req.system+=' Keep every statement under twenty words and each checklist to one item.'
+        name='opportunity-final' if good is not None else f'opportunity-local-brief-{index+1}'
+        try:
+            response=stage(directory,name,good or local,req);value=json.loads(response.text)
+            if good is None:
+                value=local_design_selection(value,batch)
+                write_json(directory/(name+'-proposals.json'),value)
+            selection,briefs=validate_brief(value,batch,maximum=10 if good is not None else 1)
+            stages.append({'stage':'final' if good is not None else 'local_brief','status':'completed','metadata':response.metadata})
+        except Exception as error:
+            if good is not None:raise
+            stages.append({'stage':'local_brief','status':'failed','error_type':type(error).__name__})
+            continue
         for item in selection['items']:
             c=by_id[item['candidate_id']]
             recommendations.append({'candidate_id':c['candidate_id'],'opportunity_key':key(c),'keywords':c['suggested_keywords'],
                 'rationale':item['reason'],'product_brief':briefs[c['candidate_id']],'evidence_ids':item['evidence_ids'],
                 'evidence_excerpts':[e for e in c['evidence'] if e['evidence_id'] in item['evidence_ids']],
                 'facts':facts(c),
-                'assessment':'evidence_qualified_business_opportunity','requires_human_review':True,
+                'assessment':'trend_supported_opportunity' if c['commercial_assessment']['qualified'] else 'discovery_hypothesis',
+                'evidence_tier':c['commercial_assessment']['evidence_tier'],'brief_provider':'openai' if good is not None else 'ollama',
+                'requires_human_review':True,
                 'high_demand_verified':False,'thin_supply_verified':False,'listing_sales':None,
                 'validation_needed':['Validate conversion, production cost and broad-market competition before investing.']})
-    selected={r['opportunity_key'] for r in recommendations}
+    selected={r['opportunity_key'] for r in recommendations} if good is not None else set()
     for identity in selected:claims[identity]={'source_run_id':dataset['metadata']['source_run_id'],'job_id':directory.name,'at':now()}
     write_json(claims_path,{'offers':claims})
     for row in assessed:row['suggested']=row['key'] in selected
@@ -126,13 +160,21 @@ def locked(dataset,directory,config,settings,local,cheap,good):
         known={r['key'] for r in old['candidates'] if r.get('suggested')}
         for row in assessed:row['suggested']|=row['key'] in known
     if not target.exists():write_json(target,manifest)
-    return {'schema_version':3,'service':'market_insights','status':'provisional' if recommendations else 'insufficient_evidence',
-        'recommendations':recommendations,'summary':f'{len(recommendations)} new evidence-qualified opportunities; target {settings["minimum_target"]}–{settings["maximum_opportunities"]}.',
+    return {'schema_version':4,'service':'market_insights','status':('provisional' if good is not None else 'local_preview') if recommendations else 'insufficient_evidence',
+        'execution_mode':'tiered_openai' if good is not None else 'local_only',
+        'recommendations':recommendations,'summary':f'{len(recommendations)} new product-validation candidates; target {settings["minimum_target"]}–{settings["maximum_opportunities"]}. Discovery hypotheses and trend-supported candidates are labeled separately.',
         'target_count_met':len(recommendations)>=settings['minimum_target'],'shortfall':max(0,settings['minimum_target']-len(recommendations)),
-        'candidate_counts':{'initial':len(assessed),'previously_suggested_removed':len(suppressed),'qualified_novel':len(novel),'consumer':len(recommendations)},
+        'candidate_counts':{'initial':len(assessed),'previously_suggested_removed':len(suppressed),'overlapping_removed':len(overlapping),
+                            'trend_supported':sum(c['commercial_assessment']['qualified'] for c in novel),
+                            'discovery_hypotheses':sum(not c['commercial_assessment']['qualified'] for c in novel),
+                            'qualified_novel':len(novel),'consumer':len(recommendations)},
+        'preview_limit':3 if good is None else None,
+        'offers_reserved':good is not None,
+        'local_preview_scope':'Local product statements are design hypotheses; measured evidence is rendered deterministically, not certified by the model.' if good is None else None,
         'data_scope':{k:v for k,v in dataset['metadata'].get('saved_pool',{}).items() if k not in ('members','sources','issues','query_context','source_normalization')} | {'source_run_count':len(dataset['metadata'].get('saved_pool',{}).get('sources',[])),'pool_issue_count':len(dataset['metadata'].get('saved_pool',{}).get('issues',[]))},
         'assessment_updates':[{'key':r['key'],'phrase':r['phrase'],'qualified':r['qualified'],'assessment':summary(r['assessment'])} for r in assessed],
         'shortfall_reasons':dict(__import__('collections').Counter(reason for r in assessed for reason in r['assessment']['hold_reasons'])),
+        'discovery_hold_reasons':dict(__import__('collections').Counter(reason for r in assessed for reason in r['assessment']['discovery']['hold_reasons'])),
         'final_model_completed':any(s['stage']=='final' for s in stages),'local_image_notes_unverified':visual_notes,'stages':stages,
         'quality_gate':'Deterministic commercial evidence gates and citation membership; not verified listing demand or profitability.',
         'limitations':evidence['limitations'],'recommendations_applied':False,'weekly_trend_report_implemented':False}

@@ -41,7 +41,7 @@
     "max_input_token_bound": 90000,
     "ledger_root": "/var/lib/market-pipeline/paid-ledger"
   },
-  "opportunities": {"enabled": true},
+  "opportunities": {"enabled": true, "discovery_enabled": true},
   "mail": {"enabled": false, "recipients": [], "max_attempts": 5, "retry_seconds": 60},
   "operations_root": "/var/lib/market-pipeline/controller/operations",
   "cohort_root": "/var/lib/market-pipeline/controller/cohorts"

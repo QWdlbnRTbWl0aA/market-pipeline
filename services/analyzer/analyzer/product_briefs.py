@@ -2,7 +2,38 @@
 from collections import Counter
 import datetime as dt
 import json
+import copy
 from .ports import ModelRequest
+
+
+def local_design_selection(value, candidates):
+    """Keep local proposals separate from observed evidence and commercial claims.
+
+    The untouched model response is retained by the stage runner. A local model
+    cannot certify its own statements as observed facts. Evidence/rationale is
+    rendered from saved candidates; the normal strict brief/citation validator
+    still checks every proposed statement, including unsupported claims.
+    """
+    if not isinstance(value,dict) or set(value)!={'summary','items','limitations'} or not isinstance(value['items'],list):
+        raise ValueError('Invalid local design selection')
+    result=copy.deepcopy(value);by_id={c['candidate_id']:c for c in candidates}
+    result['summary']='Local product design proposals from saved listing content; commercial validation is required.'
+    result['limitations']=['Proposed design choices are hypotheses, not observed buyer needs or verified listing sales.']
+    for item in result['items']:
+        if not isinstance(item,dict) or set(item)!={'candidate_id','reason','evidence_ids','product_brief'} or item.get('candidate_id') not in by_id:
+            raise ValueError('Invalid local design candidate')
+        candidate=by_id[item['candidate_id']]
+        item['reason']=f"Saved examples describe '{candidate['phrase']}'. Test an original product concept; purchases and current demand remain unverified."
+        brief=item['product_brief']
+        if not isinstance(brief,dict):raise ValueError('Invalid local design brief')
+        statements=[brief.get(name) for name in ('intended_customer','customer_job','differentiation')]
+        deliverables=brief.get('deliverables')
+        if not isinstance(deliverables,list):raise ValueError('Invalid local deliverables')
+        for statement in statements+deliverables:
+            if not isinstance(statement,dict) or statement.get('basis') not in ('observed','design_hypothesis'):
+                raise ValueError('Invalid local statement basis')
+            statement['basis']='design_hypothesis'
+    return result
 
 
 def compact_cross_checks(value):
