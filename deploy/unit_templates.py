@@ -13,7 +13,7 @@ SPECS = {
 }
 
 
-def render(name, user='market-pipeline', mail=False, product_paid=False):
+def render(name, user='market-pipeline', mail=False, product_paid=False,studio_ai=False,studio_google=False):
     service, config, port, writable, credential = SPECS[name]
     if name=='product' and product_paid:writable=(*writable,'paid-ledger')
     args = f'{service} --config {config}'
@@ -35,6 +35,8 @@ def render(name, user='market-pipeline', mail=False, product_paid=False):
             'StandardOutput=journal','StandardError=journal']
     if credential: rows.append(f'LoadCredential={credential}:/etc/market-pipeline/credentials/{credential}')
     if name=='product' and product_paid:rows.append('LoadCredential=openai.env:/etc/market-pipeline/credentials/openai.env')
+    if name=='studio' and studio_ai:rows.append('LoadCredential=studio-openai.env:/etc/market-pipeline/credentials/studio-openai.env')
+    if name=='studio' and studio_google:rows.append('LoadCredential=studio-google.env:/etc/market-pipeline/credentials/studio-google.env')
     if mail and name in ('market-analyst','product'):rows.append('LoadCredential=gmail_smtp.env:/etc/market-pipeline/credentials/gmail_smtp.env')
     if name == 'collector': rows.append('EnvironmentFile=-/etc/market-pipeline/dashboard.env')
     rows += ['', '[Install]','WantedBy=multi-user.target','']

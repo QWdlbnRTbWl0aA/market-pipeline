@@ -50,8 +50,8 @@ def key_file():
 
 class OpenAIDev:
     name='openai_dev'
-    def __init__(self, root, transport=None, credentials=key_file):
-        self.root=Path(root);self.budget=Budget(self.root/'development-openai')
+    def __init__(self, root, transport=None, credentials=key_file,limit_usd=1):
+        self.root=Path(root);self.budget=Budget(self.root/'development-openai',limit_usd)
         self.transport=transport or urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect()).open
         self.credentials=credentials
 
@@ -80,7 +80,7 @@ class OpenAIDev:
                 else:
                     details=usage.get('input_tokens_details',{});a,b,c=details.get('text_tokens'),details.get('image_tokens'),usage.get('output_tokens')
                     if any(type(v) is not int or v<0 for v in (a,b,c)):raise Invalid('Invalid image usage')
-                    actual=math.ceil(a*2+b*2.5+c*8)
+                    actual=math.ceil(a*5+b*8+c*30) if kind=='image_v25' else math.ceil(a*2+b*2.5+c*8)
                 self.budget.settle(identity,actual,usage);write(folder/'response.json',value);return value
             except Exception as error:
                 write(folder/'failure.json',{'type':type(error).__name__,'status_code':getattr(error,'code',None),'automatic_retry':False})

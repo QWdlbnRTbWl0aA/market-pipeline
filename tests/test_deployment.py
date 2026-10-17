@@ -74,6 +74,20 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual('LoadCredential=openai.env' in unit,name in ('search-refiner','market-analyst'))
             if name!='collector':self.assertNotIn('ReadWritePaths=/var/lib/market-pipeline/collector',unit)
 
+    def test_studio_provider_credentials_are_optional_and_scoped(self):
+        unit=render('studio',studio_ai=True,studio_google=True)
+        self.assertIn('LoadCredential=studio-openai.env:',unit)
+        self.assertIn('LoadCredential=studio-google.env:',unit)
+        self.assertNotIn('etsy.env',unit)
+        self.assertNotIn('LoadCredential=',render('studio'))
+        with tempfile.TemporaryDirectory() as temp:
+            directory=Path(temp)
+            for filename in ('studio-openai.env','studio-google.env'):(directory/filename).write_text('synthetic-only')
+            cwd,argv,env=command('studio',directory/'config.json',directory,credential_directory=directory)
+            self.assertEqual(env['STUDIO_OPENAI_CREDENTIAL_FILE'],str(directory/'studio-openai.env'))
+            self.assertEqual(env['STUDIO_GEMINI_CREDENTIAL_FILE'],str(directory/'studio-google.env'))
+            self.assertNotIn('OPENAI_API_KEY',env);self.assertNotIn('ETSY_API_KEY',env)
+
     def test_preparation_preserves_existing_state_and_disables_new_paid_work(self):
         with tempfile.TemporaryDirectory() as temp:
             state=Path(temp)/'state';configs=Path(temp)/'configs';prepare(state,configs)

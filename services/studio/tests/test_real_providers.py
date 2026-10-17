@@ -1,0 +1,101 @@
+"""Real JSON API contracts with offline transports and temporary credentials."""
+import base64
+import copy
+import hashlib
+import io
+import json
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+from PIL import Image
+from studio_service.providers import OpenAIStudio,GeminiStudio,Comparison
+from studio_service.storage import Invalid,read,write,write_bytes
+from studio_service.dev_budget import Budget,BudgetBlocked
+from studio_service.production import png
+
+
+class Providers(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name);self.project='a'*32;self.calls=[];Budget(self.root/'development-openai').authorize(25,'Explicit zero-spend synthetic fixture',initialize_empty=True)
+    def image(self,w=1024,h=1024):return png(Image.new('RGB',(w,h),'#88aabb'))
+    def transport(self,req,timeout):
+        body=json.loads(req.data);self.calls.append((req.full_url,body,req.data))
+        if '/images/' in req.full_url:
+            w,h=map(int,body['size'].split('x'));value={'usage':{'input_tokens_details':{'text_tokens':20,'image_tokens':10},'output_tokens':100},
+                'data':[{'b64_json':base64.b64encode(self.image(w,h)).decode()} for _ in range(body['n'])]}
+        else:
+            count=body['text']['format']['schema']['properties']['samples']['maxItems']
+            samples=[{k:'actual observed fixture' for k in ('description','subject','palette','composition','style','texture','bundle_cohesion')} for i in range(count)]
+            value={'status':'completed','usage':{'input_tokens':20,'output_tokens':20},'output':[{'type':'message','content':[{'type':'output_text','text':json.dumps({'samples':samples})}]}]}
+        return io.BytesIO(json.dumps(value).encode())
+    def request(self):
+        return {'operation_id':'operation','project_id':self.project,'count':3,'mode':'sketch','accepted':[],'rejected':[],
+            'optimized_prompt':'Generate ONE representative watercolor menorah picture; do not make a collage','brief':{'concept':'Original holiday picture'},'reference_images':[]}
+
+    def test_flare_generates_then_edits_exact_accepted_pixels_and_cache_is_reused(self):
+        model=OpenAIStudio(self.root,self.transport,lambda:'synthetic-secret',limit_usd=25);request=self.request();images=model.generate(request)
+        self.assertEqual(len(images),3);self.assertEqual(self.calls[0][0],'https://api.openai.com/v1/images/generations')
+        image=images[0].content;path=self.root/'projects'/self.project/'generations/one.png';write_bytes(path,image)
+        candidate={'file':'generations/one.png','sha256':hashlib.sha256(image).hexdigest()}
+        edited={**request,'operation_id':'edit','accepted':[candidate],'optimized_prompt':'Keep the approved palette; remove background details'}
+        result=model.generate(edited);wire=next(body for url,body,raw in self.calls if url.endswith('/images/edits'))
+        self.assertEqual(base64.b64decode(wire['images'][0]['image_url'].split(',')[1]),image)
+        self.assertEqual(result[0].metadata['edit_input_sha256'],[candidate['sha256']])
+        count=len(self.calls);model.generate(edited);self.assertEqual(len(self.calls),count)
+        model.generate({**edited,'optimized_prompt':'A code-only prompt correction during recovery'})
+        self.assertEqual(len(self.calls),count)
+        for path in (self.root/'development-openai/calls').glob('*/request.json'):
+            saved=read(path);self.assertIn(saved['body']['model'],('gpt-image-2.5-flare','gpt-4.1-mini-2025-04-14'))
+            self.assertNotIn('synthetic-secret',path.read_text())
+
+    def test_unknown_outcome_keeps_hold_and_never_repeats_network_or_key_loading(self):
+        keys=[]
+        def timeout(*a,**k):self.calls.append('network');raise TimeoutError()
+        model=OpenAIStudio(self.root,timeout,lambda:keys.append('key') or 'synthetic',limit_usd=25)
+        with self.assertRaises(Invalid):model.generate(self.request())
+        with self.assertRaises(BudgetBlocked):model.generate(self.request())
+        self.assertEqual(self.calls,['network']);self.assertEqual(keys,['key'])
+        self.assertEqual(model.budget.summary(self.project)['unknown_outcomes'],1)
+
+    def test_production_uses_native_dimensions_one_asset_and_no_vision_call(self):
+        model=OpenAIStudio(self.root,self.transport,lambda:'synthetic',limit_usd=25,image_model='gpt-image-2.5-sunburst')
+        request={**self.request(),'count':1,'mode':'production','production_unit':{'description':'An oil jug'},
+                 'production_plan':{'style':'Original watercolor'},'last_feedback':'Preserve texture','image_size':[2256,3280]}
+        result=model.generate(request)
+        self.assertEqual(len(self.calls),1);self.assertEqual(self.calls[0][1]['quality'],'high')
+        self.assertEqual(self.calls[0][1]['model'],'gpt-image-2.5-sunburst');self.assertEqual(result[0].metadata['native_height'],3280)
+
+    def test_nano_uses_stateless_interactions_no_search_and_conservative_shared_accounting(self):
+        def transport(req,timeout):
+            body=json.loads(req.data);self.calls.append((req.full_url,body))
+            return io.BytesIO(json.dumps({'status':'completed','usage':{'total_input_tokens':100,'total_output_tokens':1120},
+                'steps':[{'type':'thought','summary':[{'type':'image','data':'ignored'}]},
+                         {'type':'model_output','content':[{'type':'image','data':base64.b64encode(self.image()).decode(),'mime_type':'image/png'}]}]}).encode())
+        model=GeminiStudio(self.root,transport,lambda:'synthetic',limit_usd=25)
+        request={**self.request(),'count':1};result=model.generate(request)
+        self.assertEqual(len(result),1);self.assertEqual(self.calls[0][0],'https://generativelanguage.googleapis.com/v1beta/interactions')
+        self.assertFalse(self.calls[0][1]['store']);self.assertNotIn('tools',self.calls[0][1])
+        self.assertAlmostEqual(model.budget.summary(self.project)['charged_or_reserved_usd'],.03375)
+        model.generate(request);self.assertEqual(len(self.calls),1)
+        model.generate({**request,'optimized_prompt':'Code correction during recovery'});self.assertEqual(len(self.calls),1)
+
+    def test_model_comparison_reuses_the_exact_same_prompt_and_acceptance_evidence(self):
+        class Route:
+            def __init__(self):self.requests=[]
+            def generate(self,r):self.requests.append(r);return [object()]
+        flare,nano=Route(),Route();comparison=Comparison(flare,nano,False);request=self.request();comparison.generate(request)
+        all_requests=flare.requests+nano.requests;self.assertEqual(len(all_requests),3)
+        self.assertTrue(all(r['optimized_prompt']==request['optimized_prompt'] for r in all_requests))
+        self.assertEqual(len({r['operation_id'] for r in all_requests}),3)
+
+    def test_credential_cli_formats_permissions_and_values_stay_out_of_responses(self):
+        import importlib.util
+        path=Path(__file__).resolve().parents[3]/'tools/provider_keys.py';spec=importlib.util.spec_from_file_location('provider_keys',path);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        value='synthetic-provider-fixture'
+        result=module.manage(self.root/'credentials','add','google',value)
+        self.assertNotIn(value,json.dumps(result));self.assertEqual((self.root/'credentials/studio-google.env').stat().st_mode&0o777,0o600)
+        self.assertTrue(module.manage(self.root/'credentials','check','google')['local_format_valid'])
+        with self.assertRaises(ValueError):module.manage(self.root/'credentials','add','google',value)
+        module.manage(self.root/'credentials','update','google',value+'-updated');module.manage(self.root/'credentials','remove','google')
+        self.assertEqual(module.manage(self.root/'credentials','list')['providers'],[])

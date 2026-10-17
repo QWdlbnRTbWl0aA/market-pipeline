@@ -13,19 +13,24 @@ from .storage import Conflict, Invalid, canonical, read, reject_secrets
 STATIC = Path(__file__).parent / 'static'
 LOG = logging.getLogger(__name__)
 DEFAULT = {'schema_version': 1, 'sketch_provider': 'mock', 'professional_provider': 'mock',
-           'broker_provider': 'mock', 'listing_provider': 'blocked', 'allowed_hostnames': [], 'development_openai': False}
+           'broker_provider': 'mock', 'listing_provider': 'blocked', 'allowed_hostnames': [], 'development_openai': False,
+           'trial_total_usd':1,'draft_model':'gpt-image-2.5-flare','professional_model':'gpt-image-2.5-flare'}
 
 
 def configuration(path=None):
     config = read(path) if path else dict(DEFAULT)
     reject_secrets(config)
-    if isinstance(config,dict):config={'development_openai':False,**config}
+    if isinstance(config,dict):config={**{k:DEFAULT[k] for k in ('development_openai','trial_total_usd','draft_model','professional_model')},**config}
     if not isinstance(config, dict) or set(config) != set(DEFAULT): raise Invalid('Unexpected Studio configuration')
     for key in ('schema_version', 'sketch_provider', 'professional_provider', 'broker_provider', 'listing_provider'):
-        allowed=('mock','openai_dev') if key in ('sketch_provider','professional_provider') else ('mock','file') if key=='broker_provider' else (DEFAULT[key],)
+        allowed=('mock','openai_dev','openai','gemini',*(['comparison'] if key=='sketch_provider' else [])) if key in ('sketch_provider','professional_provider') else ('mock','file') if key=='broker_provider' else (DEFAULT[key],)
         if config[key] not in allowed: raise Invalid('Unknown provider or live listing is forbidden')
     if type(config['development_openai']) is not bool:raise Invalid('Explicit development setting required')
-    if any(config[k]=='openai_dev' for k in ('sketch_provider','professional_provider')) and not config['development_openai']:raise Invalid('OpenAI is development-only')
+    if any(config[k] in ('openai_dev','openai','gemini','comparison') for k in ('sketch_provider','professional_provider')) and not config['development_openai']:raise Invalid('Real providers require explicit trial mode')
+    from .providers import MODELS
+    from .dev_budget import Budget
+    Budget(Path('.'),config['trial_total_usd'])
+    if any(config[k] not in MODELS for k in ('draft_model','professional_model')):raise Invalid('Unknown priced image model')
     names = config['allowed_hostnames']
     if not isinstance(names, list) or len(names) > 20 or any(not isinstance(n, str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}', n) for n in names):
         raise Invalid('Invalid allowed hostnames')
@@ -105,15 +110,41 @@ class Handler(BaseHTTPRequestHandler):
     def get(self, path):
         studio = self.server.studio
         if path == '/health': return self.reply(200, {'status': 'running', 'providers': getattr(studio.sketches,'name','mock'), 'etsy_connected': False})
-        if path in ('/', '/app.js', '/style.css'):
-            filename, media = {'/': ('index.html', 'text/html; charset=utf-8'), '/app.js': ('app.js', 'text/javascript; charset=utf-8'), '/style.css': ('style.css', 'text/css; charset=utf-8')}[path]
+        if path in ('/', '/app.js', '/workflow.js', '/style.css'):
+            filename, media = {'/': ('index.html', 'text/html; charset=utf-8'), '/app.js': ('app.js', 'text/javascript; charset=utf-8'), '/workflow.js':('workflow.js','text/javascript; charset=utf-8'), '/style.css': ('style.css', 'text/css; charset=utf-8')}[path]
             return self.reply(200, (STATIC / filename).read_bytes(), media)
         if path == '/api/projects': return self.reply(200, {'projects': studio.list()})
-        if path == '/api/runtime':return self.reply(200,{'sketch_provider':getattr(studio.sketches,'name','mock'),
+        if path == '/api/preferences': return self.reply(200,studio.preferences.list())
+        if path == '/api/templates':return self.reply(200,{'templates':[read(p) for p in (studio.root/'templates').glob('*.json') if not p.is_symlink()]})
+        if path == '/api/runtime':return self.reply(200,{'workflow_version':2,'sketch_provider':getattr(studio.sketches,'name','mock'),
             'professional_provider':getattr(studio.professional,'name','mock'),'development':studio.development,
             'understanding_provider':getattr(studio.understanding,'name','local'),
             'broker_provider':getattr(studio.broker,'name','custom'),'listing_provider':'blocked',
             'spending':studio.budget.summary('')})
+        workflow_match=re.fullmatch(r'/api/projects/([a-f0-9]{32})/(files|customer-download)(?:/([A-Za-z0-9_.-]+))?',path)
+        if workflow_match:
+            project,kind,token=workflow_match.groups();state=studio.get(project);directory=studio.directory(project)
+            if kind=='customer-download':
+                if state['phase']!='approved':raise Conflict('Approve final files and listing first')
+                return self.reply(200,(directory/'customer.zip').read_bytes(),'application/zip','customer-product.zip')
+            records={}
+            workflow=state.get('workflow') or {}
+            for product in workflow.get('products',[]):
+                manifest=read(directory/product['directory']/'manifest.json')
+                for record in manifest['files']:
+                    from .storage import digest
+                    identifier=digest({'product':product['id'],'file':record['file']})
+                    records[identifier]={**record,'path':product['directory']+'/'+record['file'],'id':identifier,'product_id':product['id']}
+            for index,record in enumerate(workflow.get('mockups',[])):
+                records['mockup-'+str(index)]={**record,'path':record['file'],'id':'mockup-'+str(index),'role':'mockup'}
+            if token is None:return self.reply(200,{'files':[{k:v for k,v in r.items() if k!='path'} for r in records.values()]})
+            if token not in records:raise FileNotFoundError()
+            record=records[token];file=directory/record['path']
+            if file.is_symlink() or not file.resolve().is_relative_to(directory):raise Invalid('Invalid file path')
+            import hashlib
+            if hashlib.sha256(file.read_bytes()).hexdigest()!=record['sha256']:raise Invalid('Saved file changed')
+            import mimetypes
+            return self.reply(200,file.read_bytes(),mimetypes.guess_type(file.name)[0] or 'application/octet-stream')
         payload_match=re.fullmatch(r'/api/projects/([a-f0-9]{32})/payloads(?:/([a-f0-9]{64})(/body)?)?',path)
         if payload_match:
             project,call_id,body_only=payload_match.groups()

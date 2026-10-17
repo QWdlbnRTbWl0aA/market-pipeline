@@ -597,3 +597,30 @@ honestly reports zero available reference images. This live-image blocker remain
 unresolved. Preserved its original definition and raw collection hashes, and
 replaced only the authorized single-HTML preview. No paid inference, Etsy API
 calls, SMTP sends, Studio generation, deployment or production-state changes.
+
+
+## Studio manufacturing workflow
+
+Implemented staged Hebrew review for editable inventory, three representative
+concepts, approved-pixel editing, separate native-resolution artwork per unit,
+print composition, reusable exact-artwork mockups, reviewed listing copy and
+customer/Studio packages. Versioned selected-item corrections reuse other assets
+and invalidate downstream approvals. Added explicit scoped preference memory,
+provider-key CLI, optional scoped systemd credentials, durable paid-step recovery,
+visible payload/cost status and an explicitly migrated $25 Studio trial policy.
+Confirmed prior Studio use is carried forward without resetting existing calls;
+unknown outcomes remain held and block new calls. Fresh trial configuration alone
+cannot create a new allowance. Etsy publishing remains blocked.
+
+Verification: 428 functional tests passed across all components, including 62
+Studio tests and 51 integration/deployment checks. Real Firefox mobile smoke
+passed twelve workflow checks with synthetic providers and zero paid/Etsy/SMTP
+calls, including invalid-copy rejection and preservation of unsaved valid edits.
+Real OpenAI image generation/editing was exercised separately against the holiday
+brief with protected credentials, exact request/usage receipts and retained prior
+spend. Mechanical DQA and visual review are separate: image-model lettering defects
+require selective correction; physical print proof and final human approval remain
+pending. No production deployment/restart, additional hosted content, package
+installation, Etsy collection, SMTP send or automatic publishing. Private trial
+artifacts/test logs remain outside Git. Google/model-comparison contracts are
+fixture-tested; live access requires that provider's configured credentials.

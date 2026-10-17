@@ -1,5 +1,11 @@
 # Studio preliminary implementation
 
+The approved manufacturing upgrade is documented in
+[Studio product, mockups and listing workflow](studio-workflow.md), including
+provider choices, the explicit $25 trial migration, credential CLI and file/recovery
+contracts. The sections below describe the preserved legacy sample-loop APIs and
+the original $1 development adapter; they do not replace the new production flow.
+
 Studio is independently runnable. HTTP brief intake (`POST /api/briefs` and
 `POST /api/library/briefs`, JSON with `Idempotency-Key`) saves a passive library
 entry. Opening, refreshing, importing or editing an entry never generates images,

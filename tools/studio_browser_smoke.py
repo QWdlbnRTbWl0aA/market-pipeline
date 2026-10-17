@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Optional local Firefox/WebDriver smoke test; stdlib only, mock Studio only.
 
+Legacy sample-loop checker. For the current full workflow use studio_workflow_smoke.py.
 Start geckodriver separately. Reports/screenshots must stay outside source.
 """
 import argparse

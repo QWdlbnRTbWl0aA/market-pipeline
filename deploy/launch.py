@@ -75,7 +75,11 @@ def command(service, config, state, port=None, bind='127.0.0.1', credential_dire
         args = ['-m','product_service','serve','--data',str(state/'product'),'--port',str(port or 8093),
                 '--definition-config',str(config),'--operations-root',str(state/'controller'/'operations')]
     elif service == 'studio':
-        if credential_directory:env['STUDIO_OPENAI_CREDENTIAL_FILE']=str(Path(credential_directory)/'openai.env')
+        if credential_directory:
+            directory=Path(credential_directory)
+            scoped=directory/'studio-openai.env'
+            env['STUDIO_OPENAI_CREDENTIAL_FILE']=str(scoped if scoped.exists() else directory/'openai.env')
+            env['STUDIO_GEMINI_CREDENTIAL_FILE']=str(directory/'studio-google.env')
         args = ['-m','studio_service','serve','--config',str(config),'--data',str(state/'studio'),
                 '--host',bind,'--port',str(port or 8096)]
     else: raise ValueError('Unknown service')

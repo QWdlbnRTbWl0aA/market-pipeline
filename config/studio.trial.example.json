@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "sketch_provider": "openai",
+  "professional_provider": "openai",
+  "broker_provider": "file",
+  "listing_provider": "blocked",
+  "allowed_hostnames": [],
+  "development_openai": true,
+  "trial_total_usd": 25,
+  "draft_model": "gpt-image-2.5-flare",
+  "professional_model": "gpt-image-2.5-flare"
+}

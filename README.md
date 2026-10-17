@@ -5,6 +5,9 @@ product brief → Studio approval. Installed production releases are separate
 from this source workspace. Product produces a Studio handoff. Studio currently
 defaults to mock generation and broker. An explicit development-only OpenAI
 adapter has a persistent $1 total envelope; Etsy publishing remains blocked.
+The [Studio workflow upgrade](docs/studio-workflow.md) adds separate printable
+products, reusable mockups, listing copy and preference memory, with an explicitly
+migrated $25 trial policy. Existing ledgers/configurations are preserved.
 
 One repository contains independently runnable Python services. Python 3.11+
 and its standard library support the core services. Product/Studio reference images and

@@ -96,7 +96,7 @@ host security settings without explicit authorization.
 - Studio receives saved Product briefs through its HTTP intake. All initial
   content fields are optional; partial, empty and text briefs may start an initial
   human-requested attempt. Never require style or visual direction. Broker
-  messages remain abstracted for other workflow notifications. Initially all generation and broker providers are mocked. Persist
+  messages remain abstracted for other workflow notifications. Default generation and broker providers remain mocked. The approved Studio workflow adds explicitly configured real OpenAI/Google image routes; never silently fall back to mock artwork. Persist
   three-sketch and three-professional-sample human feedback loops, compaction of
   abandoned interaction as negative context, and explicit expensive-loop consent.
   Final approval records a blocked listing handoff. Do not wire Etsy publishing
@@ -109,7 +109,7 @@ host security settings without explicit authorization.
   from the passive endpoint to a legacy auto-generating receiver. Existing saved
   Product briefs may be backfilled without definition, inference or email.
 - Studio development uses an explicitly enabled OpenAI adapter with a separate
-  **$1 total** development/testing envelope, including human UI use, shared across
+  legacy **$1 total** development/testing envelope, explicitly migratable to the approved **$25 total Studio trial**, including all prior Studio usage. The user confirmed **$0.43 prior Studio spend** before this trial. Preserve and reconcile that spend before new calls; never initialize fresh state to omit it. The trial uses allocation ceilings and explicit human production approval, with three representative concepts, separate printable inventory units, real pixel editing, deterministic typography/PDF assembly, reusable mockups, listing copy and editable scoped preference memory. Keep human visual approval distinct from automated DQA; physical proof is recorded separately. Budget remains shared across
   products and preserved across restarts. Keep budget/provider status visible,
   show exact project-scoped API bodies without credentials, and distinguish mock
   templates from real image generation. Preserve rich brief content and explicit
@@ -124,8 +124,7 @@ host security settings without explicit authorization.
   retain accepted/rejected history and development understanding/spend logs.
   Studio compiles and optimizes generator prompts. Reference images are accepted
   at original brief intake only (upload/paste); bound dimensions/bytes and strip
-  metadata before saving/provider use. Pillow is optional for reference handling
-  and development image observation; do not install it without authorization.
+  metadata before saving/provider use. Pillow is required for print assembly, with DejaVu Sans and RAQM for RTL text; it remains optional for legacy reference-only handling. Do not install dependencies without authorization.
 - Deployment account is `market-pipeline`. The six daemons must start, stop,
   recover and be deployable independently. Keep credentials and mutable state
   outside source. Prepare OS isolation; do not claim it is enforced until tested
