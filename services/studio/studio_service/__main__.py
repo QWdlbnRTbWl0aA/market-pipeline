@@ -30,6 +30,10 @@ def main():
         paid=OpenAIDev(args.data,limit_usd=config['trial_total_usd']);providers['understanding']=paid
         from .providers import OpenAIStudio,GeminiStudio,Comparison
         providers['copywriter']=OpenAIStudio(args.data,limit_usd=config['trial_total_usd'])
+        if config['lifestyle_mockups']:
+            providers['mockup_planner']=providers['copywriter']
+            providers['mockup_drafts']=OpenAIStudio(args.data,limit_usd=config['trial_total_usd'],image_model=config['draft_model'])
+            providers['mockup_finals']=OpenAIStudio(args.data,limit_usd=config['trial_total_usd'],image_model=config['professional_model'])
         for key in ('sketches','professional'):
             option='sketch_provider' if key=='sketches' else 'professional_provider'
             if config[option]=='openai_dev':providers[key]=paid

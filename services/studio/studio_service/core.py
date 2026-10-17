@@ -16,7 +16,7 @@ REVIEWS = {'accept', 'reject', 'accept_with_comments'}
 
 
 class Studio:
-    def __init__(self, root, sketches=None, professional=None, broker=None, listing=None, understanding=None,development=False,copywriter=None,budget_limit_usd=1):
+    def __init__(self, root, sketches=None, professional=None, broker=None, listing=None, understanding=None,development=False,copywriter=None,budget_limit_usd=1,mockup_planner=None,mockup_drafts=None,mockup_finals=None):
         clean_environment()
         self.root = Path(root).resolve(); self.root.mkdir(parents=True, exist_ok=True)
         self.sketches = sketches or MockGenerator(); self.professional = professional or MockGenerator()
@@ -24,6 +24,7 @@ class Studio:
         self.listing = listing or BlockedListing()
         self.understanding = understanding or LocalUnderstanding()
         self.budget = Budget(self.root / 'development-openai',budget_limit_usd)
+        self.mockup_planner=mockup_planner;self.mockup_drafts=mockup_drafts;self.mockup_finals=mockup_finals
         self.development=development
         self.copywriter=copywriter or understanding
         from .memory import Preferences
@@ -44,6 +45,7 @@ class Studio:
         state['accepted_samples']=self.references(state)
         state['runtime_providers']={'sketch':getattr(self.sketches,'name','mock'),'professional':getattr(self.professional,'name','mock')}
         state['round_number']=len(state['rounds'])
+        state['lifestyle_mockups']=self.workflow.lifestyle.enabled()
         if state.get('workflow'):
             state['workflow_metrics']={'direction_rounds':len(state['rounds']),'product_versions':len(state['workflow']['products']),
                 'cost_per_approved_product_usd':state['spending']['product_usd'] if state['workflow']['approvals'].get('product') else None,

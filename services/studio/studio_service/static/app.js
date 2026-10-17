@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 let project=null,editing=false,busy=false,draft={},round=null,chosen=null,references=[],lastSpending='',pending=null,importedBrief=null;
 const fields=['concept','audience','purpose','deliverables','visual_direction','requirements'];
-const phases={product_review:'בדיקת קובצי המוצר',mockup_review:'בחירת מוקאפים',listing_review:'טקסט למכירה',generating_product:'מפיקים את קובצי המוצר',generating_listing:'מכינים טקסט למכירה',brief_ready:'בריף שמור · מוכן לבחירה',needs_information:'נשלים כמה פרטים',sketch_review:'בוחרים כיוון',professional_review:'מלטשים את היצירה',generating_sketch:'מבינים ויוצרים',generating_professional:'מכינים דוגמאות מקצועיות',generation_failed:'היצירה נעצרה',approved:'היצירה אושרה'};
+const phases={generating_mockups:'מתכננים ומפיקים מוקאפים',product_review:'בדיקת קובצי המוצר',mockup_review:'בחירת מוקאפים',listing_review:'טקסט למכירה',generating_product:'מפיקים את קובצי המוצר',generating_listing:'מכינים טקסט למכירה',brief_ready:'בריף שמור · מוכן לבחירה',needs_information:'נשלים כמה פרטים',sketch_review:'בוחרים כיוון',professional_review:'מלטשים את היצירה',generating_sketch:'מבינים ויוצרים',generating_professional:'מכינים דוגמאות מקצועיות',generation_failed:'היצירה נעצרה',approved:'היצירה אושרה'};
 try{pending=JSON.parse(sessionStorage.getItem('studio-pending')||'null');}catch(_){}
 function show(id,visible){$(id).hidden=!visible;}
 function notify(message,error=false){$('message').textContent=message;$('message').classList.toggle('error',error);}

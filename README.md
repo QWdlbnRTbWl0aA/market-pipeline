@@ -187,3 +187,8 @@ writable state directory because dashboard saves use atomic replacement.
 
 Saved runs, raw downloads, images, model outputs, logs, emails and budget/cursor
 files are runtime artifacts. They are excluded from the publication repository.
+
+Studio lifestyle mockups are opt-in with `lifestyle_mockups: true`; the trial example
+enables product-aware verbal plans, cheap concepts and explicitly approved finals.
+See [Studio workflow setup and recovery](docs/studio-workflow.md#lifestyle-setup-and-recovery).
+Source updates and passive brief delivery do not trigger paid generation.

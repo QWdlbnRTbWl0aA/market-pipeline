@@ -6,12 +6,14 @@ from . import production
 from .ports import Asset
 from .storage import Invalid, Conflict, canonical, digest, guard, now, read, write, write_bytes
 
-ACTIONS={'save_plan','remember_preference','approve_direction','produce_selected','approve_product','make_mockups',
+from .lifestyle import ACTIONS as LIFESTYLE_ACTIONS, Lifestyle, count as mockup_count
+
+ACTIONS=LIFESTYLE_ACTIONS|{'save_plan','remember_preference','approve_direction','produce_selected','approve_product','make_mockups',
          'save_template','approve_mockups','generate_listing','save_listing','approve_listing','retry_workflow','return_to_direction'}
 
 
 class Workflow:
-    def __init__(self,studio):self.studio=studio
+    def __init__(self,studio):self.studio=studio;self.lifestyle=Lifestyle(self)
 
     def state(self,state,directory):
         if 'workflow' not in state:
@@ -25,7 +27,7 @@ class Workflow:
         identifier=uuid.uuid4().hex;folder=directory/'workflow-jobs'/identifier
         write(folder/'request.json',{'id':identifier,'project_id':state['id'],'kind':kind,'value':value,'created_at':now()})
         write(folder/'operation.json',{'status':'queued'})
-        workflow['pending']=identifier;state['phase']='generating_product' if kind=='produce' else 'generating_listing'
+        workflow['pending']=identifier;state['phase']='generating_mockups' if kind.startswith('mockup_') else 'generating_product' if kind=='produce' else 'generating_listing'
 
     def candidate(self,state,identifier):
         candidate=next((c for c in self.studio.references(state) if c['id']==identifier),None)
@@ -35,8 +37,9 @@ class Workflow:
     def command(self,directory,state,action,payload,key):
         workflow=self.state(state,directory)
         if (directory/'workflow-final-reservation.json').exists() and action!='approve_listing':raise Conflict('Final approval is reserved; retry its original action')
-        if workflow.get('pending') and action!='retry_workflow':raise Conflict('Wait for the current operation')
-        if action=='save_plan':
+        if workflow.get('pending') and action not in ('retry_workflow','abandon_mockup_job'):raise Conflict('Wait for the current operation')
+        if action in LIFESTYLE_ACTIONS:self.lifestyle.command(directory,state,action,payload)
+        elif action=='save_plan':
             if workflow.get('direction'):raise Conflict('Return to the direction stage before changing the inventory')
             value=production.checked_plan(payload.get('plan'));value={**value,'version':workflow['plan']['version']+1}
             workflow['plan']=value
@@ -67,9 +70,10 @@ class Workflow:
             if payload.get('visual_review_confirmed') is not True:raise Invalid('Confirm visual/content review of the product')
             workflow['approvals']['product']={'manifest_id':manifest['id'],'at':now(),'visual_review_confirmed':True,
                                                'physical_print_proof_confirmed':payload.get('print_proof_confirmed') is True}
-            self.mockups(directory,state,payload.get('templates'))
+            self.mockups(directory,state,payload.get('templates'),payload.get('count'))
         elif action=='make_mockups':
-            self.require_product(directory,workflow);self.mockups(directory,state,payload.get('templates'))
+            if 'count' in payload:self.lifestyle.feedback(state,payload)
+            self.require_product(directory,workflow);self.mockups(directory,state,payload.get('templates'),payload.get('count'))
         elif action=='save_template':
             name=payload.get('name');template=payload.get('template')
             import re
@@ -77,10 +81,16 @@ class Workflow:
             production.compose_mockup(production.raster(self.page(directory,workflow)),template)
             write(self.studio.root/'templates'/(name+'.json'),{'name':name,'template':template,'at':now()})
         elif action=='approve_mockups':
+            if self.lifestyle.enabled():
+                self.lifestyle.feedback(state,payload)
+                design=self.lifestyle.design(state)
+                if design.get('final_comments_sha256')!=digest(design['comments']):raise Invalid('New mockup comments require another reviewed final render before approval')
             self.require_product(directory,workflow)
-            if state['phase']!='mockup_review' or len(workflow['mockups'])!=3:raise Conflict('Review three current mockups')
+            if state['phase']!='mockup_review' or not 1<=len(workflow['mockups'])<=10:raise Conflict('Review the current mockups')
+            if self.lifestyle.enabled() and any(m.get('quality')!='final' or m.get('origin')!='generative_lifestyle' or m.get('placement_status')!='ready' for m in workflow['mockups']):raise Invalid('Review cheap lifestyle concepts and explicitly generate final mockups first')
             self.verify_mockups(directory,workflow)
             workflow['approvals']['mockups']={'product_id':workflow['products'][-1]['id'],'sha256':digest(workflow['mockups']),'at':now()}
+            if self.lifestyle.enabled():self.lifestyle.remember(state)
             workflow['stage']='listing';state['phase']='listing_review'
         elif action=='generate_listing':
             self.require_mockups(directory,workflow)
@@ -97,7 +107,7 @@ class Workflow:
             if payload.get('consent_expensive') is not True:raise Invalid('Explicit cost consent required for recovery')
             folder=directory/'workflow-jobs'/workflow['pending'];operation=read(folder/'operation.json')
             write(folder/'operation.json',{**operation,'status':'queued','explicit_recovery_at':now()})
-            request=read(folder/'request.json');state['phase']='generating_product' if request['kind']=='produce' else 'generating_listing'
+            request=read(folder/'request.json');state['phase']='generating_mockups' if request['kind'].startswith('mockup_') else 'generating_product' if request['kind']=='produce' else 'generating_listing'
         elif action=='return_to_direction':
             if not state['rounds']:raise Conflict('No direction history')
             workflow['direction']=None;workflow['approvals']={};workflow['stage']='direction';workflow['listing']=None
@@ -124,10 +134,16 @@ class Workflow:
         record=next(x for x in manifest['files'] if x.get('role')=='print_page')
         return (directory/workflow['products'][-1]['directory']/record['file']).read_bytes()
 
-    def mockups(self,directory,state,templates):
+    def mockups(self,directory,state,templates,number=None):
         workflow=state['workflow'];manifest=self.require_product(directory,workflow)
         if templates is None:templates=[{'kind':'flat' if any(u['kind']=='text' for u in manifest['units']) else 'frame','scale':.86,'x':0,'y':0,'perspective':'straight'},{'kind':'stack','scale':.82,'x':0,'y':0,'perspective':'left'},{'kind':'bundle','scale':.9,'x':0,'y':0,'perspective':'straight'}]
-        if not isinstance(templates,list) or len(templates)!=3:raise Invalid('Three mockup template choices required')
+        if number is not None:
+            mockup_count(number)
+            if templates is not None and len(templates)!=number:
+                if len(templates)==3:templates=[templates[i%len(templates)] for i in range(number)]
+                else:raise Invalid('Template count does not match chosen quantity')
+        if not isinstance(templates,list):raise Invalid('Mockup template list required')
+        mockup_count(len(templates))
         revision=uuid.uuid4().hex;records=[];base=directory/workflow['products'][-1]['directory']
         pages=[production.raster((base/x['file']).read_bytes()) for x in manifest['files'] if x.get('role')=='print_page' and x.get('format')==manifest['settings']['formats'][0]]
         for index,template in enumerate(templates):
@@ -151,7 +167,11 @@ class Workflow:
 
     def require_mockups(self,directory,workflow):
         self.require_product(directory,workflow);self.verify_mockups(directory,workflow)
+        if self.lifestyle.enabled() and (not workflow['mockups'] or any(m.get('origin')!='generative_lifestyle' or m.get('quality')!='final' or m.get('placement_status')!='ready' for m in workflow['mockups'])):raise Invalid('Finalize and approve lifestyle mockups before downstream delivery')
         if workflow['approvals'].get('mockups',{}).get('sha256')!=digest(workflow['mockups']):raise Invalid('Approve these exact mockups first')
+        if self.lifestyle.enabled():
+            design=workflow.get('mockup_design',{})
+            if design.get('final_comments_sha256')!=digest(design.get('comments','')):raise Invalid('Latest mockup comments have not been applied to the approved finals')
 
     def finish(self,directory,state,key,payload):
         workflow=state['workflow'];manifest=self.require_product(directory,workflow);listing=workflow['listing']
@@ -186,10 +206,11 @@ class Workflow:
                 self.studio.save(directory,state);return True
             write(folder/'operation.json',{'status':'started','started_at':now()})
         try:
-            result=self.produce(directory,folder,request) if request['kind']=='produce' else self.copy(directory,folder,request)
+            result=self.lifestyle.run(directory,folder,request) if request['kind'].startswith('mockup_') else self.produce(directory,folder,request) if request['kind']=='produce' else self.copy(directory,folder,request)
             with guard(directory):
                 state=read(directory/'state.json');workflow=state['workflow']
-                if request['kind']=='produce':
+                if request['kind'].startswith('mockup_'):self.lifestyle.apply(state,request['kind'],result)
+                elif request['kind']=='produce':
                     if not any(p['id']==result['id'] for p in workflow['products']):workflow['products'].append(result)
                     workflow['approvals']={};workflow['listing']=None;workflow['stage']='product';state['phase']='product_review'
                     workflow['progress']={'completed':len(workflow['plan']['units']),'total':len(workflow['plan']['units']),'current':None}
@@ -199,7 +220,9 @@ class Workflow:
         except Exception as error:
             write(folder/'operation.json',{'status':'failed','error_type':type(error).__name__,'automatic_retry':False})
             with guard(directory):
-                state=read(directory/'state.json');state.update(phase='generation_failed',generation_error=str(error)[:300] if isinstance(error,Invalid) else 'Production failed; saved assets preserved. Explicit recovery required.')
+                state=read(directory/'state.json')
+                if request['kind'].startswith('mockup_'):self.lifestyle.design(state).setdefault('failures',[]).append({'job_id':request['id'],'kind':request['kind'],'message':str(error)[:300] if isinstance(error,Invalid) else type(error).__name__})
+                state.update(phase='generation_failed',generation_error=str(error)[:300] if isinstance(error,Invalid) else 'Production failed; saved assets preserved. Explicit recovery required.')
                 self.studio.save(directory,state)
         return True
 

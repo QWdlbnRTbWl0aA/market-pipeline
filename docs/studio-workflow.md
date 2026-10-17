@@ -23,10 +23,28 @@ mockups, listing review, customer downloads and editable preference memory.
    DPI; upscaling cannot pass this check. Text clipping, counts, corrupt files and
    missing content block approval. Human visual review is required; physical
    print-proof confirmation is recorded separately.
-5. Three mockups composite exact approved pages into frame, flat-paper, stack and bundle
-   views. Reusable procedural desk/wall scenes provide texture, alpha shadows and a frame mat; these are illustrative templates, not photographic backgrounds. Stacks retain their backing pages in perspective, and bundle views display separate actual pages. Scale, placement and perspective are editable; the backend also supports
-   normalized crops. Alpha masks/shadows are deterministic. Named templates are
-   saved and reusable across products. Presets load editable values; subsequent edits, including zero positions, remain authoritative. Saving a preset retains the current edits. The explicit automatic-layout button restores centered defaults; ordinary updates preserve settings. Template use makes zero generative calls.
+5. Mockups have a shared verbal-comment area and an adjustable count of **1–10**.
+   With `lifestyle_mockups: true`, explicitly plan product-specific scenes with a
+   cheap text/vision model, inspect/edit the verbal descriptions, then request
+   low-quality concept images. Mark every concept like/dislike and give shared
+   feedback. Replanning compares actual accepted/rejected thumbnails and prior
+   assessments. Only explicitly accepted concepts can advance to high-quality
+   finals, with separate cost consent. The number accepted sets the final count.
+   Product-specific scenes can show supervised play, warm family use, close-ups
+   or wall-art context, rather than applying one setting to every printable.
+   Saved product pixels are composited into the generated setting; a cheap vision
+   check finds a safe paper seed and local segmentation fits its actual edges.
+   Unusable surfaces are visible as failed concepts and cannot be promoted or
+   approved. Original sources are unchanged; scene lighting and perspective are
+   deterministic display transforms. Human review of anatomy, placement and any
+   invented props/claims is still required.
+   The enabled mode always requires guided final mockups, including the first
+   15–20 products; it does **not** silently turn off at twenty. Human-approved
+   scene examples are retained for related products without inferring global
+   preferences from one choice. Metadata intake and saving notes remain passive.
+   Legacy procedural frame/desk/stack/bundle templates remain available when this
+   explicit paid feature is disabled. Their edits and zero positions persist;
+   the automatic-layout button intentionally restores centered defaults.
 6. After mockup approval, an explicit action generates two titles, one description
    and thirteen tags from the actual manifest and saved evidence. Code validates
    title/tag limits, duplicates and obvious quantity contradictions, then attaches
@@ -158,11 +176,47 @@ reserved before ZIP writes and must recover using its original action/key. Roll
 back code/config together; retain files, receipts and the paid ledger and never
 replay jobs/mail. The existing mock/file broker remains abstracted independently.
 
+
+## Lifestyle setup and recovery
+
+Set `lifestyle_mockups: true` in Studio's independent configuration and retain
+`development_openai: true`, the reconciled Studio ledger, the $25 trial limit and
+its protected OpenAI credential delivery. The real trial example enables this
+flag; existing configurations default to false, so pulling source does not start
+paid work. No collection, Analyzer/Product delivery or import triggers mockups.
+The text/vision planner uses the existing inexpensive OpenAI text route; image
+concepts use `draft_model` at low quality, finals use `professional_model` at high
+quality. Both are independently replaceable ports. Finals edit the actual approved
+concept background, not a newly invented unrelated setting. No Google credentials
+are substituted into the OpenAI scene route.
+
+Planning, concepts, surface checks and finals share the proposal's existing **$3
+mockup allocation inside the $25 total**, including UI experiments. The per-stage
+remaining allowance is visible; it is not additional credit. Every call reserves
+before credential loading and settles from usage. Unknown outcomes block all new
+calls. Completed steps and per-scene files are reused on explicit recovery. A
+failed mockup job can be abandoned explicitly while retaining files and financial
+holds. `refresh_mockup_geometry` refits saved concept images locally with zero API
+calls, retaining the previous round. All model payloads/usage remain inspectable.
+Internal large print images are validated and reduced to metadata-free ≤512px
+previews before text/vision calls; the external reference-upload bounds remain.
+
+New state is additive: `lifestyle/`, `mockup_design` rounds/feedback in project
+state, and human-approved `scene-memory/` examples. Enabling guided mode blocks
+legacy procedural images from new downstream approval; it does not delete those
+images or existing copy. A new plan invalidates downstream mockup/listing approval;
+copy itself can be reused after the new finals are approved. Preserve the recorded
+pre-lifestyle checkpoint, current state, all source/scene artifacts and every paid
+receipt on rollback. Older UI versions cannot fully interpret lifestyle state:
+stop the affected daemon and review code/config and project state together rather
+than blindly restoring an old version. Never roll back the paid ledger.
+
 ## Verification
 
 ```bash
 python3 tools/test.py
 python3 tools/studio_workflow_smoke.py --output /path/outside/source/studio-smoke
+python3 tools/studio_workflow_smoke.py --lifestyle --output /path/outside/source/lifestyle-smoke
 ```
 
 The smoke uses an already installed Firefox/geckodriver and a temporary loopback

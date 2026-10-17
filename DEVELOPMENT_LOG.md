@@ -674,3 +674,35 @@ Inspected private previews using the actual saved product artwork. Source and
 paid-ledger preservation are checked separately during development-runtime update.
 Production services/configuration are untouched; no Etsy, paid or SMTP requests
 are part of this task. Test artifacts stay outside Git.
+
+## Studio product-aware lifestyle mockups
+
+Added persisted shared comments and a 1–10 scene count without resetting edits
+on polling. Explicitly enabled development mode first uses cheap text/vision
+planning against actual finished pages, then low-cost photographic concepts.
+Users edit scene descriptions, mark all concepts and separately consent before
+selected high-quality finals. Combined feedback includes actual previous scene
+thumbnails. Human-approved related examples guide later products; guided mode
+does not silently switch off after twenty listings. Production defaults retain
+explicit opt-in. Existing Hebrew styling and procedural mockup mode remain.
+
+Generated settings preserve the actual product through source-hash-linked
+perspective composition. Conservative paper-edge fitting corrects coarse vision
+bounds; unsafe surfaces remain reviewable but cannot advance. Durable jobs cache
+completed steps and preserve unknown billing reservations. Saving notes is free;
+new unapplied notes block approval and downstream listing generation. Added an
+additive local geometry refresh and documented recovery/rollback. Mockup calls
+use the existing $3 allocation within the preserved $25 Studio trial.
+
+Validation: all 445 tests passed, including 79 Studio tests; the final focused
+mockup regression suite also passed. Firefox mobile checks passed: 18 new-flow
+and 17 legacy-flow checks using synthetic providers with zero paid/Etsy calls.
+One real three-concept batch cost $0.027847 across seven bounded OpenAI calls.
+No high-quality finals were generated. Initial internal thumbnail sizing and
+paper localization issues were corrected; the latter reused saved backgrounds
+without paid regeneration. Three revised concepts passed HTTP/hash checks, and
+all 32 saved product files retained their hashes. Human visual review is pending;
+concepts do not establish final quality, exact usage fidelity or sale readiness.
+Only the existing development Studio was restarted and left running. Production,
+other services, Etsy, SMTP and OS settings were untouched. Real reports, images,
+provider payloads, ledgers and browser artifacts remain private outside Git.

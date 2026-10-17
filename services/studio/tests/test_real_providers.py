@@ -99,3 +99,36 @@ class Providers(unittest.TestCase):
         with self.assertRaises(ValueError):module.manage(self.root/'credentials','add','google',value)
         module.manage(self.root/'credentials','update','google',value+'-updated');module.manage(self.root/'credentials','remove','google')
         self.assertEqual(module.manage(self.root/'credentials','list')['providers'],[])
+
+    def test_lifestyle_contract_cheap_planning_then_low_concept_then_accepted_background_high_edit(self):
+        from test_lifestyle import Scenes
+        def transport(req,timeout):
+            body=json.loads(req.data);self.calls.append((req.full_url,body))
+            if '/images/' in req.full_url:
+                w,h=map(int,body['size'].split('x'));result={'usage':{'input_tokens_details':{'text_tokens':20,'image_tokens':10},'output_tokens':100},'data':[{'b64_json':base64.b64encode(self.image(w,h)).decode()}]}
+            else:
+                schema=body['text']['format']['schema']
+                result_value=({'product_understanding':'Saved product','direction':'Warm family context','scenes':[{'title':'Family use','description':'A supervised activity','image_prompt':'Natural family photograph with clear blank foreground page','page_id':'unit-01'}]} if 'scenes' in schema['properties'] else {'usable':True,'reason':'Clear page','quad':[[.1,.2],[.9,.2],[.9,.9],[.1,.9]]})
+                result={'status':'completed','usage':{'input_tokens':20,'output_tokens':20},'output':[{'type':'message','content':[{'type':'output_text','text':json.dumps(result_value)}]}]}
+            return io.BytesIO(json.dumps(result).encode())
+        model=OpenAIStudio(self.root,transport,lambda:'synthetic',limit_usd=25)
+        import random
+        large=png(Image.frombytes('RGB',(1300,1300),random.Random(0).randbytes(1300*1300*3)));self.assertGreater(len(large),2000000)
+        plan=model.mockup_plan({'inventory':[],'comments':'Warm family'},1,'plan',self.project,[large]);scene=plan['scenes'][0]
+        self.assertEqual(self.calls[0][1]['input'][0]['content'][1]['detail'],'low')
+        concept=model.mockup_scene(scene,'Warm family','concept',self.project)
+        path=self.root/'projects'/self.project/'lifestyle/concept/background.png';write_bytes(path,concept.content)
+        reference={'background_file':'lifestyle/concept/background.png','background_sha256':hashlib.sha256(concept.content).hexdigest()}
+        final=model.mockup_scene(scene,'Keep warm light','final',self.project,True,reference)
+        surface=model.mockup_surface(final.content,'surface',self.project);self.assertTrue(surface['usable'])
+        image_calls=[b for u,b in self.calls if '/images/' in u];self.assertEqual(image_calls[0]['quality'],'low');self.assertEqual(image_calls[1]['quality'],'high')
+        self.assertEqual(base64.b64decode(image_calls[1]['images'][0]['image_url'].split(',')[1]),concept.content)
+        before=len(self.calls);model.mockup_scene(scene,'A code-only correction','final',self.project,True,reference);self.assertEqual(len(self.calls),before)
+        rows=read(self.root/'development-openai/budget.json')['calls'].values();self.assertTrue(all(r['stage'].startswith('mockup_') for r in rows))
+
+    def test_mockup_stage_cap_blocks_before_credentials_even_with_total_budget_remaining(self):
+        keys=[];model=OpenAIStudio(self.root,self.transport,lambda:keys.append('key') or 'synthetic',limit_usd=25)
+        model.budget.reserve('prior',self.project,2900000,'mockup_final_image');model.budget.settle('prior',2900000,{})
+        scene={'title':'Scene','description':'An actual product scene','image_prompt':'A scene','page_id':'unit-01'}
+        with self.assertRaises(BudgetBlocked):model.mockup_scene(scene,'','new',self.project)
+        self.assertEqual(keys,[]);self.assertEqual(self.calls,[])

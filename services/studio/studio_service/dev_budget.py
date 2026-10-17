@@ -11,7 +11,7 @@ ALLOCATIONS={'comparison':4_000_000,'production':10_000_000,'mockups':3_000_000,
 
 
 def group(stage):
-    return 'production' if stage=='production_artwork' else 'listing' if stage=='listing_copy' else 'comparison' if stage in ('direction_generation','direction_edit','model_comparison','draft_generation') else 'trial'
+    return 'mockups' if stage.startswith('mockup_') else 'production' if stage=='production_artwork' else 'listing' if stage=='listing_copy' else 'comparison' if stage in ('direction_generation','direction_edit','model_comparison','draft_generation') else 'trial'
 
 
 class BudgetBlocked(Invalid): pass
@@ -73,4 +73,5 @@ class Budget:
             active=ledger.get('limit_micro_usd',self.limit)
             return {'limit_usd':active/1e6,'configured_limit_usd':self.limit/1e6,'authorization_required':active!=self.limit or (not path.exists() and self.limit!=LIMIT),'charged_or_reserved_usd':charged/1e6,'remaining_usd':max(0,min(active,self.limit)-charged)/1e6,
                     'product_usd':sum(c['charged_micro_usd'] for c in own)/1e6,'product_calls':len(own),
-                    'unknown_outcomes':sum(c['status']!='completed' for c in rows)}
+                    'unknown_outcomes':sum(c['status']!='completed' for c in rows),
+                    'stage_budgets':{name:{'limit_usd':limit/1e6,'remaining_usd':max(0,limit-sum(c['charged_micro_usd'] for c in rows if group(c['stage'])==name))/1e6} for name,limit in ALLOCATIONS.items()} if min(active,self.limit)==25_000_000 else {}}

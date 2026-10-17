@@ -125,6 +125,19 @@ host security settings without explicit authorization.
   Studio compiles and optimizes generator prompts. Reference images are accepted
   at original brief intake only (upload/paste); bound dimensions/bytes and strip
   metadata before saving/provider use. Pillow is required for print assembly, with DejaVu Sans and RAQM for RTL text; it remains optional for legacy reference-only handling. Do not install dependencies without authorization.
+- Studio mockups support shared verbal feedback and adjustable counts (1–10).
+  Explicitly enabled paid Studio uses product-aware LLM scene descriptions,
+  inexpensive image concepts and separate human-consented high-quality finals.
+  Review combined like/dislike decisions and comments, including thumbnails of
+  actual accepted/rejected scenes. Guided creation remains enabled throughout
+  at least the first twenty products and does not automatically disable itself.
+  Human-approved related scene examples may guide later work; do not silently
+  promote them to global preferences. Preserve actual product pixels through
+  validated compositing; reject ambiguous/occluded product surfaces, retain
+  failed concepts and require human visual review. Saving notes/imports is free
+  of inference. These calls use the existing $3 mockup allocation within the
+  shared $25 Studio trial, not a new budget. Do not generate high-quality finals
+  on the user's behalf before they choose the concepts.
 - Deployment account is `market-pipeline`. The six daemons must start, stop,
   recover and be deployable independently. Keep credentials and mutable state
   outside source. Prepare OS isolation; do not claim it is enforced until tested

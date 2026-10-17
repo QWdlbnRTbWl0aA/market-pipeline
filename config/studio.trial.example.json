@@ -8,5 +8,6 @@
   "development_openai": true,
   "trial_total_usd": 25,
   "draft_model": "gpt-image-2.5-flare",
-  "professional_model": "gpt-image-2.5-flare"
+  "professional_model": "gpt-image-2.5-flare",
+  "lifestyle_mockups": true
 }

@@ -31,6 +31,7 @@ async function loadFiles(){
   let library=(await request('/api/templates')).templates;if(project?.id!==id||filesKey!==key)return;
   for(const [index,file] of response.files.filter(f=>f.role==='mockup').entries()){
    const box=node('article',undefined,'mockup-card');box.dataset.index=index;const image=node('img');image.src='/api/projects/'+id+'/files/'+file.id;image.alt='מוקאף '+(index+1);image.onclick=()=>preview(image.src);
+   if(file.origin==='generative_lifestyle'){box.append(image,node('h4',file.scene_title),node('p',file.scene_description));if(file.placement_status!=='ready')box.append(node('p','נדרש תיקון לסצנה לפני אישור: '+file.placement_reason,'error'));$('mockup-files').append(box);continue;}
    const select=node('select');for(const [value,label] of [['frame','מסגרת'],['flat','דף שטוח'],['stack','ערימת דפים'],['bundle','סקירת כל החבילה']]){const option=node('option',label);option.value=value;select.append(option);}select.value=file.template.kind;select.dataset.setting='kind';
    box.append(image,select);
    const preset=node('select');preset.dataset.preset='true';box.templateDefinition=structuredClone(file.template);const empty=node('option','בחירה מהתבניות השמורות');empty.value='';preset.append(empty);
@@ -69,7 +70,7 @@ window.renderWorkflow=()=>{
  if(w.listing){const key=project.id+w.listing.at;if(key!==listingKey){listingKey=key;$('listing-title-1').value=w.listing.copy.titles[0];$('listing-title-2').value=w.listing.copy.titles[1];$('listing-description').value=w.listing.copy.description;$('listing-tags').value=w.listing.copy.tags.join('\n');}}
  show('customer-download',project.phase==='approved'&&w.stage==='delivery');$('customer-download').href='/api/projects/'+project.id+'/customer-download';
  if(project.phase==='approved'&&w.stage==='delivery')$('download').textContent='הורדת קובצי המוצר, המוקאפים והטקסט';
- inventory(w.plan);if(w.products.length||w.mockups.length)loadFiles();
+ inventory(w.plan);if(w.products.length||w.mockups.length)loadFiles();if(window.renderLifestyle)window.renderLifestyle();
 };
 $('final').onclick=()=>{const candidate=chosen||Object.keys(draft).find(id=>draft[id].decision==='accept')||project.accepted_samples.at(-1)?.id;if(!candidate){notify('בחרו כיוון שאהבתם לפני ההפקה.');return;}
  $('production-estimate').textContent=$('next-cost').textContent;$('production-settings').showModal();};
@@ -79,10 +80,10 @@ $('production-form').onsubmit=async event=>{event.preventDefault();workflowView=
 $('revise-units').onclick=()=>{const selected=[...document.querySelectorAll('.unit-selection:checked')].map(i=>i.value);if(!selected.length){notify('סמנו פריטים לתיקון.');return;}if(confirm('לתקן רק את הפריטים שסומנו? הפעולה עשויה לעלות כסף.'))action('produce_selected',{unit_ids:selected,comments:$('unit-comments').value,consent_expensive:true});};
 $('approve-files').onclick=()=>{workflowView=null;action('approve_product',{visual_review_confirmed:$('visual-proof').checked,print_proof_confirmed:$('physical-proof').checked});};
 $('return-direction').onclick=()=>{if(confirm('חזרה לכיוון העיצובי תבטל את האישורים בשלבים הבאים, תוך שמירת הקבצים וההיסטוריה. להמשיך?'))action('return_to_direction');};
-async function updateMockups(templates){const button=$('update-mockups');button.disabled=true;$('auto-mockups').disabled=true;button.textContent='מעדכנים את המוקאפים…';$('mockup-files').inert=true;try{if(await action('make_mockups',{templates}))notify('המוקאפים עודכנו וההגדרות נשמרו.');}finally{button.textContent='עדכון המוקאפים';button.disabled=false;$('auto-mockups').disabled=false;$('mockup-files').inert=false;}}
+async function updateMockups(templates){const button=$('update-mockups');button.disabled=true;$('auto-mockups').disabled=true;button.textContent='מעדכנים את המוקאפים…';$('mockup-files').inert=true;try{if(await action('make_mockups',{templates,...(window.mockupFeedback?window.mockupFeedback():{})}))notify('המוקאפים עודכנו וההגדרות נשמרו.');}finally{button.textContent='עדכון המוקאפים';button.disabled=false;$('auto-mockups').disabled=false;$('mockup-files').inert=false;}}
 $('update-mockups').onclick=()=>updateMockups([...$('mockup-files').children].map(templateValue));
 $('auto-mockups').onclick=()=>updateMockups(null);
-$('approve-mockups').onclick=()=>{workflowView=null;action('approve_mockups');};
+$('approve-mockups').onclick=()=>{workflowView=null;action('approve_mockups',window.mockupFeedback?window.mockupFeedback():{});};
 $('generate-copy').onclick=()=>{if(confirm('ליצור טקסט מהמוצר שאושר באמצעות ספק הטקסט המוגדר?'))action('generate_listing');};
 $('save-copy').onclick=()=>action('save_listing',{listing:{titles:[$('listing-title-1').value,$('listing-title-2').value],description:$('listing-description').value,tags:$('listing-tags').value.split('\n').map(t=>t.trim()).filter(Boolean)}});
 $('approve-copy').onclick=async()=>{const listing={titles:[$('listing-title-1').value,$('listing-title-2').value],description:$('listing-description').value,tags:$('listing-tags').value.split('\n').map(t=>t.trim()).filter(Boolean)};
@@ -95,3 +96,5 @@ async function loadMemory(){const memory=await request('/api/preferences');memor
  const remove=node('button','הסרה','quiet');remove.onclick=async()=>{await action('remember_preference',{operation:'delete',preference_id:item.id,memory_revision:memoryRevision});loadMemory();};box.append(edit,remove);$('memory-items').append(box);}}
 $('load-memory').onclick=()=>loadMemory().catch(e=>notify(e.message,true));
 $('save-memory').onclick=async()=>{try{const memory=await request('/api/preferences');await action('remember_preference',{operation:'save',preference_id:editingPreference,memory_revision:memory.revision,text:$('memory-text').value,scope:$('memory-scope').value,family:project.workflow.plan.family});editingPreference=null;await loadMemory();}catch(e){notify(e.message,true);}};
+
+request('/api/runtime').then(runtime=>{if(runtime.mockup_flow_version!==1)return;const script=document.createElement('script');script.src='/lifestyle.js';script.onload=()=>{if(project)window.renderWorkflow();};document.head.append(script);}).catch(e=>notify(e.message,true));
