@@ -624,3 +624,27 @@ pending. No production deployment/restart, additional hosted content, package
 installation, Etsy collection, SMTP send or automatic publishing. Private trial
 artifacts/test logs remain outside Git. Google/model-comparison contracts are
 fixture-tested; live access requires that provider's configured credentials.
+
+
+## Studio saved-brief prompt and worksheet inventory recovery
+
+The actual Product handoff failed locally before provider dispatch: its full
+analysis evidence and duplicated normalized requirements exceeded the 20 KB
+image prompt bound. Repeated explicit retries reused the failed operation and
+made no paid requests for that project. The image compiler now projects only
+render-relevant source fields, keeps design/feedback context, removes repeated
+requirements and preserves the complete source in intake/request artifacts.
+Explicitly declared one-sheet components retain their internal strips on that
+page instead of expanding them into extra pages. Separate-page inventories and
+quantity validation retain their behavior. Local validation errors are visible
+instead of a generic generation-failed message.
+
+All 65 Studio tests passed, including three new regression checks and legacy
+rich-content behavior. The exact saved handoff also completed an isolated offline
+three-sketch flow with synthetic pixels: five page units and a 12,627-byte prompt.
+Restarted only the authorized development Studio, backed up the failed project's
+state and reset its unbilled, sample-free attempt to passive brief_ready. Failed
+request files and interaction history remain intact; original Product data and
+the paid ledger are unchanged. No automatic paid recovery or production changes.
+Exact measured worksheet manufacture still requires dedicated layout validation,
+as documented in the workflow limitations; this fixes initial sketch intake.

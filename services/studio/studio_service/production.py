@@ -18,8 +18,13 @@ def plan(document, brief):
     for component in definition.get('components',[]):
         content=component.get('content',[])
         if component.get('quantity')!=len(content):raise Invalid('Brief inventory/count mismatch')
+        name=component['name']
+        # A sheet's contents are rows/strips, not additional output pages.
+        # Only explicit singular-page declarations allow this grouping.
+        grouped=bool(re.search(r'\bone\s+(?:printable\s+)?(?:sheet|page)\b|\bsingle\s+(?:printable\s+)?(?:sheet|page)\b',name+' '+component.get('format',''),re.I))
+        if grouped and content:content=['\n'.join(content)]
         for text in content:
-            name=component['name'];kind='text' if re.search(r'guide|instruction|הדרכ|הוראות',name,re.I) else 'illustration'
+            kind='text' if re.search(r'guide|instruction|הדרכ|הוראות',name,re.I) else 'illustration'
             units.append({'id':f'unit-{len(units)+1:02d}','title':name[:120], 'description':text,'kind':kind,
                           'visible_text':text if kind=='text' else ''})
     if not units:
@@ -29,7 +34,7 @@ def plan(document, brief):
     value={'version':1,'family':'','units':units,'representative_id':next((u['id'] for u in units if u['kind']=='illustration'),units[0]['id']),
            'style':brief.get('visual_direction') or 'Proposed starting direction: clear original illustration, white background and generous spacing',
            'constraints':brief.get('requirements',''),
-           'assumptions':['Each listed content unit is a separate page; review/edit the inventory before production.',
+           'assumptions':['Each inventory unit is a page; contents explicitly grouped on one sheet stay together. Review the inventory before production.',
                           'A4 and US Letter, 300 DPI, 10 mm safe margins; no bleed unless selected.',
                           'Style and unspecified details are editable design assumptions, not observed market facts.']}
     return checked_plan(value)

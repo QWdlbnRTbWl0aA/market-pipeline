@@ -447,7 +447,7 @@ class Studio:
                 state = read(directory / 'state.json')
                 if state['active_operation'] == request['operation_id']:
                     state['phase'] = 'generation_failed'
-                    state['generation_error'] = str(error) if isinstance(error,BudgetBlocked) else 'היצירה נעצרה. המשוב והנתונים נשמרו; יש לבדוק לפני ניסיון חוזר.'
+                    state['generation_error'] = str(error) if isinstance(error,Invalid) else 'היצירה נעצרה. המשוב והנתונים נשמרו; יש לבדוק לפני ניסיון חוזר.'
                     self.save(directory, state)
 
     def publish_messages(self):

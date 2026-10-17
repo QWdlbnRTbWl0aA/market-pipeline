@@ -7,7 +7,7 @@ mockups, listing review, customer downloads and editable preference memory.
 ## Workflow
 
 1. Import stays passive. Code extracts Product's explicit inventory or supplied
-   deliverables. Any partial brief can start; scope/style omissions become editable
+   deliverables. Components explicitly declared as one sheet/page keep their internal content on that page; separate-page content remains separate. Any partial brief can start; scope/style omissions become editable
    assumptions. Content, printed text, family, style and assumptions can be edited.
 2. **Start sketches** compares three directions for the **same representative
    page/item**, rather than a bundle collage. Real revisions send accepted pixels
@@ -67,7 +67,7 @@ briefs and accepted pixels. Both protected credential files must exist before an
 comparison call. Record model provenance, correction rounds and cost per accepted
 result; do not select a winner from fixture images or price alone.
 
-Exact credential-free JSON bodies remain in the project-scoped API panel. Each
+Image prompts use a bounded projection of render-relevant content; raw market evidence stays in immutable intake/request files. Requirements and inventory are deduplicated, while source-only subject/style details are preserved. Exact credential-free JSON bodies remain in the project-scoped API panel. Each
 operation owns its first body; validator/code recovery reuses completed paid
 steps. A provider/model change during recovery requires a new explicit operation.
 Downloaded bodies can contain private image bytes; keep them outside Git.
