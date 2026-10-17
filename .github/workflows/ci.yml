@@ -10,6 +10,11 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install declared image dependency
+        run: python3 -m pip install -r requirements.txt
       - name: Functional tests (no paid/source calls)
         run: python3 tools/test.py
       - name: Publication audit

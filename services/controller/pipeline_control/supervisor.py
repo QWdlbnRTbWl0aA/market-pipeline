@@ -5,12 +5,10 @@ never killed automatically. Work identity/quota/paid/email ledgers are not resto
 """
 import datetime as dt
 import json
-import os
 from pathlib import Path
 import signal
 import subprocess
 import time
-import urllib.request
 from .storage import clean_environment, digest, event, Guard, LocalHTTP, local_url, now, read, write
 
 

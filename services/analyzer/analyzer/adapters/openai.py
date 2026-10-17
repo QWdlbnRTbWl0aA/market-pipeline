@@ -5,7 +5,6 @@ import shlex
 import stat
 from ..security import assert_clean_environment
 
-from pipeline_openai import RATES
 
 def api_key():
     assert_clean_environment()

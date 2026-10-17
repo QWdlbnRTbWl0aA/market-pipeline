@@ -8,10 +8,9 @@ import os
 import signal
 from pathlib import Path
 import threading
-import time
 from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
-from .core import ROOT, Store, atomic_json, config, now, validate_niche, validate_config
+from .core import ROOT, Store, atomic_json, now, validate_niche, validate_config
 
 
 class App:

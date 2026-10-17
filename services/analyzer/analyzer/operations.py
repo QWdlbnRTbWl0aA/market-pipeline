@@ -4,7 +4,6 @@ Never release an unknown paid reservation or repeat completed inference. A retry
 still passes shared paid admission, response caches and job locks.
 """
 import argparse
-import hashlib
 import json
 from pathlib import Path
 from .io import write_json

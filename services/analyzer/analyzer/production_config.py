@@ -1,7 +1,6 @@
 """Explicit deployment and spending policy, validated before any model calls."""
 import math
 from pathlib import Path
-from .adapters.openai import RATES
 
 def number(value,low,high):return type(value) in (int,float) and math.isfinite(value) and low<=value<=high
 

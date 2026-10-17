@@ -1,0 +1,3 @@
+# Core collection/control services use the Python standard library.
+# Required for the complete test suite and Product/Studio raster/print features.
+Pillow>=10.2

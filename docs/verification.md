@@ -1,148 +1,89 @@
-# Preparation verification — 2026-10-11
+# Verification
 
-## Historical opportunities and named cycles — 2026-10-13
+## Current baseline
 
-328 offline tests pass across the latest component checks: collector 94, analyzer
-119, Product 15, Controller 32, Studio 33 and repository 35. They cover recency
-weighting, persistent offer suppression, immutable assessment histories, qualified
-ten-item consumer handoffs, honest shortfalls, shop-age/inventory/counter-reset
-holds, no sales allocation, local-only saved pictures, persistent development
-admission before key loading, named-profile preservation, daily-to-weekly settling,
-manual overrides, finite jobs, paused challenges and GET-only unknown reconciliation.
-Legacy input, independent service and modern receipt regressions continue to pass.
+The 2026-10-17 housekeeping baseline has **492 offline unit/integration tests**:
 
-Six offline Firefox checks passed at a 390px mobile viewport: critical panels,
-cycle creation, preserved finalized profiles, readable filtering, restart/refresh
-persistence and manual weekly cadence. Temporary fixture servers were stopped.
-No installed service or state was modified. JavaScript syntax and whitespace checks
-passed. Detailed logs, screenshots, raw copied-evidence audit and sanitation results
-remain outside the source repository.
+| Suite | Tests | Main responsibilities |
+|---|---:|---|
+| Collector | 94 | Quota admission, pagination/exclusions, observations, scheduler, control jobs and mobile dashboard contracts |
+| Analyzer | 144 | Legacy/modern intake, pooled history/evidence, independent jobs, budgets, stable completion and bounded delivery |
+| Product | 45 | Grounded full definitions, references, passive Studio outbox and recovery |
+| Controller | 32 | Proposals, cycles, experiments, tracking, admission and supervision |
+| Studio | 126 | Passive briefs, feedback, print assembly, model contracts, budgets, locks, original image visibility and historical recovery |
+| Cross-component/deployment | 51 | End-to-end HTTP/mail fixtures, credential separation, daemon configuration/migration and publication |
 
-Mechanical qualification of eight copied saved datasets (largest: 10,120 records)
-yielded no evidence-qualified opportunities. Historical shop/listing observations
-were insufficient; no model inference was used to invent supporting evidence.
-New development spend was $0. Official pricing and workload assumptions are in
-[Research cycles](research-cycles.md); standalone weekly trend reporting is deferred.
+All existing tests are retained: none were exact duplicate bodies, and recovery
+paths still protect saved operational data. The old separate sample-loop browser
+runner was removed because it targeted the superseded UI flow. Its reference
+upload/paste and vote checks are covered by the current workflow runner.
+Counts are a dated baseline; actual command results are authoritative as code evolves.
 
-## Legacy compatibility correction — 2026-10-12
+## Commands
 
-232 offline tests passed, including eight new analyzer regressions (83 analyzer
-tests total). Synthetic snapshots reproduce the early collector layout with
-48/48/24 rows, no `settings` and missing optional listing fields. The fix recovers
-query intent from saved query niches, records its provenance, and treats a null
-niche list safely. Modern settings and explicit empty lists retain their meaning.
+Install declared dependencies in your managed environment, then:
 
-Both analyzer services complete with fake local-model responses and HTTP
-transports; repeat triggers preserve job identity and do not repeat inference or
-delivery. Existing completed and failed job receipts remain unchanged. The
-research recipe version is deliberately unchanged; this correction does not
-authorize or implement failed-job recovery.
+```sh
+python3 tools/test.py
+```
 
-Offline intake/normalization/evidence checks on original development copies of
-the three affected snapshots (48/48/24 accepted records) and a newer snapshot
-(six retained records) passed without changing snapshot or DQA hashes. No
-production state was read or modified for these checks. No deployment, restart,
-collection, actual inference, paid API or email requests occurred. Detailed
-verification artifacts remain outside the publication repository.
+The runner isolates each component's unittest discovery so same-named test modules
+do not collide. Run an individual suite from `services/<component>` using
+`python3 -m unittest discover -s tests -v`; run root integration tests from the
+repository root. The complete suite requires Pillow; no keys or model server are
+needed. Synthetic fixtures/temporary HTTP and SMTP transports never call Etsy,
+OpenAI, external SMTP or Ollama generation.
 
-## Functional results
+Optional browser checks require an **already installed** Firefox/geckodriver:
 
-218 standard-library tests passed: collector 92, analyzer 75, product 15,
-controller 22, deployment/policy/publication/migration 14. The suite covers
-file persistence, pagination/exclusions, raw provenance, DQA, quota/recovery,
-independent analysis, credential separation, bounded paid admission, idempotent
-delivery, refinement comparisons, indefinite tracking, product briefs/drafts
-and process recovery. Fixtures and mock responses are explicitly synthetic.
+```sh
+python3 tools/studio_workflow_smoke.py --output /tmp/studio-workflow-smoke
+python3 tools/studio_workflow_smoke.py --lifestyle --targeted-refinement --output /tmp/studio-recovery-smoke
+python3 tools/studio_direct_edit_smoke.py --output /tmp/studio-direct-edit-smoke
+```
 
-Five actual local daemon processes started independently, served health or
-heartbeat status, terminated cleanly on SIGTERM and restarted without creating
-collection requests or modifying the test paid ledger. All rendered systemd
-units passed `systemd-analyze verify` under installed systemd 255. JavaScript
-syntax verification passed.
+Each starts an isolated temporary fixture server, uses synthetic providers and
+stops its processes. Output paths must be outside source. The first covers print
+assembly/template mockups/listing delivery; lifestyle mode also covers edited scene
+preservation and rejected-action drafts; targeted mode verifies historical recovery.
+The direct-edit flow exercises the actual image-adapter wire contract using an
+offline transport, exact Hebrew notes, human approval and visible returned images
+after dimension validation failure. Browser fixtures are disposable after review;
+retain concise logs/screenshots and remove their generated state when finished.
 
-A separate smoke test served **real saved files**, copied through the offline
-migration: 20 saved runs, successful snapshot read, fresh request counters and
-5% quota reserve. The observed 5,000 provider limit produced a 250-request
-reserve and a 4,750 effective ceiling. No Etsy requests were generated. The
-migration preserved 14 paid ledger entries ($0.1570365) byte for byte and
-accounted for all nine completed analysis receipts. Original artifacts remained
-unchanged. Ollama's installed model was verified using its read-only tags route.
+## Configuration, deployment and publication
 
-This preparation made no Etsy/OpenAI inference/SMTP requests, no Ollama
-generation requests and spent $0. It did not assess or claim improved analysis
-quality. Existing evidence gaps are retained rather than filled with invented
-demand, listing purchases or sales.
+`deploy/prepare.py`, configuration upgrade helpers, migration, credential loaders
+and independent unit rendering have offline regression coverage. Preflight can
+validate an actual installed account/layout; synthetic tests do not prove that a
+particular production host, firewall, provider account or permission policy works.
+This checkout is separate from installed releases. Housekeeping does not install,
+restart, migrate or recover production services.
 
-## Sanitation and GitHub
+From a clean committed tree:
 
-Original repositories: 12,132 working files and 608 Git objects scanned, including
-unreachable objects. Compared four known local credential values without
-printing them. No exact credential match. Five literal-secret findings were
-the same documented SMTP placeholder (current README and four historical
-blobs); reviewed and classified. Original repositories remain private and are
-not publication sources.
+```sh
+python3 tools/publish_check.py --output /tmp/market-pipeline-publication.json
+```
 
-The publication repository has fresh object history and a reviewed source/test/
-documentation allowlist. Runtime artifacts, original Git objects, keys and local
-configuration are excluded. Pattern/full-object auditing, exact local credential
-comparison and archive inspection are run again on the final committed tree.
-The local pre-push guard and CI repeat offline publication checks.
+Use `tools/secret_audit.py` for optional offline exact credential comparisons and
+private environment inventories without printing values. The publication hook
+and CI also scan reachable/unreachable Git objects and reject generated data,
+private paths, network details and secrets. See [sanitation](sanitation.md).
 
-The dedicated SSH key is mode 600 outside source. GitHub authenticated it as
-`QWdlbnRTbWl0aA`. Reading the selected remote returned “Repository not found”;
-the remote must be created or made accessible before publication. Nothing was
-pushed and no remote repository was created.
+CI declares Python 3.12 and installs the repository's Pillow requirement before
+running the full suite. A local successful run is not a claim that a future
+hosted CI job or real account-level deployment has already run.
 
-## Remaining acceptance
+## What functional checks do not establish
 
-The current legacy development chain is unchanged. The new candidate is not
-installed under `market-pipeline`: that account and `/opt`, `/etc`, `/var/lib`
-deployment layout are not provisioned. A development preflight passed using the
-existing user and migrated temporary state; the actual deployment preflight
-correctly reports missing account/configuration. Test root and rendered units
-remain outside source. Test/smoke processes were stopped.
+- Passing fixtures do not certify market demand, thin supply or commercial success.
+- One saved observation cannot establish a historical trend or listing sales.
+- Synthetic model responses cannot prove paid image quality, anatomy, instruction
+  adherence or product fidelity; human review and actual print proof are separate.
+- SMTP acceptance is not proof of inbox placement; delivery may land in spam.
+- No cleanup/test result authorizes paid calls, collection, deployment or recovery.
 
-Before declaring an installed deployment ready: provision the designated
-account, migrate with writers stopped, install the units, verify credential/
-filesystem isolation under that account, then enable the chosen daemons and
-settings. GitHub repository provisioning and explicit push authorization remain
-separate. These are deployment/publication steps, not a two-week waiting period
-or a new daily spending cap.
-
-
-## Studio and automatic-mail batch verification (2026-10-13)
-
-The complete offline suite passed 348 tests. Six mock-provider Firefox mobile
-checks passed, including file upload and simulated clipboard handling. A manual
-Collector query fixture flowed through both analyzers and Product, produced
-exactly two mock SMTP deliveries with byte-identical contract attachments, and
-remained idempotent on repeat triggers. No Studio generation was triggered.
-No paid inference, live collection or external mail occurred.
-
-The documented additive configuration upgrade passed preview/apply checks on
-temporary files, preserving paid settings and configuration modes with backups.
-Optional SMTP systemd units passed static verification. These checks do not claim
-installed production delivery or designated-account isolation was exercised.
-
-
-## Cumulative saved-pool correction (2026-10-15)
-
-All 354 offline tests passed, including six new candidate-pool regressions.
-A real archived-data audit (no inference/delivery) expanded one six-row snapshot
-to 4,654 relevant saved listings from 1,162 shops. Zero of eighty groups passed
-the existing default commercial history gates; pooling is necessary but does not
-guarantee ten supported recommendations. Today's installed state was unreadable
-by the development account and was not modified. No live collection, paid model,
-Ollama inference or external SMTP calls occurred.
-
-
-## Passive Studio library (2026-10-15)
-
-All 361 offline tests passed. Seven mock Firefox mobile checks passed, including
-passive brief import, expanded full source JSON, mobile layout and explicit first
-sketch consent. Actual localhost Product-to-Studio HTTP tests covered saved basic
-and enhanced briefs, daemon worker wiring, duplicate delivery, no generation until
-human action, finite retries/recovery, payload tamper and old receiver rejection.
-A temporary enablement preview/apply preserved unrelated configuration and mode.
-No paid inference, live collection or external SMTP delivery occurred. Installed
-production activation and designated-account isolation were not exercised.
+Private raw evidence, transaction manifests and dated test reports remain outside
+Git. Earlier development/deployment observations are recoverable in history;
+they are not current claims of account provisioning, remaining credit or publication.

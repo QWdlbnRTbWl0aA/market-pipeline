@@ -1,11 +1,9 @@
 """Offline plan: normalize and quantify evidence without any model/API request."""
 import argparse
-import hashlib
 import json
-from pathlib import Path
 from .history import HistoryIntake
 from .normalize import normalize
-from .research import build_evidence,model_request,VERSION
+from .research import build_evidence, VERSION
 from .saved_intake import discover
 from .services import load_config
 from .io import write_json

@@ -10,7 +10,7 @@ from . import briefs
 from .adapters import MockGenerator, MockBroker, BlockedListing, checked_asset
 from .storage import Invalid, Conflict, now, digest, canonical, write, write_bytes, read, guard, identity, action_key, clean_environment
 from .understanding import aggregate, LocalUnderstanding, enforce
-from .dev_budget import Budget, BudgetBlocked
+from .dev_budget import Budget
 
 REVIEWS = {'accept', 'reject', 'accept_with_comments'}
 

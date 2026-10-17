@@ -1,6 +1,6 @@
 # Independent daemon deployment
 
-## Prepared layout
+## Installed layout
 
 - Account/group: `market-pipeline`, non-root service account.
 - Immutable code: `/opt/market-pipeline/releases/<commit>`;
@@ -53,12 +53,15 @@ failures are explicit saved states. The systemd manager supervises the daemons;
 the application process supervisor is optional and must not launch duplicate
 processes alongside systemd.
 
-## Install procedure (administrator action)
+## Initial installation (administrator action)
 
 The preparation work does not create accounts, install units or alter host
 permissions. Before installation an administrator provisions the chosen
 `market-pipeline` account/group, release path, state and independent configuration
 directories. The account needs no interactive login or sudo privileges.
+
+Use these steps for a new installation or an explicitly planned legacy migration.
+Existing installations use the upgrade procedure below.
 
 1. Stop legacy writers, keeping original code and output directories intact.
    Confirm no collection or paid call is in flight. Take an offline backup of
@@ -117,14 +120,14 @@ TLS access in front before public exposure. Controller/product bind loopback;
 mutations reject browser-origin requests. No firewall or host network change is
 performed by these scripts.
 
-Studio is a new optional mock stage; preparing its configuration/state/unit does
-not deploy it or wire Product's existing outbox. Its unit binds loopback on 8096
+Studio is an optional independent stage. Preparing missing configuration/state
+does not deploy it, change existing providers or wire Product's outbox. Its unit binds loopback on 8096
 and uses no credentials. See [Studio](studio.md) for intake and trusted-network
 dashboard access. Existing deployments can prepare the new files without
 overwriting their previous settings, then activate only Studio after review.
 
 For an existing installation, source pull/release selection does not merge runtime
-settings. Follow the README's **Upgrade an existing deployment** procedure and
+settings. Follow the upgrade procedure below and
 `deploy/upgrade_config.py` preview/apply steps for automatic mail. Render SMTP-enabled
 units only after provisioning the dedicated credential. This preserves state and
 does not migrate or reset any paid, quota, completion, mail or offer ledger.
@@ -157,3 +160,31 @@ before requests, and account-level isolation before boot enablement.
 Prepared units are syntax-validated locally. Source-workspace process tests do
 not verify OS security controls under the actual designated account. Installed
 production release acceptance and the new Studio deployment are separate checks.
+
+
+## Upgrade an existing deployment
+
+1. Verify the intended committed release offline; confirm no paid/source call is
+   in flight, and back up existing state/configuration and the selected release.
+2. Stage code into a new immutable release directory. Keep the old release for
+   rollback. Do not rerun initial migration into the installed state directory.
+3. Review configuration differences. Preparation preserves existing JSON; it does
+   not activate new features. Preview optional additive changes with
+   `deploy/upgrade_config.py --configs /etc/market-pipeline --enable-mail` before
+   separately applying them with `--apply`. Provision protected SMTP credentials
+   before rendering/installing `--with-mail` units. See [mail](mail.md).
+4. For Product → Studio enablement, upgrade the passive receiver first, then use
+   the separate [library enablement procedure](studio-library.md). Optional paid
+   Product definition needs its own policy and `--with-product-paid` credentials.
+   Studio's paid trial is independently configured and never enabled by a pull.
+5. Validate configuration, dependencies and the intended service account with
+   `deploy/preflight.py`. Select the staged release and restart only affected
+   independently supervised services during the authorized deployment window.
+6. Verify health/delivery/ledger preservation. Repeated completed analysis/brief
+   jobs must not infer or mail again. Run new paid/source trials only when
+   separately requested and admitted within their existing quotas/budgets.
+
+Rollback selects the previous code/config checkpoint while preserving current
+mutable ledgers, unknown outcomes, raw observations and completion/outbox receipts.
+Do not restore an old ledger to regain credit. No source housekeeping operation
+implicitly performs any of these administrator actions.

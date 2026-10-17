@@ -8,7 +8,7 @@ from pathlib import Path
 from .openai_dev import OpenAIDev, TEXT_MODEL
 from .ports import Asset
 from .production import LISTING_SCHEMA, checked_listing, png, raster
-from .storage import Invalid, canonical, digest, guard, read, write, write_bytes, now, identity
+from .storage import Invalid, canonical, digest, guard, read, write, now, identity
 
 MODELS=('gpt-image-2.5-flare','gpt-image-2.5-sunburst')
 

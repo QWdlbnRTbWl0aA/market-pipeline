@@ -7,7 +7,6 @@ from pathlib import Path
 import re
 import threading
 from urllib.parse import urlsplit
-from .core import Studio
 from .storage import Conflict, Invalid, canonical, read, reject_secrets
 
 STATIC = Path(__file__).parent / 'static'

@@ -1,26 +1,15 @@
 # GitHub publication preparation
 
 Target: `QWdlbnRTbWl0aA/market-pipeline`, using the dedicated
-`github-market-pipeline` SSH alias. Authentication is verified for that account.
-The private key, SSH configuration and pinned GitHub host-key file are outside
-the repository. Following explicit user approval and repository provisioning,
-`main`, `prepare/first-deployment` and `deployment-candidate-20261011` were
-published on 2026-10-12. After the user deleted that remote to remove real network
-fixtures from its history, the source was sanitized and rebuilt with a fresh
-root history for republication to the same target. The replacement candidate tag
-is `deployment-candidate-20261012`. Production daemon deployment remains separate.
+`github-market-pipeline` SSH alias. SSH credentials/configuration and host-key data
+stay outside source. This is the publication repository; the remote is provisioned
+and current `main` is published. Production deployment remains a separate action.
 
-This repository starts with a fresh reviewed history. It has no object
-alternates, copied `.git` directory, legacy refs or generated data. Private
-legacy repositories retain their original history and known-good checkpoints.
-Publish **this** repository only. Do not publish the legacy repositories or push
-all refs indiscriminately.
-
-Branches: `main` is the verified publication candidate; `prepare/first-deployment`
-records the preparation work. Subsequent changes use short-lived feature
-branches and reviewed pull requests to `main`. Use release tags for verified
-code deployments, and preserve durable runtime accounting independently. Once
-GitHub is provisioned, configure required CI and protect `main` on GitHub.
+Use explicit feature/housekeeping branches for review; do not merge into `main`
+or deploy as an implicit part of cleanup. Release tags identify verified code;
+runtime ledgers and state are preserved independently. Private legacy Git archives
+are not publication sources. Historical repository recreation/preparation notes
+remain in Git rather than current operating instructions.
 
 The local pre-push hook requires explicit publication authorization, the exact
 remote and a clean audit. It is installed with repository-local
@@ -34,7 +23,7 @@ python3 tools/publish_check.py --output /outside-source/publication-audit.json
 git remote -v
 ```
 
-After approval and remote repository provisioning, push the intended branch
+After authorization and a clean audit, push the intended branch
 explicitly with `MARKET_PIPELINE_ALLOW_PUSH=yes`; do not use `--mirror` or
 `--all`. Remote creation, visibility, branch protection and push remain external
 publication actions, separate from preparation.
@@ -68,5 +57,5 @@ fixtures are assembled at runtime so test source remains publishable.
 
 See [sanitation policy](sanitation.md) for scope and approved exceptions.
 
-CI runs standard-library functional tests and publication checks with no API
-keys and read-only repository permissions.
+CI installs the declared Pillow dependency and runs offline functional tests
+and publication checks with no API keys and read-only repository permissions.

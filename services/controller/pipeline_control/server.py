@@ -4,9 +4,8 @@ import json
 from pathlib import Path
 import re
 import threading
-import urllib.request
 from .controller import Controller
-from .storage import clean_environment, identity, local_url, now, read, write
+from .storage import clean_environment, identity, now, read, write
 
 
 def inventory(settings, root):

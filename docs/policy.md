@@ -9,19 +9,20 @@ reserve four bounded calls; this is a per-experiment envelope, not ten calls/day
 Unknown paid outcomes stop admission until explicit reconciliation. Neither
 deployment, rollback nor a fresh process may reset that accounting.
 
-Rates are explicit for the Responses API's standard service tier: `gpt-6-luna`
-input/output $0.10/$0.50 per million tokens; `gpt-6.1-sol` $2/$10 for the bounded
-short-context calls. Verified 2026-10-11 against [OpenAI pricing](https://developers.openai.com/api/docs/pricing).
-The adapter explicitly requests `service_tier: default`, charges input
-conservatively without assuming cache discounts, limits output tokens and
-reserves worst-case spend before loading the key or sending. Token reservations
-must cover the actual model/tier; changing models/pricing requires code and tests.
-Paid images are disabled until their token cost can be reserved; saved images
-can be processed locally. Provider retries and redirects are disabled.
+Model rates and conservative token bounds are explicit in
+`services/common/pipeline_openai.py` and Studio's provider/budget modules. They
+are configured accounting assumptions, not a claim about current vendor prices
+or the billing dashboard. Updating a model/tier/rate requires checking provider
+contracts and the corresponding reservation tests. No cache discount is assumed
+unless explicitly accounted for; retries/redirects are not implicit.
 
-The inherited ledger at preparation recorded $0.1570365 across 14 calls, with
-no unknown outcomes; $1.8429635 remained. This is an observation of local
-accounting, not an assertion about unrelated API use or the billing dashboard.
+Studio has a separate explicitly authorized **$25 total trial**, including all
+prior Studio usage and existing allocation ceilings: comparison $4, production
+$10, mockups $3, listing $2 and trial $6. The legacy default remains $1 for old
+configurations. Neither copying a trial example nor creating a new data directory
+is permission to reset prior charges. Unknown outcomes remain fully reserved.
+The budget CLI can explicitly migrate an existing ceiling while reconciling an
+operator-confirmed prior total. See [Studio workflow](studio-workflow.md).
 
 ## Etsy admission
 

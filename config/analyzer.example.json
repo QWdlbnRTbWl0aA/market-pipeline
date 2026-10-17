@@ -30,7 +30,7 @@
     }
   },
   "paid": {
-    "enabled": true,
+    "enabled": false,
     "cheap_model": "gpt-6-luna",
     "final_model": "gpt-6.1-sol",
     "daily_usd": null,

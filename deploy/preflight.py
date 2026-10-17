@@ -2,7 +2,6 @@
 """Read-only deployment checks. Never opens keys or generates model/source requests."""
 import argparse
 import json
-import os
 from pathlib import Path
 import pwd
 import subprocess

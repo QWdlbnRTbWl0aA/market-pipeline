@@ -7,7 +7,6 @@ import os
 import time
 import urllib.parse
 import uuid
-from pathlib import Path
 from .core import LOCK, atomic_json, now, validate_niche
 from .entities import parse_listings, parse_shop
 

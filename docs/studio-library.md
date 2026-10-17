@@ -5,8 +5,7 @@ stores the complete brief, displays it in its Hebrew library, and identifies
 bounded input using deterministic code; all initial content fields are optional. Intake, browsing, refresh, duplicate
 delivery and pre-generation metadata edits perform no model calls, image
 generation, paid reservations, external image downloads or broker publication.
-Only the explicit **התחלת סקיצות** action starts generation after required fields
-are complete. New manual form/JSON imports use the same passive behavior.
+Only the explicit **התחלת סקיצות** action starts generation; initial content fields remain optional. New manual form/JSON imports use the same passive behavior.
 
 The Product setting is optional and disabled in old configurations:
 

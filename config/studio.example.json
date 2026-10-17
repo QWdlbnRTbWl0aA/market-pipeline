@@ -5,5 +5,16 @@
   "broker_provider": "mock",
   "listing_provider": "blocked",
   "allowed_hostnames": [],
-  "development_openai": false
+  "development_openai": false,
+  "trial_total_usd": 1,
+  "draft_model": "gpt-image-2.5-flare",
+  "professional_model": "gpt-image-2.5-flare",
+  "lifestyle_mockups": false,
+  "mockup_final_model": "gpt-image-2.5-sunburst",
+  "provider_roles": {
+    "openai": [
+      "mockup_planning",
+      "mockup_sketches"
+    ]
+  }
 }

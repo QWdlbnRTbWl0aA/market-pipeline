@@ -1,6 +1,5 @@
 """Deterministic normalized observations; Etsy counters retain their entity scope."""
 import datetime as dt
-import html
 import json
 
 VERSION = 3

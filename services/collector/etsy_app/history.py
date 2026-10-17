@@ -1,7 +1,6 @@
 """Versioned offline recovery and an atomic JSON index over immutable run history."""
 import hashlib
 import json
-from pathlib import Path
 import urllib.parse
 from .core import atomic_json, now
 from .entities import VERSION, parse_listings, parse_shop

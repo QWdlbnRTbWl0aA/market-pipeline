@@ -1,11 +1,9 @@
 """Versioned manufacture → mockups → listing copy; human approvals bind hashes."""
 import hashlib
-from pathlib import Path
 import uuid
 from . import production
-from .ports import Asset
 from .direct_edit import human_reviewed
-from .storage import Invalid, Conflict, canonical, digest, guard, now, read, write, write_bytes
+from .storage import Invalid, Conflict, digest, guard, now, read, write, write_bytes
 
 from .lifestyle import ACTIONS as LIFESTYLE_ACTIONS, Lifestyle, count as mockup_count
 
