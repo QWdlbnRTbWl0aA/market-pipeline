@@ -141,7 +141,8 @@ class Handler(BaseHTTPRequestHandler):
                     identifier=digest({'product':product['id'],'file':record['file']})
                     records[identifier]={**record,'path':product['directory']+'/'+record['file'],'id':identifier,'product_id':product['id']}
             for index,record in enumerate(workflow.get('mockups',[])):
-                records['mockup-'+str(index)]={**record,'path':record['file'],'id':'mockup-'+str(index),'role':'mockup'}
+                identifier='mockup-'+record.get('id',record['sha256'])+'-'+record['sha256'][:16]
+                records[identifier]={**record,'path':record['file'],'id':identifier,'candidate_id':record.get('id'),'role':'mockup'}
             for round in workflow.get('mockup_design',{}).get('rounds',[]):
                 for index,record in enumerate(round['candidates']):
                     identifier='concept-'+round['id']+'-'+str(index)

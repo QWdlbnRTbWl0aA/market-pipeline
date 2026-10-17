@@ -846,3 +846,67 @@ screenshots and hash inventories remain private outside Git.
 Final verification: all six suites passed (469 tests total), all 30 guided
 browser checks passed, and the credential-aware source/Git-object audit found
 zero findings and zero unreadable files. No paid API calls were made.
+
+## Targeted mockup refinement, optional export and explicit saved-round restoration
+
+The final-polish route previously forwarded unresolved old/shared/per-card
+instructions directly to an image edit of the background. Requiring blank,
+unobstructed product planes conflicted with cutting interactions and could leave
+the displayed revision without the product print. New supported final jobs now
+persist a separate correction plan: coherent changes, preserved content, exact
+acceptance checks, crop bounds and protected regions. The planner sees the exact
+reviewed image and relevant immutable source pages. A professional medium-quality
+working edit magnifies original-detail crops and deterministically retains pixels
+outside the allowed region. Page composition handles bounded foreground
+hands/scissors separately. Ambiguous geometry and excessive foreground coverage
+fail conservatively; unverified protected page pixels cannot be certified as
+restored source artwork.
+
+Working output uses approximately 1152×768 pixels with the source aspect ratio;
+16-pixel increments preserve the API dimension contract. A distinct optional,
+explicitly consented export uses approximately 1536×1024 and high quality. Both
+use the selected authorized top-tier image adapter; the cheap text/vision route
+handles interpretation and comparison. Before/after comparison includes magnified
+correction crops, ordered explicit checks and actual source pages. Mechanical
+placement failure skips a redundant visual-comparison request. Failed attempts
+remain durable/viewable while the previous candidate stays displayed. No attempt
+retries automatically. Compilation, rendering and comparison have independent
+saved step identities so explicit recovery does not repeat completed inference.
+Human locks and final product checks remain mandatory; visual quality is not
+proven by synthetic tests.
+
+The UI uses immutable candidate/hash file URLs and prefers exact candidate
+identity before a hash fallback. An offline browser regression exposed a
+same-content lookup collision, which was corrected. Completed final edits now
+replace the visible image without a page refresh. Existing Hebrew layout, budget,
+model-role restrictions, payload viewer and lock behavior remain.
+
+Added revision-checked/idempotent `restore_mockup_round`: it validates saved
+product/card identity and file hashes, restores that round's request comments,
+reopens human review and invalidates only downstream approvals. Prior board state,
+later rounds, images, comments, interactions and paid receipts are retained.
+Applied the user's explicit restoration to the initial saved final-polish set in
+the development workspace. Verified 582 existing files: only the intended project
+state changed, all seven saved mockup rounds remained, and the paid ledger was
+byte-identical. The three restored images were fetched read-only from the dev
+Studio and their hashes matched the saved first final round. Only the existing
+development Studio was restarted. No paid calls, generation, Etsy calls, email,
+production changes, account creation or host-security changes were performed.
+Private backups, inventories, restoration receipts and test outputs stay outside
+source control.
+
+Verification: the full six-suite run passed 477 tests; nine focused final
+regressions cover exact displayed inputs, resolved wire prompts, working/export
+profiles, protected crops, foreground layers, comparison failure, interrupted-step
+reuse, admission-before-key access, geometry failure without extra comparison and
+history-preserving restoration. The guided targeted-refinement browser passed 31
+checks using synthetic adapters, including asynchronous final-image replacement.
+The final Studio suite and publication audit results are recorded with the
+private task report.
+
+Final results: the complete Studio suite passed 112 tests; combined with the
+other five suites this covers 478 tests. All nine focused regressions passed
+against the finished refinement code. The targeted browser passed 31 checks.
+The credential-aware source and Git-object audit found zero findings and zero
+unreadable files. Live restoration/DQA preserved all 582 existing files except
+the explicitly restored project state; no paid calls occurred.

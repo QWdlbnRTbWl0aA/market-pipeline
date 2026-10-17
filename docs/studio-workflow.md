@@ -43,11 +43,23 @@ mockups, listing review, customer downloads and editable preference memory.
    and starts the first professional round in the amber **final refinement**
    workspace. It retains the same card layout and a persistent costly-loop warning.
    Apply corrections requests consent again for every subsequent professional
-   round, uses the approved background as an edit reference
-   and focuses on resolution, anatomy, faces, physical coherence and small notes.
+   round. A text/vision compiler resolves latest per-card comments against shared
+   and old scene instructions into explicit change/preserve/check lists. It sees
+   the exact displayed pixels and immutable source pages. Targeted crop edits use
+   the professional model at medium quality (1152×768 landscape working images;
+   equivalent pixel area for other aspect ratios), with original-detail crop
+   references and deterministic protection outside the edited region. Page layers
+   restore actual product pixels behind bounded foreground hands/scissors. A
+   before/after visual comparison checks every stated correction and source
+   fidelity, including magnified edit-region crops. Failed results stay in history
+   and are viewable beside the previous sample; they do not replace it or retry
+   automatically. These model checks supplement mandatory human review.
    Composition prompts become read-only; return to cheap concepts for redesign.
    Lock satisfactory finals to exclude them from further paid rounds. All active
    final cards must be rendered and locked before approving the set for listing.
+   Optional Export requests separate consent for high-quality 1536×1024 landscape
+   output (equivalent area for other aspect ratios), followed by the same checks
+   and human locks. Export is not required when working-resolution output suffices.
    Saved product pixels are composited into one to four verified non-overlapping
    page surfaces. Spread/storyboard need multiple surfaces. Failed placements stay
    visible: explicit concept-only confirmation may lock their composition while
@@ -201,8 +213,11 @@ flag; existing configurations default to false, so pulling source does not start
 paid work. No collection, Analyzer/Product delivery or import triggers mockups.
 The text/vision planner uses the existing inexpensive OpenAI text route; image
 concepts use `draft_model` at low quality, finals use the separately configurable
-`mockup_final_model` (default `gpt-image-2.5-sunburst`) at high quality. Both are independently replaceable ports. Finals edit the actual approved
-concept background, not a newly invented unrelated setting. No Google credentials
+`mockup_final_model` (default `gpt-image-2.5-sunburst`) at medium quality for
+working refinements and high quality only for explicit optional export. Both are
+independently replaceable ports. The new final route edits the actual displayed
+image, not its background-only predecessor. Existing saved legacy jobs retain
+their original request/response contracts on explicit recovery. No Google credentials
 are substituted into the OpenAI scene route.
 
 Planning, concepts, surface checks and finals share the proposal's existing **$3
@@ -311,3 +326,29 @@ The browser uses the small project progress endpoint with one in-flight poll and
 a 1.5–5 second adaptive interval, rather than fetching full project/library data
 every 800 ms. It reloads full project state when phase/job identity changes.
 Polling GETs are local UI traffic, never provider inference or Etsy requests.
+
+## Targeted refinement and saved-round recovery
+
+New supported professional jobs persist `refinement_version: 1`. Their per-card
+`.plan.json`, `.provider.png`, `.layers.json`, `.review.json` and final record
+retain resolved instructions, cropped input/output provenance, immutable source
+hashes and visual check results. Paid API bodies remain in the existing payload
+viewer. Placement uncertainty blocks promotion before another comparison call;
+visual failure records the attempt and retains the previous displayed candidate.
+A successful comparison still requires human lock/approval. No model guarantees
+correct anatomy, product fidelity or inferred geometry; ambiguous pages remain
+blocked instead of being fabricated. Protected pixels outside a local edit are
+copied from the reviewed source (resampled to the working canvas). Cropped edits
+retain the source's detail before magnification; output dimensions preserve its
+aspect ratio within 16-pixel API increments.
+
+The card gallery uses candidate/hash-addressed file URLs, so a completed edit
+loads new pixels without a browser reload. No extra inference is caused by polling.
+
+`restore_mockup_round` is an explicit, revision-checked, idempotent project action
+with `round_id`. It restores a complete saved final round for the current product
+and active card IDs, including that request's comments. All cards reopen for
+review; downstream approvals are invalidated. Pending jobs and finalized products
+cannot be restored. Prior board/cards/comments are captured in `restorations`;
+all later rounds, assets, interactions and paid receipts remain unchanged. It does
+not queue work, send mail, publish events or modify the paid ledger.

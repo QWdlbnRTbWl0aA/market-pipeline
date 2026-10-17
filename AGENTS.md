@@ -150,6 +150,18 @@ host security settings without explicit authorization.
   errors include the actual project-scoped incomplete provider response, without
   credentials/headers. Known failed jobs may be replaced by an explicit action;
   unknown billing holds remain blocked. Hebrew singular is מוק-אפ.
+  Professional mockup refinements compile coherent per-card change/preserve/check
+  instructions from the exact displayed image and latest notes. Use top-tier
+  medium-quality working renders (1152×768 landscape or equivalent area), targeted
+  original-detail crops and deterministic protected pixels. Composite immutable
+  source pages behind explicit bounded foreground occlusions. Before/after checks
+  include magnified corrections and actual source pages; failed attempts remain
+  durable and cannot silently replace the preceding sample. Human approval remains
+  required. Optional, separately consented high-quality export is 1536×1024 landscape
+  or equivalent area; no automatic upscale/export charge. Use immutable image URLs
+  and update completed edits without page refresh. Explicit saved-round restoration
+  preserves all later assets, feedback, interactions and the paid ledger and must
+  not queue inference. Never silently restore state or retry a rejected image.
   Reuse identical failed-job inputs and paid responses on explicit Apply. Strict
   deterministic recovery may append only missing JSON container closings after
   complete schema-valid scenes and a terminal whitespace tail; preserve raw

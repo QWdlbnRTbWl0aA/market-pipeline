@@ -5,7 +5,7 @@ import uuid
 from .storage import Invalid, Conflict, digest, now, read, write, write_bytes, guard
 from . import production
 
-ACTIONS={'save_mockup_board','add_mockup_card','delete_mockup_card','toggle_mockup_lock','plan_mockup_board','render_mockup_board','enter_mockup_final','return_mockup_concepts','apply_mockup_comments','suggest_mockups','finalize_mockup_board'}
+ACTIONS={'save_mockup_board','add_mockup_card','delete_mockup_card','toggle_mockup_lock','plan_mockup_board','render_mockup_board','enter_mockup_final','return_mockup_concepts','apply_mockup_comments','suggest_mockups','finalize_mockup_board','export_mockup_board','restore_mockup_round'}
 
 
 class Board:
@@ -36,7 +36,7 @@ class Board:
                 'locked_scenes':[c['scene'] for c in board['cards'] if c['locked']],
                 'other_gallery_scenes':[c['scene'] for c in board['cards'] if c['id'] not in {a['id'] for a in cards}],
                 'deleted_scenes':[c['scene'] for c in board['deleted'][-10:]],'approved_related_scene_examples':self.lifestyle.remembered(state)}
-    def queue_update(self,directory,state,cards,manifest,*,final=False,model=None):
+    def queue_update(self,directory,state,cards,manifest,*,final=False,model=None,export=False):
         board=self.state(state);design=self.lifestyle.design(state)
         if not final:model=None  # Final-picker changes never invalidate cheap work.
         if self.studio.model_roles:
@@ -47,6 +47,9 @@ class Board:
         previous=[c for c in board['cards'] if c.get('candidate')][:3]
         value={'manifest_id':manifest['id'],'cards':copy.deepcopy(cards),'comments':design['comments'],'stage':'final' if final else 'concept',
                'model_id':model,'context':self.context(state,manifest,cards),'feedback_images':[c['candidate'] for c in previous]}
+        if final and callable(getattr(self.studio.mockup_planner,'mockup_correction',None)):
+            if self.studio.model_roles and not self.studio.model_roles.permitted('openai','mockup_planning'):raise Invalid('Correction planning role is unavailable')
+            value.update(refinement_version=1,export_only=export)
         kind='mockup_board_final' if final else 'mockup_board_update'
         if state['workflow'].get('pending'):
             if not self.replaceable(directory,state):raise Conflict('Current job cannot be replaced; recover unknown billing first')
@@ -118,6 +121,31 @@ class Board:
                 if not cards:raise Invalid('Unlock or add a mockup first')
                 self.queue_update(directory,state,cards,manifest,final=final,model=payload.get('model_id'))
             self.changed(state);board['events'].append({'action':action,'at':now()});state['workflow']['stage']='mockups';return
+        if action=='export_mockup_board':
+            self.require_final(state)
+            if payload.get('consent_expensive') is not True:raise Invalid('Explicit export cost consent required')
+            cards=[c for c in board['cards'] if c['candidate'].get('render_profile')!='export']
+            if not cards:raise Invalid('These mockups are already exported')
+            if not callable(getattr(self.studio.mockup_planner,'mockup_correction',None)):raise Invalid('Configure targeted refinement before export')
+            self.queue_update(directory,state,cards,manifest,final=True,model=payload.get('model_id'),export=True)
+            self.changed(state);return
+        if action=='restore_mockup_round':
+            if state['workflow'].get('pending'):raise Conflict('Cannot restore while a job is pending')
+            chosen=next((r for r in design['rounds'] if r['id']==payload.get('round_id') and r.get('stage')=='final'),None)
+            if not chosen or chosen['product_id']!=manifest['id']:raise Invalid('Choose a saved final round for this product')
+            candidates={c.get('card_id'):c for c in chosen['candidates']}
+            if set(candidates)!={c['id'] for c in board['cards']}:raise Invalid('Saved round does not match the active cards')
+            from .refinement import bytes_for
+            for c in candidates.values():bytes_for(directory,c)
+            board.setdefault('restorations',[]).append({'at':now(),'round_id':chosen['id'],'previous_cards':copy.deepcopy(board['cards']),'previous_stage':board['stage'],'previous_mockups':copy.deepcopy(state['workflow']['mockups']),'previous_shared_comments':design['comments']})
+            original=read(directory/'workflow-jobs'/chosen['id']/'request.json')['value']
+            saved={c['id']:c for c in original['cards']}
+            for card in board['cards']:
+                card.update(candidate=copy.deepcopy(candidates[card['id']]),scene=copy.deepcopy(candidates[card['id']]['scene']),comments=saved[card['id']]['comments'],locked=False,needs_render=False)
+                card.pop('refinement_failure',None)
+            board['stage']='final';design['comments']=original['comments'];design['final_comments_sha256']=digest(design['comments'])
+            state['workflow']['mockups']=[c['candidate'] for c in board['cards']];state['phase']='mockup_review';state['workflow']['stage']='mockups'
+            board['events'].append({'action':action,'round_id':chosen['id'],'at':now()});self.changed(state);return
         if action=='toggle_mockup_lock':
             card=self.card(board,payload.get('card_id'))
             if not card['locked']:
@@ -181,6 +209,9 @@ class Board:
         state=read(directory/'state.json');w=state['workflow'];manifest=self.workflow.require_product(directory,w);value=request['value']
         if manifest['id']!=value['manifest_id']:raise Invalid('Product changed during generation')
         pages=self.lifestyle.pages(directory,w,manifest)
+        if value.get('refinement_version')==1:
+            from .refinement import run
+            return run(self,directory,folder,request,pages,manifest)
         if request['kind']=='mockup_board_update':
             # One human action owns planning + sketching. Cache its plan so an
             # interrupted image step never repeats completed planning/inference.
@@ -268,7 +299,15 @@ class Board:
             board['explanation']=result['plan']['product_understanding'];design['status']='plan_review'
         else:
             if not any(r['id']==result['id'] for r in design['rounds']):design['rounds'].append(result)
-            for candidate in result['candidates']:self.card(board,candidate['card_id']).update(candidate=candidate,scene=candidate['scene'],locked=False,needs_render=False)
+            for candidate in result['candidates']:
+                card=self.card(board,candidate['card_id'])
+                if result.get('targeted_refinement'):
+                    card.setdefault('refinement_attempts',[]).append(copy.deepcopy(candidate))
+                    if not candidate['refinement']['passed']:
+                        card['refinement_failure']={'candidate_id':candidate['id'],'summary':candidate['refinement']['review']['summary'],'placement_reason':candidate.get('placement_reason')};card['needs_render']=True
+                        continue
+                card.pop('refinement_failure',None)
+                card.update(candidate=candidate,scene=candidate['scene'],locked=False,needs_render=False)
             design['status']='final_review' if result['stage']=='final' else 'concept_review'
             if result['stage']=='final':w['mockups']=[c['candidate'] for c in board['cards'] if c.get('candidate')];design['final_comments_sha256']=digest(result['comments'])
             w['mockup_progress']={'completed':len(result['candidates']),'total':len(result['candidates']),'title':None}
