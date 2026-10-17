@@ -192,6 +192,9 @@ Studio lifestyle mockups are opt-in with `lifestyle_mockups: true`; the trial ex
 enables per-sample scene prompts/comments, persistent approval locks, a varied
 gallery of cheap concepts and a separate costly final-refinement loop. Locked
 cards skip regeneration; add/delete cards to adjust quantity. Final edits use
-`mockup_final_model`, independently configurable from product generation.
+`mockup_final_model`, independently configurable from product generation; the
+final picker also requires an available provider credential and an explicit
+`mockup_final_images` grant in `provider_roles`. Apply comments and Suggest X more
+each perform planning and sketch generation in one explicit action.
 See [Studio workflow setup and recovery](docs/studio-workflow.md#lifestyle-setup-and-recovery).
 Source updates and passive brief delivery do not trigger paid generation.

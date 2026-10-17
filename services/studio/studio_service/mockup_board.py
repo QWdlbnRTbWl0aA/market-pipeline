@@ -5,7 +5,7 @@ import uuid
 from .storage import Invalid, Conflict, digest, now, read, write, write_bytes, guard
 from . import production
 
-ACTIONS={'save_mockup_board','add_mockup_card','delete_mockup_card','toggle_mockup_lock','plan_mockup_board','render_mockup_board','enter_mockup_final','return_mockup_concepts'}
+ACTIONS={'save_mockup_board','add_mockup_card','delete_mockup_card','toggle_mockup_lock','plan_mockup_board','render_mockup_board','enter_mockup_final','return_mockup_concepts','apply_mockup_comments','suggest_mockups','finalize_mockup_board'}
 
 
 class Board:
@@ -24,6 +24,33 @@ class Board:
         return design['board']
     def changed(self,state):
         w=state['workflow'];w['approvals'].pop('mockups',None);w['approvals'].pop('listing',None)
+    def replaceable(self,directory,state):
+        pending=state['workflow'].get('pending')
+        if not pending or state['phase']!='generation_failed' or self.studio.budget.summary(state['id'])['unknown_outcomes']:return False
+        folder=directory/'workflow-jobs'/pending
+        return read(folder/'operation.json')['status']=='failed' and read(folder/'request.json')['kind'].startswith('mockup_')
+    def context(self,state,manifest,cards):
+        board=self.state(state);design=self.lifestyle.design(state)
+        return {'brief':{k:state['brief'][k] for k in ('concept','audience','purpose')},'requirements':state['workflow']['plan']['constraints'],'inventory':manifest['units'],
+                'comments':design['comments'],'cards_to_plan':[{'scene':c['scene'],'comments':c['comments']} for c in cards],
+                'locked_scenes':[c['scene'] for c in board['cards'] if c['locked']],
+                'other_gallery_scenes':[c['scene'] for c in board['cards'] if c['id'] not in {a['id'] for a in cards}],
+                'deleted_scenes':[c['scene'] for c in board['deleted'][-10:]],'approved_related_scene_examples':self.lifestyle.remembered(state)}
+    def queue_update(self,directory,state,cards,manifest,*,final=False,model=None):
+        board=self.state(state);design=self.lifestyle.design(state)
+        if self.studio.model_roles:
+            if final:
+                self.studio.model_roles.select_final(model)
+                if model is None:model=self.studio.model_roles.final_options()[0]['id']
+            else:self.studio.model_roles.require_cheap()
+        if state['workflow'].get('pending'):
+            if not self.replaceable(directory,state):raise Conflict('Current job cannot be replaced; recover unknown billing first')
+            old=state['workflow']['pending'];write(directory/'workflow-jobs'/old/'replaced.json',{'at':now(),'by_explicit_user_action':True,'paid_history_preserved':True});state['workflow']['pending']=None
+        previous=[c for c in board['cards'] if c.get('candidate')][:3]
+        value={'manifest_id':manifest['id'],'cards':copy.deepcopy(cards),'comments':design['comments'],'stage':'final' if final else 'concept',
+               'model_id':model,'context':self.context(state,manifest,cards),'feedback_images':[c['candidate'] for c in previous]}
+        if final:board['final_model_id']=model
+        self.workflow.queue(directory,state,'mockup_board_final' if final else 'mockup_board_update',value)
     def feedback(self,state,payload):
         board=self.state(state);patches=payload.get('cards',[])
         if not isinstance(patches,list) or len(patches)>10:raise Invalid('Bounded mockup cards required')
@@ -60,6 +87,28 @@ class Board:
         if board['product_id'] not in (None,manifest['id']):raise Invalid('Mockup board belongs to an older product; return to product approval')
         board['product_id']=manifest['id'];design=self.lifestyle.design(state)
         if action=='save_mockup_board':return
+        if action in ('apply_mockup_comments','suggest_mockups','finalize_mockup_board'):
+            if not self.lifestyle.enabled():raise Invalid('Configure scene providers first')
+            if action=='suggest_mockups':
+                if board['stage']!='concept':raise Invalid('Return to sketches for new ideas')
+                from .lifestyle import count
+                number=count(payload.get('additional_count',1))
+                if len(board['cards'])+number>10:raise Invalid('At most ten active mockups')
+                cards=[{'id':uuid.uuid4().hex,'scene':None,'comments':'','locked':False,'candidate':None} for _ in range(number)];board['cards'].extend(cards)
+                self.queue_update(directory,state,cards,manifest)
+            else:
+                final=action=='finalize_mockup_board' or board['stage']=='final'
+                if final:
+                    if payload.get('consent_expensive') is not True:raise Invalid('Explicit consent required for every final-image round')
+                    if self.studio.model_roles:self.studio.model_roles.select_final(payload.get('model_id'))
+                if action=='finalize_mockup_board':
+                    if board['stage']!='concept' or not board['cards'] or any(not c['locked'] for c in board['cards']):raise Invalid('Lock every concept first')
+                    board['concept_cards']=copy.deepcopy(board['cards']);board['stage']='final'
+                    for card in board['cards']:card.update(locked=False,needs_render=True)
+                cards=[c for c in board['cards'] if not c['locked']]
+                if not cards:raise Invalid('Unlock or add a mockup first')
+                self.queue_update(directory,state,cards,manifest,final=final,model=payload.get('model_id'))
+            self.changed(state);board['events'].append({'action':action,'at':now()});state['workflow']['stage']='mockups';return
         if action=='toggle_mockup_lock':
             card=self.card(board,payload.get('card_id'))
             if not card['locked']:
@@ -105,7 +154,8 @@ class Board:
                 final=board['stage']=='final'
                 if final and payload.get('consent_expensive') is not True:raise Invalid('Explicit expensive-loop consent required for every final round')
                 if final and any(not c.get('candidate') for c in unlocked):raise Invalid('Approved concept reference required for final refinement')
-                self.workflow.queue(directory,state,'mockup_board_final' if final else 'mockup_board_concepts',{'manifest_id':manifest['id'],'cards':copy.deepcopy(unlocked),'comments':design['comments'],'stage':board['stage']})
+                if final and self.studio.model_roles:self.studio.model_roles.select_final(payload.get('model_id'))
+                self.workflow.queue(directory,state,'mockup_board_final' if final else 'mockup_board_concepts',{'manifest_id':manifest['id'],'cards':copy.deepcopy(unlocked),'comments':design['comments'],'stage':board['stage'],'model_id':payload.get('model_id')})
         else:raise Invalid('Unknown mockup board action')
         board['events'].append({'action':action,'card_id':payload.get('card_id'),'at':now()})
         state['workflow']['stage']='mockups'
@@ -114,6 +164,23 @@ class Board:
         state=read(directory/'state.json');w=state['workflow'];manifest=self.workflow.require_product(directory,w);value=request['value']
         if manifest['id']!=value['manifest_id']:raise Invalid('Product changed during generation')
         pages=self.lifestyle.pages(directory,w,manifest)
+        if request['kind']=='mockup_board_update':
+            # One human action owns planning + sketching. Cache its plan so an
+            # interrupted image step never repeats completed planning/inference.
+            planned=folder/'compiled-plan.json'
+            if planned.exists():plan=read(planned)
+            else:
+                if self.studio.model_roles:self.studio.model_roles.require_cheap()
+                images=[p['body'] for p in list(pages.values())[:3]]
+                for candidate in value.get('feedback_images',[]):
+                    body=(directory/candidate['file']).read_bytes()
+                    if hashlib.sha256(body).hexdigest()!=candidate['sha256']:raise Invalid('Feedback image changed')
+                    images.append(body)
+                plan=self.studio.mockup_planner.mockup_plan(value['context'],len(value['cards']),request['id']+'-plan',state['id'],images)
+                from .lifestyle import checked_plan
+                checked_plan(plan,len(value['cards']),set(pages));write(planned,plan)
+            value=copy.deepcopy(value)
+            for card,scene in zip(value['cards'],plan['scenes']):card['scene']=scene
         if request['kind']=='mockup_board_plan':
             path=folder/'response.json'
             if path.exists():result=read(path)
@@ -127,7 +194,7 @@ class Board:
             from .lifestyle import checked_plan
             return {'plan':checked_plan(result,value['count'],set(pages)),'card_ids':value['card_ids']}
         from .lifestyle import composite,fit_paper,checked_surface
-        final=request['kind']=='mockup_board_final';provider=self.studio.mockup_finals if final else self.studio.mockup_drafts;target=directory/'lifestyle'/request['id'];records=[]
+        final=request['kind']=='mockup_board_final';provider=(self.studio.model_roles.select_final(value.get('model_id')) if self.studio.model_roles else self.studio.mockup_finals) if final else self.studio.mockup_drafts;target=directory/'lifestyle'/request['id'];records=[]
         for i,card in enumerate(value['cards']):
             scene=card['scene'];key=request['id']+'-'+card['id'];path=target/(card['id']+'.json');comments=value['comments']+'\n'+card['comments']
             with guard(directory):
@@ -165,6 +232,8 @@ class Board:
                     'product_id':manifest['id'],'source_page_id':main_id,'source_page_sha256':first['record']['sha256'],'placements':placements,'quad':placements[0]['quad'] if placements else None,
                     'geometry_version':3,'placement_status':'needs_revision' if issue else 'ready','placement_reason':issue,'source_composited':not issue,
                     'renderer_version':'lifestyle-board-v2','origin':'generative_lifestyle','quality':'final' if final else 'concept','review_required':True,
+                    'model_id':value.get('model_id') if final else getattr(provider,'image_model','synthetic'),
+                    'provider':getattr(provider,'name','configured'),
                     'comments_sha256':digest(value['comments']),'card_input_sha256':digest({'scene':scene,'comments':card['comments']}),'scene':scene}
                 write(path,record)
             for name,sha in (('file','sha256'),('background_file','background_sha256')):
@@ -182,7 +251,7 @@ class Board:
             board['explanation']=result['plan']['product_understanding'];design['status']='plan_review'
         else:
             if not any(r['id']==result['id'] for r in design['rounds']):design['rounds'].append(result)
-            for candidate in result['candidates']:self.card(board,candidate['card_id']).update(candidate=candidate,locked=False,needs_render=False)
+            for candidate in result['candidates']:self.card(board,candidate['card_id']).update(candidate=candidate,scene=candidate['scene'],locked=False,needs_render=False)
             design['status']='final_review' if result['stage']=='final' else 'concept_review'
             if result['stage']=='final':w['mockups']=[c['candidate'] for c in board['cards'] if c.get('candidate')];design['final_comments_sha256']=digest(result['comments'])
             w['mockup_progress']={'completed':len(result['candidates']),'total':len(result['candidates']),'title':None}

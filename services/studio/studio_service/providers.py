@@ -13,6 +13,13 @@ from .storage import Invalid, canonical, digest, guard, read, write, write_bytes
 MODELS=('gpt-image-2.5-flare','gpt-image-2.5-sunburst')
 
 
+class PlanningFailure(Invalid):
+    def __init__(self,response,stage,model):
+        super().__init__('Incomplete mockup planning response; saved result retained')
+        # Provider response body only: never request headers or credential files.
+        self.diagnostic={'stage':stage,'model':model,'response':response,'automatic_retry':False}
+
+
 class OpenAIStudio(OpenAIDev):
     name='openai'
     def __init__(self,*args,image_model='gpt-image-2.5-flare',**kwargs):
@@ -116,13 +123,15 @@ class OpenAIStudio(OpenAIDev):
             'text':{'format':{'type':'json_schema','name':'mockup','strict':True,'schema':schema}}}
         maximum=math.ceil((len(canonical(payload))+4096)*.4+output*1.6)
         result=self.call(stage,project,key,'responses',payload,maximum,'text')
-        if result.get('status')!='completed':raise Invalid('Incomplete mockup planning response; saved result retained')
+        if result.get('status')!='completed':raise PlanningFailure(result,stage,TEXT_MODEL)
         return json.loads(''.join(c['text'] for item in result.get('output',[]) if item.get('type')=='message' for c in item.get('content',[]) if c.get('type')=='output_text'))
 
     def mockup_plan(self,context,number,key,project,images=()):
         from .lifestyle import schema
         task='Understand this actual digital product. Design an attractive, deliberately VARIED listing gallery, not variations of the same family photo. Respect locked_scenes: never rewrite them; fill only requested unlocked slots and complement locked scenes. For a preschool activity, a five-image gallery should usually mix ONE warm supervised parent/child usage photo, ONE overhead page spread on a table/floor, ONE original cartoon usage storyboard, ONE realistic quality-paper/cardstock stack close-up, and ONE clean product hero. With three slots choose three distinct roles rather than three parent/child views; at most two family scenes in larger sets unless explicitly requested. For other products adapt these roles to their real purpose; no irrelevant children. scene_type identifies usage, spread, storyboard, stack or hero. Change composition, visual purpose, camera, setting and medium, not merely the people. Rejected/deleted ideas and current per-card notes are evidence; explicit latest feedback wins. Final inventory is authoritative: never invent contents, efficacy, materials supplied or genuine customers. Quality paper/cardstock is a suggested buyer printing option, not an included physical product. Fictional fully clothed people; adult supervision whenever scissors are used. Storyboards should be clear cartoon/illustration panels that demonstrate the ACTUAL workflow, no invented steps or gibberish text. Every scene must leave one to four large fully visible blank white rectangular product surfaces against contrasting surroundings for actual page composition by code; spread/storyboard require two or more separate unobstructed surfaces. No hands, tools, shadows from objects or panels overlap these surfaces. Other pages in a stack may show plain paper edges, never invented printed artwork. Select an actual page_id for the main surface. Use concise Hebrew explanation, titles and descriptions and detailed English image_prompt. Reflect per-card comments in that card and consider gallery diversity, approved related examples and actual prior feedback.'
-        return self._mockup_json('mockup_planning',{'task':task,'count':number,'product':context},schema(number),key,project,images,min(12000,1500+number*900))
+        task+=' Be concise: product_understanding/direction each under 220 characters, description under 360 characters and image_prompt under 1000 characters. Do not repeat the brief. Return scenes in cards_to_plan order when supplied; honor each card\'s notes. No reasoning transcript.'
+        ids=[u['id'] for u in context.get('inventory',[]) if isinstance(u,dict) and 'id' in u]
+        return self._mockup_json('mockup_planning',{'task':task,'count':number,'product':context},schema(number,ids),key,project,images,min(22000,3500+number*1800))
 
     def mockup_surface(self,image,key,project):
         schema={'type':'object','additionalProperties':False,'required':['usable','reason','quad'],'properties':{'usable':{'type':'boolean'},'reason':{'type':'string'},'quad':{'type':'array','minItems':4,'maxItems':4,'items':{'type':'array','minItems':2,'maxItems':2,'items':{'type':'number'}}}}}

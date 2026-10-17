@@ -31,15 +31,17 @@ mockups, listing review, customer downloads and editable preference memory.
    cards keep their exact pixels and prompts and skip both conceptual planning and
    rendering. Unlock before editing; changed instructions need a new sample before
    approval. Saving, deleting, locking and entering a stage make no model calls.
-   Plan varied gallery roles with cheap text/vision, then explicitly generate only
-   open cards with the cheap image model. For activities this may mix supervised
+   Apply comments is one action: cheap text/vision understands all unlocked/new
+   cards, then generates their sketches. Suggest X more appends, plans and renders
+   only the new cards, leaving existing unlocked and locked images unchanged. For activities this may mix supervised
    family use, a table/floor spread, an illustrated usage storyboard, paper-stack
    material detail and a clean product hero. Roles adapt to the real product;
    paper/cardstock scenes describe buyer printing options, not shipped contents.
-   When every remaining concept is locked, enter the visually distinct amber
-   **final refinement** workspace, with the same card layout and a persistent
-   costly-loop warning. No API call occurs on entry. Final rendering requires
-   separate consent every round, uses the approved background as an edit reference
+   When every remaining concept is locked, Finalize requests explicit consent
+   and starts the first professional round in the amber **final refinement**
+   workspace. It retains the same card layout and a persistent costly-loop warning.
+   Apply corrections requests consent again for every subsequent professional
+   round, uses the approved background as an edit reference
    and focuses on resolution, anatomy, faces, physical coherence and small notes.
    Composition prompts become read-only; return to cheap concepts for redesign.
    Lock satisfactory finals to exclude them from further paid rounds. All active
@@ -241,3 +243,45 @@ The final image route uses JSON image edits and preserves the approved backgroun
 See [OpenAI image editing](https://developers.openai.com/api/reference/resources/images/methods/edit)
 and [image prompting](https://developers.openai.com/api/docs/guides/image-prompting)
 for the provider contract. Native quality does not prove sale readiness.
+
+## Mockup actions, model roles and incomplete responses
+
+The guided toolbar has Apply comments (understands and sketches unlocked/new
+cards), Suggest X more (appends and sketches only those ideas), and Finalize
+(all concepts locked, explicit consent, first professional image round). The
+professional workspace retains card locks and uses Apply corrections for only
+unlocked images. Disabled actions have focusable hover explanations.
+
+Set Studio configuration provider roles explicitly:
+
+```json
+"provider_roles": {
+  "openai": ["mockup_planning", "mockup_sketches", "mockup_final_images"]
+}
+```
+
+Existing configs default to planning/sketch permission only. To enable the final
+picker, explicitly grant `mockup_final_images` and select the vetted Sunburst
+`mockup_final_model`; restart only Studio after changing its configuration.
+Credential discovery checks only the configured provider file metadata, never key
+values, unrelated credential directories, remote model catalogs or account APIs.
+Only registered top-tier image-edit adapters with a locally available credential
+and the final-image flag enter the picker. Provider account access is verified
+only by a user-consented request. Removing a key removes eligibility on the next
+refresh. Cheap text is pinned to GPT-4.1 mini and sketches to `draft_model`; neither
+can inherit the final picker, text/reasoning model names or maximum effort.
+Adding another final provider requires a real, priced, vetted image-edit adapter
+and registry entry as well as its credential and usage grant. A flag never turns
+a text-only or cheap model into a professional image adapter.
+
+Planning schemas bound response lengths and allow enough output tokens, with
+reservations charged to the same existing Studio envelope. Incomplete responses
+are saved, billed once from usage and never automatically repeated. Development
+console errors include the actual project-scoped provider response body, including
+incomplete_details, output and usage, without credential/header values. Historical
+saved planning failures are also inspectable without inference. A new explicit
+Apply/Suggest action may replace a known failed mockup job while preserving all
+its artifacts and charges. Unknown billing outcomes cannot be replaced this way.
+Interrupted combined jobs reuse the cached plan and completed images on explicit
+recovery. Changing model during recovery is rejected; start a distinct, consented
+operation instead.

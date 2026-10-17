@@ -37,7 +37,8 @@ class Workflow:
     def command(self,directory,state,action,payload,key):
         workflow=self.state(state,directory)
         if (directory/'workflow-final-reservation.json').exists() and action!='approve_listing':raise Conflict('Final approval is reserved; retry its original action')
-        if workflow.get('pending') and action not in ('retry_workflow','abandon_mockup_job'):raise Conflict('Wait for the current operation')
+        replace_action=action in ('apply_mockup_comments','suggest_mockups','finalize_mockup_board') and self.lifestyle.board.replaceable(directory,state)
+        if workflow.get('pending') and action not in ('retry_workflow','abandon_mockup_job') and not replace_action:raise Conflict('Wait for the current operation')
         if action in LIFESTYLE_ACTIONS:self.lifestyle.command(directory,state,action,payload)
         elif action=='save_plan':
             if workflow.get('direction'):raise Conflict('Return to the direction stage before changing the inventory')
@@ -219,14 +220,17 @@ class Workflow:
                     workflow['approvals']={};workflow['listing']=None;workflow['stage']='product';state['phase']='product_review'
                     workflow['progress']={'completed':len(workflow['plan']['units']),'total':len(workflow['plan']['units']),'current':None}
                 else:workflow['listing']=result;state['phase']='listing_review'
-                workflow['pending']=None;state.pop('generation_error',None);self.studio.save(directory,state)
+                workflow['pending']=None;state.pop('generation_error',None);state.pop('generation_diagnostic',None);self.studio.save(directory,state)
             write(folder/'operation.json',{'status':'completed','completed_at':now()})
         except Exception as error:
+            diagnostic=getattr(error,'diagnostic',None)
+            if diagnostic:write(folder/'diagnostic.json',diagnostic)
             write(folder/'operation.json',{'status':'failed','error_type':type(error).__name__,'automatic_retry':False})
             with guard(directory):
                 state=read(directory/'state.json')
                 if request['kind'].startswith('mockup_'):self.lifestyle.design(state).setdefault('failures',[]).append({'job_id':request['id'],'kind':request['kind'],'message':str(error)[:300] if isinstance(error,Invalid) else type(error).__name__})
                 state.update(phase='generation_failed',generation_error=str(error)[:300] if isinstance(error,Invalid) else 'Production failed; saved assets preserved. Explicit recovery required.')
+                if diagnostic:state['generation_diagnostic']={'job_id':request['id'],**diagnostic}
                 self.studio.save(directory,state)
         return True
 

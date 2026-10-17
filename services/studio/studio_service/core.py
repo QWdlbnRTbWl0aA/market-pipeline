@@ -16,7 +16,7 @@ REVIEWS = {'accept', 'reject', 'accept_with_comments'}
 
 
 class Studio:
-    def __init__(self, root, sketches=None, professional=None, broker=None, listing=None, understanding=None,development=False,copywriter=None,budget_limit_usd=1,mockup_planner=None,mockup_drafts=None,mockup_finals=None):
+    def __init__(self, root, sketches=None, professional=None, broker=None, listing=None, understanding=None,development=False,copywriter=None,budget_limit_usd=1,mockup_planner=None,mockup_drafts=None,mockup_finals=None,model_roles=None):
         clean_environment()
         self.root = Path(root).resolve(); self.root.mkdir(parents=True, exist_ok=True)
         self.sketches = sketches or MockGenerator(); self.professional = professional or MockGenerator()
@@ -25,6 +25,7 @@ class Studio:
         self.understanding = understanding or LocalUnderstanding()
         self.budget = Budget(self.root / 'development-openai',budget_limit_usd)
         self.mockup_planner=mockup_planner;self.mockup_drafts=mockup_drafts;self.mockup_finals=mockup_finals
+        self.model_roles=model_roles
         self.development=development
         self.copywriter=copywriter or understanding
         from .memory import Preferences
@@ -46,9 +47,15 @@ class Studio:
         state['runtime_providers']={'sketch':getattr(self.sketches,'name','mock'),'professional':getattr(self.professional,'name','mock')}
         state['round_number']=len(state['rounds'])
         state['lifestyle_mockups']=self.workflow.lifestyle.enabled()
+        if self.development and state['phase']=='generation_failed' and not state.get('generation_diagnostic'):
+            state['generation_diagnostic']=self.planning_diagnostic(project,state.get('workflow',{}).get('pending'))
         if state['lifestyle_mockups'] and state['workflow']['products']:
             self.workflow.lifestyle.board.state(state)  # Read-only projection; persisted only by explicit actions.
             state['mockup_final_model']=getattr(self.mockup_finals,'image_model',getattr(self.mockup_finals,'name','configured'))
+            state['mockup_models']=self.model_roles.public(self.mockup_planner,self.mockup_drafts) if self.model_roles else {
+                'planning':{'model':'synthetic text'},'sketches':{'model':'synthetic image'},
+                'finals':[{'id':'configured','label':'Configured synthetic final','provider':'fixture'}] if not self.development else []}
+            state['mockup_recovery']={'can_replace':self.workflow.lifestyle.board.replaceable(self.directory(project),state)}
         if state.get('workflow'):
             state['workflow_metrics']={'direction_rounds':len(state['rounds']),'product_versions':len(state['workflow']['products']),
                 'cost_per_approved_product_usd':state['spending']['product_usd'] if state['workflow']['approvals'].get('product') else None,
@@ -69,6 +76,22 @@ class Studio:
             receipt = self.root / 'broker-outbox' / (state['notification']['event_id']+'.receipt.json')
             if receipt.exists(): state['notification']['delivery'] = read(receipt)
         return state
+
+    def planning_diagnostic(self,project,operation):
+        """Project-scoped legacy failure diagnostics; no credential discovery."""
+        if not operation:return None
+        root=self.root/'development-openai'
+        for key in (operation,operation+'-plan'):
+            stage='mockup_planning';step=root/'steps'/digest({'key':key,'stage':stage,'project':project})/'request.json'
+            if not step.exists() or step.is_symlink():continue
+            saved=read(step);identifier=digest({'key':key,'stage':stage,'payload':saved['body']})
+            ledger=read(root/'budget.json')
+            if ledger['calls'].get(identifier,{}).get('product_id')!=project:continue
+            path=root/'calls'/identifier/'response.json'
+            if not path.exists() or path.is_symlink():continue
+            response=read(path)
+            if response.get('status')!='completed':return {'job_id':operation,'stage':stage,'model':saved['body']['model'],'response':response,'automatic_retry':False}
+        return None
 
     def list(self):
         result = []

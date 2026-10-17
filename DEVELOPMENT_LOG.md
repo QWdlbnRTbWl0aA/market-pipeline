@@ -740,3 +740,42 @@ paid ledger stayed byte-identical. No paid/Etsy/SMTP calls or production changes
 Gallery creativity and final quality were not live-tested in this assignment;
 new instructions apply to the next user-requested generation. Only the authorized
 development Studio was restarted and left running.
+
+## Studio combined actions, model-role isolation and planning diagnostics
+
+Investigated the actual failed one-scene request: the provider returned incomplete
+JSON because output hit its 2,400-token cap. The known failed job remained pending,
+which disabled generation, and empty cards also required a separate planning step.
+Bounded the planning schema/output, made instructions concise and increased the
+reserved output allowance. Incomplete responses are billed/preserved once, never
+automatically retried. Development console errors now include the actual saved
+project-scoped provider response, including legacy incomplete jobs, without
+request headers or credential values.
+
+Replaced the planning/render toolbar with Apply comments (understanding plus
+sketches for unlocked/new cards), Suggest X more (only new ideas and sketches),
+and Finalize (all concepts locked, explicit consent, first professional round).
+Final correction rounds use the shared Apply button and preserve locked finals.
+Known failed jobs may be replaced by an explicit new action, preserving old job
+files/charges; unknown billing outcomes remain blocked. Interrupted combined jobs
+reuse their completed plan and images. Kept the existing sample-card layout,
+added hover/focus explanations for disabled actions and corrected Hebrew מוק-אפ.
+
+Added a capability/role registry for final image choices. Only vetted top-tier
+image-edit adapters, explicit provider final-image permission and an available
+protected credential file enter the picker. Discovery checks metadata without
+reading keys or contacting providers. Cheap planning and sketches stay pinned to
+separate routes and never inherit the final model or reasoning effort. Current
+real adapter is OpenAI Sunburst; future providers need a real priced adapter and
+registration, not a model name alone. Examples/docs describe explicit role grants.
+
+All 461 tests passed across six suites, including 95 Studio tests. New cases cover
+combined actions, selective additions, model/credential gating, unknown holds,
+known-error replacement and retained exact diagnostics. A real repeat of the same
+failed planning input, under a distinct explicit test identity, returned a valid
+one-scene plan for $0.002502. No image/final calls; project state stayed unchanged,
+with no unknown billing outcomes. Firefox passed 28 guided and 17 offline mobile checks, including the saved-error
+console shape, model picker and disabled hints. Private runtime previews verified
+Apply is enabled for the current failed job/new card, without mutating it. Only the
+development Studio was restarted and left running; no production, Etsy, SMTP,
+host-security or GitHub-push actions. Logs/results remain private outside Git.

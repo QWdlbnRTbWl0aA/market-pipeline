@@ -1,8 +1,8 @@
 'use strict';
 const $=id=>document.getElementById(id);
-let project=null,editing=false,busy=false,draft={},round=null,chosen=null,references=[],lastSpending='',pending=null,importedBrief=null;
+let project=null,editing=false,busy=false,draft={},round=null,chosen=null,references=[],lastSpending='',pending=null,importedBrief=null,lastDiagnostic='';
 const fields=['concept','audience','purpose','deliverables','visual_direction','requirements'];
-const phases={generating_mockups:'מתכננים ומפיקים מוקאפים',product_review:'בדיקת קובצי המוצר',mockup_review:'בחירת מוקאפים',listing_review:'טקסט למכירה',generating_product:'מפיקים את קובצי המוצר',generating_listing:'מכינים טקסט למכירה',brief_ready:'בריף שמור · מוכן לבחירה',needs_information:'נשלים כמה פרטים',sketch_review:'בוחרים כיוון',professional_review:'מלטשים את היצירה',generating_sketch:'מבינים ויוצרים',generating_professional:'מכינים דוגמאות מקצועיות',generation_failed:'היצירה נעצרה',approved:'היצירה אושרה'};
+const phases={generating_mockups:'מתכננים ומפיקים מוק-אפים',product_review:'בדיקת קובצי המוצר',mockup_review:'בחירת מוק-אפים',listing_review:'טקסט למכירה',generating_product:'מפיקים את קובצי המוצר',generating_listing:'מכינים טקסט למכירה',brief_ready:'בריף שמור · מוכן לבחירה',needs_information:'נשלים כמה פרטים',sketch_review:'בוחרים כיוון',professional_review:'מלטשים את היצירה',generating_sketch:'מבינים ויוצרים',generating_professional:'מכינים דוגמאות מקצועיות',generation_failed:'היצירה נעצרה',approved:'היצירה אושרה'};
 try{pending=JSON.parse(sessionStorage.getItem('studio-pending')||'null');}catch(_){}
 function show(id,visible){$(id).hidden=!visible;}
 function notify(message,error=false){$('message').textContent=message;$('message').classList.toggle('error',error);}
@@ -15,6 +15,7 @@ function fillBrief(document={}){const brief=document.source_requirements||docume
 function render(){
  $('brief-form').querySelector('button[type=submit]').textContent=project?.library_import&&!project.generation_started?'שמירת הבריף':'נתחיל ליצור';
  show('intake',!project||editing);show('reference-input',!project);show('project',!!project&&!editing);if(!project||editing){for(const id of ['production-panel','mockups-panel','listing-panel','inventory-panel'])show(id,false);$('stage-nav').replaceChildren();return;}
+ if(project.phase==='generation_failed'&&project.spending?.development&&project.generation_diagnostic){const marker=JSON.stringify(project.generation_diagnostic);if(marker!==lastDiagnostic){lastDiagnostic=marker;console.error('[Studio mockup provider failure]',project.generation_diagnostic);}}
  $('title').textContent=project.title;$('phase').textContent=phases[project.phase]||'יצירה';$('round-info').textContent='סבב '+(project.round_number??project.rounds.length)+' · התחלה '+project.epoch;
  const generating=project.phase.startsWith('generating_'),professional=project.phase.includes('professional'),frame=project.rounds.at(-1);
  show('generation',generating);show('review',!!frame&&project.phase!=='approved');show('missing',project.phase==='needs_information');show('failure',project.phase==='generation_failed');show('expensive',professional);show('approved',project.phase==='approved');show('final',!professional);show('approve',professional);
@@ -47,6 +48,7 @@ function render(){
  if(spending?.development){const marker=JSON.stringify([project.id,spending]);if(marker!==lastSpending){console.log('[Studio development] OpenAI cumulative spend per product',{product_id:project.id,product_usd:spending.product_usd,total_charged_or_reserved_usd:spending.charged_or_reserved_usd,remaining_usd:spending.remaining_usd});lastSpending=marker;}}
  for(const id of ['final','approve','start-over','back'])$(id).disabled=generating||busy;
  if(window.renderWorkflow)window.renderWorkflow();
+ if(window.disabledHint)for(const button of document.querySelectorAll('button')){if(button.closest('#mockups-panel'))continue;if(button.disabled){button.dataset.genericHint='true';window.disabledHint(button,busy?'הבקשה נשלחת כעת':project.phase.startsWith('generating_')?'יש להמתין לסיום היצירה':'הפעולה אינה זמינה בשלב הנוכחי; השלימו את הבחירה או האישור הקודמים');}else if(button.dataset.genericHint)window.disabledHint(button,'');}
 }
 async function submit(path,payload){
  if(busy)return false;busy=true;let succeeded=false;const serialized=JSON.stringify({path,payload});

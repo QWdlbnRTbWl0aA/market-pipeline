@@ -10,5 +10,12 @@
   "draft_model": "gpt-image-2.5-flare",
   "professional_model": "gpt-image-2.5-flare",
   "lifestyle_mockups": true,
-  "mockup_final_model": "gpt-image-2.5-sunburst"
+  "mockup_final_model": "gpt-image-2.5-sunburst",
+  "provider_roles": {
+    "openai": [
+      "mockup_planning",
+      "mockup_sketches",
+      "mockup_final_images"
+    ]
+  }
 }

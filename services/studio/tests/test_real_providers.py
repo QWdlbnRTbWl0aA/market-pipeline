@@ -150,3 +150,16 @@ class Providers(unittest.TestCase):
         url,wire,_=self.calls[-1];self.assertTrue(url.endswith('/images/edits'));self.assertEqual(wire['model'],'gpt-image-2.5-sunburst');self.assertEqual(wire['quality'],'high')
         prompt=json.loads(wire['prompt']);self.assertIn('Preserve its concept, composition',prompt['refinement_contract']);self.assertIn('cartoon',prompt['task']);self.assertEqual(prompt['scene']['scene_type'],'storyboard')
         self.assertEqual(base64.b64decode(wire['images'][0]['image_url'].split(',')[1]),background)
+
+    def test_incomplete_plan_logs_exact_provider_diagnostic_without_automatic_retry(self):
+        response={'id':'synthetic-response','status':'incomplete','incomplete_details':{'reason':'max_output_tokens'},'usage':{'input_tokens':100,'output_tokens':2400},'output':[{'type':'message','content':[{'type':'output_text','text':'{"scenes": ['}]}]}
+        def transport(req,timeout):self.calls.append(json.loads(req.data));return io.BytesIO(json.dumps(response).encode())
+        model=OpenAIStudio(self.root,transport,lambda:'synthetic',limit_usd=25)
+        from studio_service.providers import PlanningFailure
+        for _ in range(2):
+            with self.assertRaises(PlanningFailure) as caught:model.mockup_plan({'inventory':[{'id':'unit-01'}]},1,'one-scene',self.project)
+            self.assertEqual(caught.exception.diagnostic['response'],response)
+        self.assertEqual(len(self.calls),1);wire=self.calls[0];self.assertGreater(wire['max_output_tokens'],2400)
+        schema=wire['text']['format']['schema'];self.assertLessEqual(schema['properties']['product_understanding']['maxLength'],400)
+        self.assertEqual(schema['properties']['scenes']['items']['properties']['page_id']['enum'],['unit-01'])
+        self.assertEqual(model.budget.summary(self.project)['unknown_outcomes'],0)

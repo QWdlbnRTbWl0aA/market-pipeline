@@ -14,13 +14,13 @@ STATIC = Path(__file__).parent / 'static'
 LOG = logging.getLogger(__name__)
 DEFAULT = {'schema_version': 1, 'sketch_provider': 'mock', 'professional_provider': 'mock',
            'broker_provider': 'mock', 'listing_provider': 'blocked', 'allowed_hostnames': [], 'development_openai': False,
-           'lifestyle_mockups':False,'trial_total_usd':1,'draft_model':'gpt-image-2.5-flare','professional_model':'gpt-image-2.5-flare','mockup_final_model':'gpt-image-2.5-sunburst'}
+           'lifestyle_mockups':False,'trial_total_usd':1,'draft_model':'gpt-image-2.5-flare','professional_model':'gpt-image-2.5-flare','mockup_final_model':'gpt-image-2.5-sunburst','provider_roles':{'openai':['mockup_planning','mockup_sketches']}}
 
 
 def configuration(path=None):
     config = read(path) if path else dict(DEFAULT)
     reject_secrets(config)
-    if isinstance(config,dict):config={**{k:DEFAULT[k] for k in ('development_openai','trial_total_usd','draft_model','professional_model','lifestyle_mockups','mockup_final_model')},**config}
+    if isinstance(config,dict):config={**{k:DEFAULT[k] for k in ('development_openai','trial_total_usd','draft_model','professional_model','lifestyle_mockups','mockup_final_model','provider_roles')},**config}
     if not isinstance(config, dict) or set(config) != set(DEFAULT): raise Invalid('Unexpected Studio configuration')
     for key in ('schema_version', 'sketch_provider', 'professional_provider', 'broker_provider', 'listing_provider'):
         allowed=('mock','openai_dev','openai','gemini',*(['comparison'] if key=='sketch_provider' else [])) if key in ('sketch_provider','professional_provider') else ('mock','file') if key=='broker_provider' else (DEFAULT[key],)
@@ -29,6 +29,8 @@ def configuration(path=None):
     if config['lifestyle_mockups'] and not config['development_openai']:raise Invalid('Lifestyle providers require explicit paid trial mode')
     if any(config[k] in ('openai_dev','openai','gemini','comparison') for k in ('sketch_provider','professional_provider')) and not config['development_openai']:raise Invalid('Real providers require explicit trial mode')
     from .providers import MODELS
+    from .model_roles import checked_roles
+    checked_roles(config['provider_roles'])
     from .dev_budget import Budget
     Budget(Path('.'),config['trial_total_usd'])
     if any(config[k] not in MODELS for k in ('draft_model','professional_model','mockup_final_model')):raise Invalid('Unknown priced image model')
@@ -117,7 +119,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/projects': return self.reply(200, {'projects': studio.list()})
         if path == '/api/preferences': return self.reply(200,studio.preferences.list())
         if path == '/api/templates':return self.reply(200,{'templates':[read(p) for p in (studio.root/'templates').glob('*.json') if not p.is_symlink()]})
-        if path == '/api/runtime':return self.reply(200,{'workflow_version':2,'mockup_flow_version':2,'lifestyle_mockups':studio.workflow.lifestyle.enabled(),'sketch_provider':getattr(studio.sketches,'name','mock'),
+        if path == '/api/runtime':return self.reply(200,{'workflow_version':2,'mockup_flow_version':3,'lifestyle_mockups':studio.workflow.lifestyle.enabled(),'sketch_provider':getattr(studio.sketches,'name','mock'),
             'professional_provider':getattr(studio.professional,'name','mock'),'development':studio.development,
             'understanding_provider':getattr(studio.understanding,'name','local'),
             'broker_provider':getattr(studio.broker,'name','custom'),'listing_provider':'blocked',

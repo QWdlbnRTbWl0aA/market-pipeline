@@ -14,11 +14,11 @@ def count(value):
     return value
 
 
-def schema(number):
+def schema(number,page_ids=None):
     return {'type':'object','additionalProperties':False,'required':['product_understanding','direction','scenes'],'properties':{
-        'product_understanding':{'type':'string'},'direction':{'type':'string'},'scenes':{'type':'array','minItems':number,'maxItems':number,'items':{
+        'product_understanding':{'type':'string','minLength':1,'maxLength':400},'direction':{'type':'string','minLength':1,'maxLength':400},'scenes':{'type':'array','minItems':number,'maxItems':number,'items':{
             'type':'object','additionalProperties':False,'required':['title','description','image_prompt','page_id','scene_type'],
-            'properties':{**{k:{'type':'string'} for k in ('title','description','image_prompt','page_id')},'scene_type':{'type':'string','enum':['usage','spread','storyboard','stack','hero']}}}}}}
+            'properties':{**{k:{'type':'string','minLength':1,'maxLength':n} for k,n in (('title',120),('description',500),('image_prompt',1200))},'page_id':{'type':'string',**({'enum':page_ids} if page_ids else {})},'scene_type':{'type':'string','enum':['usage','spread','storyboard','stack','hero']}}}}}}
 
 
 def checked_plan(value,number,ids):
@@ -214,7 +214,7 @@ class Lifestyle:
                 write(path,result)
             return checked_plan(result,value['count'],set(pages))
         final=request['kind']=='mockup_final';scenes=value['plan']['scenes'];selected=value.get('selected') or [{'scene_index':i} for i in range(len(scenes))];records=[]
-        target=directory/'lifestyle'/request['id'];provider=self.studio.mockup_finals if final else self.studio.mockup_drafts
+        target=directory/'lifestyle'/request['id'];provider=(self.studio.model_roles.select_final() if self.studio.model_roles else self.studio.mockup_finals) if final else self.studio.mockup_drafts
         for index,selection in enumerate(selected):
             scene_index=selection['scene_index'];scene=scenes[scene_index];key=f"{request['id']}-scene-{scene_index}";path=target/f'scene-{scene_index}.json'
             with guard(directory):

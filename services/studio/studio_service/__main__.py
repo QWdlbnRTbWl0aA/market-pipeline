@@ -34,6 +34,12 @@ def main():
             providers['mockup_planner']=providers['copywriter']
             providers['mockup_drafts']=OpenAIStudio(args.data,limit_usd=config['trial_total_usd'],image_model=config['draft_model'])
             providers['mockup_finals']=OpenAIStudio(args.data,limit_usd=config['trial_total_usd'],image_model=config['mockup_final_model'])
+            from .model_roles import ModelRoles
+            roles=ModelRoles(config['provider_roles'])
+            # Only this currently implemented/vetted adapter is a final-image option.
+            # Text/reasoning models and fast sketch models never enter this registry.
+            if config['mockup_final_model']=='gpt-image-2.5-sunburst':roles.register_final('openai:gpt-image-2.5-sunburst','OpenAI · Sunburst · ליטוש תמונה מקצועי','openai',providers['mockup_finals'],tier='top_tier',capability='image_edit')
+            providers['model_roles']=roles
         for key in ('sketches','professional'):
             option='sketch_provider' if key=='sketches' else 'professional_provider'
             if config[option]=='openai_dev':providers[key]=paid

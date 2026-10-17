@@ -136,6 +136,15 @@ host security settings without explicit authorization.
   to cheap concepts for redesign. Plan varied product-appropriate gallery roles
   (usage, spreads, illustrated steps, stacks and hero views), not repeated family
   portraits. Preserve history and actual page pixels across deletions/iterations.
+  Combine comment understanding and sketches in one action; Suggest X more plans
+  and sketches only new cards. Finalize directly starts the first consented paid
+  professional round. Dynamic final choices require a configured credential,
+  explicit final-image permission and a vetted top-tier image-edit adapter.
+  Keep cheap planning/sketch roles separate from final model choices and maximum
+  reasoning effort. Explain disabled actions on hover/focus. Development console
+  errors include the actual project-scoped incomplete provider response, without
+  credentials/headers. Known failed jobs may be replaced by an explicit action;
+  unknown billing holds remain blocked. Hebrew singular is מוק-אפ.
   Review combined feedback, including thumbnails of actual prior scenes. Guided creation remains enabled throughout
   at least the first twenty products and does not automatically disable itself.
   Human-approved related scene examples may guide later work; do not silently
