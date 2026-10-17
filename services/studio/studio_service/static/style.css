@@ -104,3 +104,5 @@ nav button{min-width:140px;max-width:190px}
 #payload-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .stage-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.stage-step{padding:7px 12px;border-radius:18px;background:#f0ece8;color:#74675f;font-size:.9rem}.stage-step.active{background:#e0eee5;color:#245745;font-weight:650}
 .inventory-unit,.product-file,.mockup-card{padding:14px;border:1px solid #e8e1dd;border-radius:16px;background:#fffdfa;margin:12px 0}.product-file img,.mockup-card img{width:100%;max-height:360px;object-fit:contain;border-radius:10px;cursor:zoom-in}.mockup-card label{font-size:.85rem}#production-panel,#mockups-panel,#listing-panel{margin:20px 0;padding:20px;border-radius:22px;background:#faf7f3}#large-preview{max-width:94vw;max-height:94vh}#large-preview img{max-width:86vw;max-height:80vh;object-fit:contain}#production-settings{max-width:620px}#memory-items article{padding:12px;border-bottom:1px solid #e7dfd9}
+
+.mockup-edit-status{display:block;min-height:1.4em;margin:8px 0;color:#866444}.mockup-card output{font-variant-numeric:tabular-nums;color:#4e6f5b;margin-inline-start:10px}

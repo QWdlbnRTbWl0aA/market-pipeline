@@ -1,7 +1,7 @@
 'use strict';
 let inventoryKey='',filesKey='',listingKey='',memoryRevision=0,editingPreference=null,workflowView=null,viewProject=null,observedStage=null;
 const node=(tag,text,className)=>{const element=document.createElement(tag);if(text!==undefined)element.textContent=text;if(className)element.className=className;return element;};
-const field=(label,value,tag='input')=>{const box=node('label',label),input=node(tag);input.value=value||'';box.append(input);return [box,input];};
+const field=(label,value,tag='input')=>{const box=node('label',label),input=node(tag);input.value=value??'';box.append(input);return [box,input];};
 function preview(url){$('large-preview-image').src=url;$('large-preview').showModal();}
 $('close-preview').onclick=()=>$('large-preview').close();
 function inventory(plan){
@@ -19,7 +19,7 @@ $('save-plan').onclick=()=>{const p=structuredClone(project.workflow.plan);p.fam
  p.units=p.units.map(unit=>{const box=[...$('inventory-units').children].find(c=>c.dataset.unit===unit.id);for(const input of box.querySelectorAll('[data-field]'))unit[input.dataset.field]=input.value;return unit;});action('save_plan',{plan:p});};
 async function loadFiles(){
  const id=project.id,w=project.workflow,key=id+JSON.stringify([w.products.at(-1)?.id,w.mockups]);if(key===filesKey)return;filesKey=key;
- try{const response=await request('/api/projects/'+id+'/files');if(project?.id!==id)return;
+ try{const response=await request('/api/projects/'+id+'/files');if(project?.id!==id||filesKey!==key)return;
   $('product-files').replaceChildren();$('print-downloads').replaceChildren();$('mockup-files').replaceChildren();
   const latest=w.products.at(-1)?.id,files=response.files.filter(f=>f.product_id===latest);
   const seen=new Set();for(const file of files.filter(f=>f.role==='preview')){if(seen.has(file.unit_id))continue;seen.add(file.unit_id);
@@ -28,20 +28,23 @@ async function loadFiles(){
    const checkbox=node('input');checkbox.type='checkbox';checkbox.value=file.unit_id;checkbox.className='unit-selection';const label=node('label',w.plan.units.find(u=>u.id===file.unit_id)?.title||file.unit_id);label.prepend(checkbox);box.append(image,label);$('product-files').append(box);
   }
   for(const file of files.filter(f=>f.role==='print_pdf')){const link=node('a','PDF · '+file.format,'button secondary');link.href='/api/projects/'+id+'/files/'+file.id;link.target='_blank';link.rel='noopener';$('print-downloads').append(link);}
-  const library=(await request('/api/templates')).templates;if(project?.id!==id)return;
+  let library=(await request('/api/templates')).templates;if(project?.id!==id||filesKey!==key)return;
   for(const [index,file] of response.files.filter(f=>f.role==='mockup').entries()){
    const box=node('article',undefined,'mockup-card');box.dataset.index=index;const image=node('img');image.src='/api/projects/'+id+'/files/'+file.id;image.alt='מוקאף '+(index+1);image.onclick=()=>preview(image.src);
    const select=node('select');for(const [value,label] of [['frame','מסגרת'],['flat','דף שטוח'],['stack','ערימת דפים'],['bundle','סקירת כל החבילה']]){const option=node('option',label);option.value=value;select.append(option);}select.value=file.template.kind;select.dataset.setting='kind';
    box.append(image,select);
-   const preset=node('select');preset.dataset.preset='true';const empty=node('option','בחירה מהתבניות השמורות');empty.value='';preset.append(empty);
+   const preset=node('select');preset.dataset.preset='true';box.templateDefinition=structuredClone(file.template);const empty=node('option','בחירה מהתבניות השמורות');empty.value='';preset.append(empty);
    for(const item of library){const option=node('option',item.name);option.value=item.name;preset.append(option);}box.append(preset);
-   const perspective=node('select');for(const [value,label] of [['straight','מבט ישר'],['left','פרספקטיבה שמאלה'],['right','פרספקטיבה ימינה']]){const option=node('option',label);option.value=value;perspective.append(option);}perspective.value=file.template.perspective||'straight';perspective.dataset.setting='perspective';box.append(perspective);
-   for(const [setting,title,min,max,step,defaultValue] of [['scale','גודל',.3,1,.02,.82],['x','מיקום לרוחב',-.15,.15,.01,0],['y','מיקום לגובה',-.15,.15,.01,0]]){const [label,input]=field(title,file.template[setting]??defaultValue);input.type='range';input.min=min;input.max=max;input.step=step;input.dataset.setting=setting;box.append(label);}
-   const [label,name]=field('שם תבנית לשימוש חוזר','');name.maxLength=64;box.append(label);const save=node('button','שמירת תבנית','quiet');save.onclick=async()=>{await action('save_template',{name:name.value,template:templateValue(box)});filesKey='';await loadFiles();};preset.onchange=()=>{save.disabled=!!preset.value;};box.append(save);$('mockup-files').append(box);
+   const perspective=node('select');for(const [value,label] of [['straight','מבט ישר'],['left','פרספקטיבה שמאלה'],['right','פרספקטיבה ימינה']]){const option=node('option',label);option.value=value;perspective.append(option);}perspective.value=file.template.perspective??'straight';perspective.dataset.setting='perspective';box.append(perspective);
+   for(const [setting,title,min,max,step,defaultValue] of [['scale','גודל',.3,1,.01,.82],['x','מיקום לרוחב',-.15,.15,.01,0],['y','מיקום לגובה',-.15,.15,.01,0]]){const label=node('label',title),input=node('input'),value=node('output');input.type='range';input.min=min;input.max=max;input.step=step;input.value=String(file.template[setting]??defaultValue);input.dataset.setting=setting;value.textContent=Math.round(Number(input.value)*100)+'%';input.addEventListener('input',()=>{value.textContent=Math.round(Number(input.value)*100)+'%';});label.append(input,value);box.append(label);}
+   const status=node('small','','mockup-edit-status');box.append(status);
+   for(const input of box.querySelectorAll('[data-setting]'))input.addEventListener('input',()=>{preset.value='';status.textContent='שינויים ממתינים לעדכון התצוגה';});
+   const [label,name]=field('שם תבנית לשימוש חוזר','');name.maxLength=64;box.append(label);const save=node('button','שמירת תבנית','quiet');save.dataset.saveTemplate='true';save.onclick=async()=>{const id=project.id;if(!await action('save_template',{name:name.value,template:templateValue(box)}))return;if(project?.id!==id)return;const latest=(await request('/api/templates')).templates;library=latest;for(const target of $('mockup-files').querySelectorAll('[data-preset]')){const selected=target.value;target.replaceChildren();const blank=node('option','בחירה מהתבניות השמורות');blank.value='';target.append(blank);for(const item of latest){const option=node('option',item.name);option.value=item.name;target.append(option);}target.value=selected;}notify('התבנית נשמרה. העריכות נשמרו בתצוגה.');};preset.onchange=()=>{const item=library.find(t=>t.name===preset.value);if(!item)return;applyTemplate(box,item.template);status.textContent='התבנית נטענה · לחצו על עדכון לתצוגה חדשה';};box.append(save);$('mockup-files').append(box);
   }
  }catch(error){filesKey='';notify(error.message,true);}
 }
-function templateValue(box){const preset=box.querySelector('[data-preset]');if(preset?.value)return preset.value;const value={};for(const input of box.querySelectorAll('[data-setting]'))value[input.dataset.setting]=['kind','perspective'].includes(input.dataset.setting)?input.value:Number(input.value);return value;}
+function templateValue(box){const value=structuredClone(box.templateDefinition||{});for(const input of box.querySelectorAll('[data-setting]'))value[input.dataset.setting]=['kind','perspective'].includes(input.dataset.setting)?input.value:Number(input.value);return value;}
+function applyTemplate(box,template){box.templateDefinition=structuredClone(template);const defaults={kind:'frame',perspective:'straight',scale:.82,x:0,y:0};for(const input of box.querySelectorAll('[data-setting]')){input.value=String(template[input.dataset.setting]??defaults[input.dataset.setting]);const output=input.parentElement.querySelector('output');if(output)output.textContent=Math.round(Number(input.value)*100)+'%';}}
 window.renderWorkflow=()=>{
  const w=project?.workflow;if(!w)return;
  show('memory-panel',true);
@@ -62,7 +65,7 @@ window.renderWorkflow=()=>{
  else $('generation').querySelector('p').textContent='מכינים שלושה כיוונים לפריט מייצג אחד…';
  $('next-cost').textContent=bound===null?'הערכת העלות תהיה זמינה לאחר בחירת ספק אמיתי.':'שמירה מרבית משוערת להפקת איור: $'+bound.toFixed(3)+' · '+illustrations+' איורים בחבילה. החיוב בפועל עשוי להיות נמוך יותר.';
  $('generate-copy').disabled=busy||!!w.pending||project.phase==='approved';$('approve-copy').disabled=!w.listing||busy||project.phase==='approved';
- for(const id of ['save-copy','approve-mockups','update-mockups','revise-units','return-direction'])$(id).disabled=busy||project.phase==='approved'||!!w.pending;
+ for(const id of ['save-copy','approve-mockups','update-mockups','auto-mockups','revise-units','return-direction'])$(id).disabled=busy||project.phase==='approved'||!!w.pending;
  if(w.listing){const key=project.id+w.listing.at;if(key!==listingKey){listingKey=key;$('listing-title-1').value=w.listing.copy.titles[0];$('listing-title-2').value=w.listing.copy.titles[1];$('listing-description').value=w.listing.copy.description;$('listing-tags').value=w.listing.copy.tags.join('\n');}}
  show('customer-download',project.phase==='approved'&&w.stage==='delivery');$('customer-download').href='/api/projects/'+project.id+'/customer-download';
  if(project.phase==='approved'&&w.stage==='delivery')$('download').textContent='הורדת קובצי המוצר, המוקאפים והטקסט';
@@ -76,7 +79,9 @@ $('production-form').onsubmit=async event=>{event.preventDefault();workflowView=
 $('revise-units').onclick=()=>{const selected=[...document.querySelectorAll('.unit-selection:checked')].map(i=>i.value);if(!selected.length){notify('סמנו פריטים לתיקון.');return;}if(confirm('לתקן רק את הפריטים שסומנו? הפעולה עשויה לעלות כסף.'))action('produce_selected',{unit_ids:selected,comments:$('unit-comments').value,consent_expensive:true});};
 $('approve-files').onclick=()=>{workflowView=null;action('approve_product',{visual_review_confirmed:$('visual-proof').checked,print_proof_confirmed:$('physical-proof').checked});};
 $('return-direction').onclick=()=>{if(confirm('חזרה לכיוון העיצובי תבטל את האישורים בשלבים הבאים, תוך שמירת הקבצים וההיסטוריה. להמשיך?'))action('return_to_direction');};
-$('update-mockups').onclick=()=>action('make_mockups',{templates:[...$('mockup-files').children].map(templateValue)});
+async function updateMockups(templates){const button=$('update-mockups');button.disabled=true;$('auto-mockups').disabled=true;button.textContent='מעדכנים את המוקאפים…';$('mockup-files').inert=true;try{if(await action('make_mockups',{templates}))notify('המוקאפים עודכנו וההגדרות נשמרו.');}finally{button.textContent='עדכון המוקאפים';button.disabled=false;$('auto-mockups').disabled=false;$('mockup-files').inert=false;}}
+$('update-mockups').onclick=()=>updateMockups([...$('mockup-files').children].map(templateValue));
+$('auto-mockups').onclick=()=>updateMockups(null);
 $('approve-mockups').onclick=()=>{workflowView=null;action('approve_mockups');};
 $('generate-copy').onclick=()=>{if(confirm('ליצור טקסט מהמוצר שאושר באמצעות ספק הטקסט המוגדר?'))action('generate_listing');};
 $('save-copy').onclick=()=>action('save_listing',{listing:{titles:[$('listing-title-1').value,$('listing-title-2').value],description:$('listing-description').value,tags:$('listing-tags').value.split('\n').map(t=>t.trim()).filter(Boolean)}});

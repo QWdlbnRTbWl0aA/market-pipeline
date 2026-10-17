@@ -53,6 +53,33 @@ try:
  click('#product-files img');wait("document.querySelector('#large-preview').open");click('#close-preview')
  js("document.querySelector('#visual-proof').checked=true");click('#approve-files');wait("!document.querySelector('#mockups-panel').hidden")
  wait("document.querySelectorAll('#mockup-files img').length === 3");screenshot('02-mockups-mobile')
+ first='#mockup-files .mockup-card:first-child'
+ def setting(name,value):
+  selector=first+' [data-setting='+name+']'
+  js('const input=document.querySelector('+json.dumps(selector)+');input.value='+json.dumps(str(value))+';input.dispatchEvent(new Event("input",{bubbles:true}));')
+ assert js('return document.querySelector('+json.dumps(first+' [data-setting=x]')+').value')=='0'
+ setting('kind','stack');setting('perspective','left');setting('scale',.62);setting('x',0);setting('y',0)
+ click('#update-mockups')
+ wait("document.querySelector('#message').textContent.includes('המוקאפים עודכנו')",60)
+ wait('document.querySelector('+json.dumps(first+' [data-setting=scale]')+').value === "0.62"')
+ saved=studio.get(project)['workflow']['mockups'][0]['template'];assert saved['x']==0 and saved['y']==0 and saved['scale']==.62 and saved['perspective']=='left'
+ fill(first+' input[maxlength="64"]','regression-preset');click(first+' [data-save-template]')
+ wait('document.querySelector('+json.dumps(first+' [data-preset] option[value=regression-preset]')+') !== null')
+ assert js('return document.querySelector('+json.dumps(first+' [data-setting=scale]')+').value')=='0.62'
+ js('const preset=document.querySelector('+json.dumps(first+' [data-preset]')+');preset.value="regression-preset";preset.dispatchEvent(new Event("change",{bubbles:true}));')
+ setting('x',.04);assert js('return document.querySelector('+json.dumps(first+' [data-preset]')+').value')==''
+ click('#update-mockups');wait("document.querySelector('#message').textContent.includes('המוקאפים עודכנו')",60)
+ saved=studio.get(project)['workflow']['mockups'][0]['template'];assert saved['x']==.04 and saved['y']==0 and saved['scale']==.62
+ request('POST',session+'/url',{'url':'http://127.0.0.1:'+str(http.server_port)+'/'})
+ wait("document.querySelectorAll('#projects button').length === 1");click('#projects button')
+ wait('document.querySelector('+json.dumps(first+' [data-setting=x]')+') !== null')
+ assert js('return document.querySelector('+json.dumps(first+' [data-setting=x]')+').value')=='0.04'
+ assert js('return document.querySelector('+json.dumps(first+' [data-setting=y]')+').value')=='0'
+ screenshot('02b-mockup-settings-persisted')
+ click('#auto-mockups');wait("document.querySelector('#message').textContent.includes('המוקאפים עודכנו')",60)
+ automatic=studio.get(project)['workflow']['mockups'];assert all(m['template']['x']==0 and m['template']['y']==0 for m in automatic)
+ assert automatic[0]['template']['scale']==.86 and automatic[2]['template']['kind']=='bundle'
+
  click('#approve-mockups');wait("!document.querySelector('#listing-panel').hidden")
  click('#generate-copy');request('POST',session+'/alert/accept',{})
  wait("document.querySelector('#listing-title-1').value.length > 0")
@@ -65,7 +92,7 @@ try:
  current=studio.get(project);assert current['phase']=='approved';assert current['workflow']['listing']['copy']['titles'][0]=='Edited printable holiday collection'
  assert current['listing']['etsy_api_called'] is False
  assert js('return document.documentElement.scrollWidth <= window.innerWidth')
- (OUT/'browser-results.json').write_text(json.dumps({'passed':True,'checks':['Hebrew RTL mobile interface','Passive saved-brief library','Three representative candidates','Explicit print specification and production consent','Five individual printable units','Large preview','Three exact-artwork mockups','Model copy and unsaved-edit preservation on final approval','Invalid copy edit cannot approve old saved copy','Customer and Studio downloads gated by approvals','No horizontal mobile overflow','Etsy publishing blocked'],'synthetic_images':True,'paid_calls':0,'etsy_calls':0},indent=2)+'\n')
+ (OUT/'browser-results.json').write_text(json.dumps({'passed':True,'checks':['Hebrew RTL mobile interface','Passive saved-brief library','Three representative candidates','Explicit print specification and production consent','Five individual printable units','Large preview','Three exact-artwork mockups','Mockup zero positions preserved','Saving preset retains edits','Saved preset can be adjusted','Mockup settings survive browser reload','Explicit automatic layout restores centered readable composition','Model copy and unsaved-edit preservation on final approval','Invalid copy edit cannot approve old saved copy','Customer and Studio downloads gated by approvals','No horizontal mobile overflow','Etsy publishing blocked'],'synthetic_images':True,'paid_calls':0,'etsy_calls':0},indent=2)+'\n')
  print('BROWSER PASS')
 except Exception:
  if session:

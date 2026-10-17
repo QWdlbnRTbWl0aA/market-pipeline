@@ -126,7 +126,7 @@ class Workflow:
 
     def mockups(self,directory,state,templates):
         workflow=state['workflow'];manifest=self.require_product(directory,workflow)
-        if templates is None:templates=[{'kind':'frame'},{'kind':'flat'},{'kind':'bundle'}]
+        if templates is None:templates=[{'kind':'flat' if any(u['kind']=='text' for u in manifest['units']) else 'frame','scale':.86,'x':0,'y':0,'perspective':'straight'},{'kind':'stack','scale':.82,'x':0,'y':0,'perspective':'left'},{'kind':'bundle','scale':.9,'x':0,'y':0,'perspective':'straight'}]
         if not isinstance(templates,list) or len(templates)!=3:raise Invalid('Three mockup template choices required')
         revision=uuid.uuid4().hex;records=[];base=directory/workflow['products'][-1]['directory']
         pages=[production.raster((base/x['file']).read_bytes()) for x in manifest['files'] if x.get('role')=='print_page' and x.get('format')==manifest['settings']['formats'][0]]
@@ -138,7 +138,7 @@ class Workflow:
             if not isinstance(template,dict):raise Invalid('Invalid mockup template')
             image=pages[min(index,len(pages)-1)]
             if template.get('kind')=='bundle':image=production.contact_sheet(pages)
-            result,provenance=production.compose_mockup(image,template);body=production.png(result)
+            result,provenance=production.compose_mockup(image,template,pages);body=production.png(result)
             file=f'mockups/{revision}/sample-{index+1}.png';write_bytes(directory/file,body)
             records.append({'file':file,'sha256':hashlib.sha256(body).hexdigest(),'template':template,'product_id':manifest['id'],
                             'product_page_sha256':[x['sha256'] for x in manifest['files'] if x.get('role')=='print_page'],**provenance})

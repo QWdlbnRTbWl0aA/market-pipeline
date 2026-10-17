@@ -23,10 +23,10 @@ mockups, listing review, customer downloads and editable preference memory.
    DPI; upscaling cannot pass this check. Text clipping, counts, corrupt files and
    missing content block approval. Human visual review is required; physical
    print-proof confirmation is recorded separately.
-5. Three mockups composite exact approved pages into frame, flat-paper and bundle
-   views. Scale, placement and perspective are editable; the backend also supports
+5. Three mockups composite exact approved pages into frame, flat-paper, stack and bundle
+   views. Reusable procedural desk/wall scenes provide texture, alpha shadows and a frame mat; these are illustrative templates, not photographic backgrounds. Stacks retain their backing pages in perspective, and bundle views display separate actual pages. Scale, placement and perspective are editable; the backend also supports
    normalized crops. Alpha masks/shadows are deterministic. Named templates are
-   saved and reusable across products. Template use makes zero generative calls.
+   saved and reusable across products. Presets load editable values; subsequent edits, including zero positions, remain authoritative. Saving a preset retains the current edits. The explicit automatic-layout button restores centered defaults; ordinary updates preserve settings. Template use makes zero generative calls.
 6. After mockup approval, an explicit action generates two titles, one description
    and thirteen tags from the actual manifest and saved evidence. Code validates
    title/tag limits, duplicates and obvious quantity contradictions, then attaches

@@ -188,41 +188,10 @@ def assemble(directory,inventory,spec,assets,revision):
     manifest['id']=digest(manifest);write(directory/'manifest.json',manifest);return manifest
 
 
-def compose_mockup(page,template):
-    """Composite exact approved page pixels; never repaint artwork."""
-    from PIL import Image,ImageDraw,ImageFilter
-    if not isinstance(template,dict) or set(template)-{'kind','scale','x','y','background','perspective','crop'}:raise Invalid('Unknown mockup settings')
-    kind=template.get('kind','frame');scale=template.get('scale',.82);dx=template.get('x',0);dy=template.get('y',0)
-    if kind not in ('frame','flat','stack','bundle') or type(scale) not in (int,float) or not .3<=scale<=1:raise Invalid('Invalid mockup placement')
-    if any(type(v) not in (int,float) or not -.15<=v<=.15 for v in (dx,dy)):raise Invalid('Invalid mockup offset')
-    background=template.get('background','#eee8df');perspective=template.get('perspective','straight');crop=template.get('crop',[0,0,1,1])
-    if not isinstance(background,str) or not re.fullmatch('#[0-9a-fA-F]{6}',background) or perspective not in ('straight','left','right'):raise Invalid('Invalid mockup appearance')
-    if not isinstance(crop,list) or len(crop)!=4 or any(type(v) not in (int,float) or not 0<=v<=1 for v in crop) or crop[2]<=crop[0] or crop[3]<=crop[1]:raise Invalid('Invalid crop')
-    source_hash=hashlib.sha256(png(page)).hexdigest()
-    canvas=Image.new('RGB',(1200,1400),background);draw=ImageDraw.Draw(canvas)
-    image=page.crop((round(crop[0]*page.width),round(crop[1]*page.height),round(crop[2]*page.width),round(crop[3]*page.height)))
-    if min(image.size)<1:raise Invalid('Empty mockup crop')
-    image.thumbnail((int(900*scale),int(1150*scale)))
-    x=(1200-image.width)//2+round(dx*1200);y=(1400-image.height)//2+round(dy*1400)
-    if x<25 or y<25 or x+image.width>1175 or y+image.height>1375:raise Invalid('Mockup placement clips the product')
-    shadow=Image.new('RGBA',canvas.size);sd=ImageDraw.Draw(shadow);sd.rectangle((x+10,y+14,x+image.width+10,y+image.height+14),fill=(30,30,30,55));shadow=shadow.filter(ImageFilter.GaussianBlur(14));canvas.paste(shadow,(0,0),shadow)
-    if kind=='stack':
-        for shift in (18,10):draw.rectangle((x+shift,y+shift,x+image.width+shift,y+image.height+shift),fill='white',outline='#cabfb3',width=2)
-    if kind=='frame':draw.rectangle((x-18,y-18,x+image.width+18,y+image.height+18),fill='#7c634b')
-    quad=[(x,y),(x+image.width,y),(x+image.width,y+image.height),(x,y+image.height)]
-    if perspective!='straight':
-        inset=image.width*.12;vertical=image.height*.08
-        quad=[(x+inset,y+vertical),(x+image.width,y),(x+image.width,y+image.height),(x,y+image.height-vertical)] if perspective=='left' else [(x,y),(x+image.width-inset,y+vertical),(x+image.width,y+image.height-vertical),(x,y+image.height)]
-        canvas=Image.new('RGB',canvas.size,background)
-        layer=Image.new('RGBA',canvas.size);ld=ImageDraw.Draw(layer);ld.polygon([(a+12,b+15) for a,b in quad],fill=(20,20,20,65));layer=layer.filter(ImageFilter.GaussianBlur(12));canvas.paste(layer,(0,0),layer)
-        if kind=='frame':
-            cx=sum(a for a,b in quad)/4;cy=sum(b for a,b in quad)/4
-            ImageDraw.Draw(canvas).polygon([(cx+(a-cx)*1.06,cy+(b-cy)*1.06) for a,b in quad],fill='#7c634b')
-        coefficients=perspective_coefficients(quad,[(0,0),(image.width,0),(image.width,image.height),(0,image.height)])
-        warped=image.convert('RGBA').transform(canvas.size,Image.Transform.PERSPECTIVE,coefficients,Image.Resampling.BICUBIC)
-        canvas.paste(warped,(0,0),warped)
-    else:canvas.paste(image,(x,y))
-    return canvas,{'box':[x,y,image.width,image.height],'perspective_quad':quad,'crop':crop,'source_image_sha256':source_hash,'compositing':'Exact source pixels with deterministic resize/crop/perspective and alpha mask; no generative repainting'}
+def compose_mockup(page,template,pages=None):
+    """Composite exact approved pixels using the reusable scene renderer."""
+    from .mockups import render
+    return render(page,template,pages)
 
 
 def perspective_coefficients(destination,source):

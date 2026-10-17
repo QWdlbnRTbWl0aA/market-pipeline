@@ -648,3 +648,29 @@ request files and interaction history remain intact; original Product data and
 the paid ledger are unchanged. No automatic paid recovery or production changes.
 Exact measured worksheet manufacture still requires dedicated layout validation,
 as documented in the workflow limitations; this fixes initial sketch intake.
+
+
+## Studio mockup edit persistence and reusable scenes
+
+Fixed zero-valued slider settings being replaced by defaults, and saved presets
+silently overriding later edits. Sliders now set their bounds before restoring
+values, show percentages, and retain hidden crop/background settings. Presets
+populate editable controls; saving refreshes the preset list without rebuilding
+cards. Guards discard obsolete file fetches, and update actions visibly disable
+editing while rendering. Added an explicit automatic-layout button; manual edits
+are not silently replaced.
+
+Replaced bare compositing with deterministic reusable desk/wall scenes, soft
+alpha shadows, a physical frame mat, perspective-preserving stacks and separate
+bundle pages. Actual product pages remain unchanged and hash-linked to mockups.
+Activity defaults use a desk, stack and bundle. Procedural scenes are illustrations,
+not stock photography or generated photographic backgrounds. No paid model calls
+are needed for updates or template reuse.
+
+Validation: 435 functional tests passed across all services, including 69 Studio
+checks. The updated real Firefox mobile smoke passed 17 checks, including zero
+positions, preset editing/saving, page reload and explicit automatic layout.
+Inspected private previews using the actual saved product artwork. Source and
+paid-ledger preservation are checked separately during development-runtime update.
+Production services/configuration are untouched; no Etsy, paid or SMTP requests
+are part of this task. Test artifacts stay outside Git.
