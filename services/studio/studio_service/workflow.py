@@ -4,6 +4,7 @@ from pathlib import Path
 import uuid
 from . import production
 from .ports import Asset
+from .direct_edit import human_reviewed
 from .storage import Invalid, Conflict, canonical, digest, guard, now, read, write, write_bytes
 
 from .lifestyle import ACTIONS as LIFESTYLE_ACTIONS, Lifestyle, count as mockup_count
@@ -91,7 +92,7 @@ class Workflow:
                 if design.get('final_comments_sha256')!=digest(design['comments']):raise Invalid('New mockup comments require another reviewed final render before approval')
             self.require_product(directory,workflow)
             if state['phase']!='mockup_review' or not 1<=len(workflow['mockups'])<=10:raise Conflict('Review the current mockups')
-            if self.lifestyle.enabled() and any(m.get('quality')!='final' or m.get('origin')!='generative_lifestyle' or m.get('placement_status')!='ready' for m in workflow['mockups']):raise Invalid('Review cheap lifestyle concepts and explicitly generate final mockups first')
+            if self.lifestyle.enabled() and any(m.get('quality')!='final' or m.get('origin')!='generative_lifestyle' or (m.get('placement_status')!='ready' and not human_reviewed(m)) for m in workflow['mockups']):raise Invalid('Review cheap lifestyle concepts and explicitly generate final mockups first')
             self.verify_mockups(directory,workflow)
             workflow['approvals']['mockups']={'product_id':workflow['products'][-1]['id'],'sha256':digest(workflow['mockups']),'at':now()}
             if self.lifestyle.enabled():self.lifestyle.remember(state)
@@ -171,7 +172,7 @@ class Workflow:
 
     def require_mockups(self,directory,workflow):
         self.require_product(directory,workflow);self.verify_mockups(directory,workflow)
-        if self.lifestyle.enabled() and (not workflow['mockups'] or any(m.get('origin')!='generative_lifestyle' or m.get('quality')!='final' or m.get('placement_status')!='ready' for m in workflow['mockups'])):raise Invalid('Finalize and approve lifestyle mockups before downstream delivery')
+        if self.lifestyle.enabled() and (not workflow['mockups'] or any(m.get('origin')!='generative_lifestyle' or m.get('quality')!='final' or (m.get('placement_status')!='ready' and not human_reviewed(m)) for m in workflow['mockups'])):raise Invalid('Finalize and approve lifestyle mockups before downstream delivery')
         if workflow['approvals'].get('mockups',{}).get('sha256')!=digest(workflow['mockups']):raise Invalid('Approve these exact mockups first')
         if self.lifestyle.enabled():
             design=workflow.get('mockup_design',{})

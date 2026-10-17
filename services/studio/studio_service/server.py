@@ -126,6 +126,14 @@ class Handler(BaseHTTPRequestHandler):
             'spending':studio.budget.summary('')})
         progress_match=re.fullmatch(r'/api/projects/([a-f0-9]{32})/progress',path)
         if progress_match:return self.reply(200,studio.progress(progress_match.group(1)))
+        outputs=re.fullmatch(r'/api/projects/([a-f0-9]{32})/generated-images(?:/([a-f0-9]{64}-[0-9]+))?',path)
+        if outputs:
+            project,token=outputs.groups();studio.directory(project)
+            from .generated_images import items
+            if token:
+                metadata,body=items(studio.root,project,token)
+                return self.reply(200,body,metadata['media_type'],None if metadata['previewable'] else 'provider-output.bin')
+            return self.reply(200,items(studio.root,project))
         workflow_match=re.fullmatch(r'/api/projects/([a-f0-9]{32})/(files|customer-download)(?:/([A-Za-z0-9_.-]+))?',path)
         if workflow_match:
             project,kind,token=workflow_match.groups();state=studio.get(project);directory=studio.directory(project)

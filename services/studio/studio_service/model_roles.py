@@ -34,7 +34,7 @@ class ModelRoles:
         self.entries[identifier]={'id':identifier,'label':label,'provider':provider,'tier':tier,'capability':capability,'adapter':adapter}
     def permitted(self,provider,role):return role in self.roles.get(provider,[]) and self.available(provider)
     def final_options(self):
-        return [{k:v for k,v in entry.items() if k!='adapter'} for entry in self.entries.values() if self.permitted(entry['provider'],'mockup_final_images')]
+        return [{**{k:v for k,v in entry.items() if k!='adapter'},'full_image_edit':callable(getattr(entry['adapter'],'mockup_direct_image',None))} for entry in self.entries.values() if self.permitted(entry['provider'],'mockup_final_images')]
     def select_final(self,identifier=None):
         options=self.final_options()
         if identifier is None and len(options)==1:identifier=options[0]['id']

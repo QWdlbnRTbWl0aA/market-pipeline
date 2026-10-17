@@ -41,6 +41,8 @@ class Studio:
     def get(self, project):
         state = read(self.directory(project) / 'state.json')
         self.workflow.state(state,self.directory(project))
+        from .generated_images import revision
+        state['generated_images_revision']=revision(self.root,project)
         state['spending'] = self.budget.summary(project)
         state['spending']['development']=self.development
         state['accepted_samples']=self.references(state)
@@ -82,7 +84,8 @@ class Studio:
     def progress(self,project):
         state=read(self.directory(project)/'state.json');workflow=state.get('workflow',{})
         spending=self.budget.summary(project);spending['development']=self.development
-        return {'id':state['id'],'revision':state['revision'],'phase':state['phase'],'pending':workflow.get('pending'),
+        from .generated_images import revision
+        return {'generated_images_revision':revision(self.root,project),'id':state['id'],'revision':state['revision'],'phase':state['phase'],'pending':workflow.get('pending'),
                 'progress':workflow.get('progress'),'mockup_progress':workflow.get('mockup_progress'),'spending':spending}
 
     def planning_diagnostic(self,project,operation):

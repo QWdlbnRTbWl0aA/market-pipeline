@@ -151,7 +151,7 @@ try:
   before=len(scene_port.images);click('#final-mockup-scenes');request('POST',session+'/alert/accept',{})
   wait("!document.querySelector('#mockup-final-warning').hidden && !document.querySelector('#mockup-concepts [data-card] [data-lock]').disabled",60)
   assert js("return document.querySelector('#mockups-panel').classList.contains('final-refinement')")
-  assert js('return document.querySelector('+json.dumps(first+' [data-description]')+').disabled')
+  assert js('return document.querySelector('+json.dumps(first+' [data-description]')+') === null')
   assert len(scene_port.edits if args.targeted_refinement else [image for image in scene_port.images if image['final']])==5
   assert studio.get(project)['workflow']['mockup_design']['board']['final_model_id']=='fixture-b'
   for i in range(4):

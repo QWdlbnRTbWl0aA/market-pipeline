@@ -195,6 +195,9 @@ cards skip regeneration; add/delete cards to adjust quantity. Final edits use
 `mockup_final_model`, independently configurable from product generation; the
 final picker also requires an available provider credential and an explicit
 `mockup_final_images` grant in `provider_roles`. Apply comments and Suggest X more
-each perform planning and sketch generation in one explicit action.
+each perform planning and sketch generation in one explicit concept-stage action.
+Final edits use the complete image and exact correction without crop/page overlays;
+all original returned images remain visible even after a job/check/accounting failure.
+Human review is required before approving them.
 See [Studio workflow setup and recovery](docs/studio-workflow.md#lifestyle-setup-and-recovery).
 Source updates and passive brief delivery do not trigger paid generation.

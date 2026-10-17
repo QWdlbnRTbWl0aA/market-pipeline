@@ -150,26 +150,25 @@ host security settings without explicit authorization.
   errors include the actual project-scoped incomplete provider response, without
   credentials/headers. Known failed jobs may be replaced by an explicit action;
   unknown billing holds remain blocked. Hebrew singular is מוק-אפ.
-  Professional mockup refinements compile coherent per-card change/preserve/check
-  instructions from the exact displayed image and latest notes. Use top-tier
-  medium-quality working renders (1152×768 landscape or equivalent area), targeted
-  original-detail crops and deterministic protected pixels. Composite immutable
-  source pages behind explicit bounded foreground occlusions. Before/after checks
-  include magnified corrections and actual source pages; failed attempts remain
-  durable and cannot silently replace the preceding sample. Human approval remains
-  required. Optional, separately consented high-quality export is 1536×1024 landscape
-  or equivalent area; no automatic upscale/export charge. Use immutable image URLs
-  and update completed edits without page refresh. Explicit saved-round restoration
-  preserves all later assets, feedback, interactions and the paid ledger and must
-  not queue inference. Never silently restore state or retry a rejected image.
-  Publish targeted mockup results independently per card. Malformed plans must
-  preserve that card's image, expose the actual error and not hide completed
-  siblings or cause guessed/full-image fallbacks. Validate positive bounded edit
-  regions; retain legacy response compatibility. Human rectangle selection saves
-  without inference and reuses matching saved interpretation, with separate paid
-  generation consent. Consume manual bounds only for the intended correction.
-  Explicit saved-result recovery must verify provenance, remain inference-free
-  and preserve the paid ledger. Unknown billing still stops further requests.
+  New professional mockup edits send the complete displayed image and exact
+  latest user wording directly to the authorized top-tier image adapter. Keep
+  final-stage scene descriptions internal. Do not rewrite corrections through an
+  LLM, crop/reinsert patches, remap pages, or gate visibility on visual scoring.
+  Retain those versioned paths only for explicit historical-job recovery. Use
+  medium-quality working renders (1152×768 landscape or equivalent area); optional
+  separately consented high-quality export is 1536×1024 or equivalent area.
+  Always display original successful image responses independently of later
+  validation, accounting or job failure. Visibility does not certify correctness.
+  Preserve originals, failed attempts and paid-response caches. Direct final
+  results require explicit hash-bound human review of corrections, visual quality
+  and actual product content before approval; do not claim deterministic source
+  compositing. Keep previous versions selectable without inference or charges.
+  Publish completed cards independently with immutable image URLs and update the
+  UI without page refresh. Saved-round restoration must preserve all later assets,
+  feedback, interactions and the paid ledger and never queue inference. Never
+  silently restore state or retry a rejected/unknown image. Historical manual
+  region selection and inference-free recovery remain compatible without being
+  required for new edits. Unknown billing still blocks further requests.
   Reuse identical failed-job inputs and paid responses on explicit Apply. Strict
   deterministic recovery may append only missing JSON container closings after
   complete schema-valid scenes and a terminal whitespace tail; preserve raw
@@ -178,9 +177,9 @@ host security settings without explicit authorization.
   Review combined feedback, including thumbnails of actual prior scenes. Guided creation remains enabled throughout
   at least the first twenty products and does not automatically disable itself.
   Human-approved related scene examples may guide later work; do not silently
-  promote them to global preferences. Preserve actual product pixels through
-  validated compositing; reject ambiguous/occluded product surfaces, retain
-  failed concepts and require human visual review. Saving notes/imports is free
+  promote them to global preferences. Concept rendering retains source-page
+  placement checks; direct final edits require explicit human review rather than
+  pretending regenerated product pixels have deterministic source validation. Saving notes/imports is free
   of inference. These calls use the existing $3 mockup allocation within the
   shared $25 Studio trial, not a new budget. Do not generate high-quality finals
   on the user's behalf before they choose the concepts.

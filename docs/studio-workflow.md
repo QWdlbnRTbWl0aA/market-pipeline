@@ -43,34 +43,22 @@ mockups, listing review, customer downloads and editable preference memory.
    and starts the first professional round in the amber **final refinement**
    workspace. It retains the same card layout and a persistent costly-loop warning.
    Apply corrections requests consent again for every subsequent professional
-   round. A text/vision compiler resolves latest per-card comments against shared
-   and old scene instructions into explicit change/preserve/check lists. It sees
-   the exact displayed pixels and immutable source pages. Targeted crop edits use
-   the professional model at medium quality (1152×768 landscape working images;
-   equivalent pixel area for other aspect ratios), with original-detail crop
-   references and deterministic protection outside the edited region. Page layers
-   restore actual product pixels behind bounded foreground hands/scissors. A
-   before/after visual comparison checks every stated correction and source
-   fidelity, including magnified edit-region crops. Failed results stay in history
-   and are viewable beside the previous sample; they do not replace it or retry
-   automatically. These model checks supplement mandatory human review.
-   Composition prompts become read-only; return to cheap concepts for redesign.
-   Lock satisfactory finals to exclude them from further paid rounds. All active
-   final cards must be rendered and locked before approving the set for listing.
-   Optional Export requests separate consent for high-quality 1536×1024 landscape
-   output (equivalent area for other aspect ratios), followed by the same checks
-   and human locks. Export is not required when working-resolution output suffices.
-   Saved product pixels are composited into one to four verified non-overlapping
-   page surfaces. Spread/storyboard need multiple surfaces. Failed placements stay
-   visible: explicit concept-only confirmation may lock their composition while
-   retaining the unresolved placement flag. This cannot approve final files or
-   bypass final placement/source-image checks. Source files/rounds stay unchanged.
-   Human review remains required, including anatomy, material claims and usage.
-   Guided mode remains enabled beyond the first twenty products. Approved related
-   examples guide later work without silently creating global preferences.
-   The procedural template controls are absent in guided mode. When real scene
-   providers are explicitly disabled, the independent offline template view remains
-   available for local development; it never impersonates generative output.
+   round. New supported final edits send the complete displayed image and exact
+   latest correction to the selected professional image model. There is no
+   interpretation call, crop reinsertion, page overlay or automated visual-score
+   gate. Scene descriptions stay internal in this stage. Separate optional final
+   batch notes start empty; old concept-planning defaults do not override edits.
+   Working outputs use medium quality (1152×768 landscape, equivalent area for
+   other aspect ratios). Every original provider image appears in an open gallery
+   even when later validation, accounting or the batch fails. Visibility is not
+   approval. Locking a new direct result requires explicit human confirmation of
+   the correction, visual quality and actual product content. Regenerated product
+   pixels are not certified as deterministic source compositing. Locked cards skip
+   further calls. A free previous-version action can select an earlier reference
+   without modifying history. Optional separately consented high-quality export
+   uses 1536×1024 landscape or equivalent area and requires fresh human review.
+   Concept rendering retains source-placement checks and concept-only locking;
+   final direct editing never reapplies those page overlays to the returned image.
 
 6. After mockup approval, an explicit action generates two titles, one description
    and thirteen tags from the actual manifest and saved evidence. Code validates
@@ -252,13 +240,15 @@ than blindly restoring an old version. Never roll back the paid ledger.
 python3 tools/test.py
 python3 tools/studio_workflow_smoke.py --output /path/outside/source/studio-smoke
 python3 tools/studio_workflow_smoke.py --lifestyle --output /path/outside/source/lifestyle-smoke
+python3 tools/studio_direct_edit_smoke.py --output /path/outside/source/direct-edit-smoke
 ```
 
 The smoke uses an already installed Firefox/geckodriver and a temporary loopback
 fixture server. It exercises the Hebrew mobile UI through customer/Studio downloads
 with synthetic rasters/text and zero paid, Etsy or SMTP calls. Live trials must reconcile prior spend and preserve exact provider receipts. Inspect all five holiday subjects/symbols, both paper sizes, mockups and copy; physical proof and final human approval remain separate acceptance steps. Google/model-comparison access must be tested with the configured account before relying on it.
 
-The final image route uses JSON image edits and preserves the approved background.
+The final image route uses JSON image edits with the exact complete displayed
+image. Human review must verify preservation; model output is not a guarantee.
 See [OpenAI image editing](https://developers.openai.com/api/reference/resources/images/methods/edit)
 and [image prompting](https://developers.openai.com/api/docs/guides/image-prompting)
 for the provider contract. Native quality does not prove sale readiness.
@@ -327,9 +317,22 @@ a 1.5–5 second adaptive interval, rather than fetching full project/library da
 every 800 ms. It reloads full project state when phase/job identity changes.
 Polling GETs are local UI traffic, never provider inference or Etsy requests.
 
-## Targeted refinement and saved-round recovery
+## Full-image final edits and historical recovery
 
-New supported professional jobs persist `refinement_version: 1`. Their per-card
+New supported professional jobs persist `refinement_version: 2`. Each card's
+`.input.json` records the exact comments, full reference hash and output settings;
+the `.png` is the original API output with no pixel transforms. Completed cards
+publish independently. New results use `renderer_version: direct-edit-v1` and
+`placement_status: human_review_required`; approval is explicitly human and bound
+to the current output hash. Original paid outputs are available project-scoped at
+`/api/projects/<id>/generated-images` regardless of board/job status, with original
+image bytes at the returned image ID route. Reading this registry performs no
+inference, credential loading, accounting mutation or remote image requests.
+The UI opens these originals throughout the workflow, including failure states.
+Unknown billing holds continue to block further paid work, never image viewing.
+
+The following version-1 behavior is retained for historical recovery only; it is
+not used for new real final edits. Historical jobs persist `refinement_version: 1`. Their per-card
 `.plan.json`, `.provider.png`, `.layers.json`, `.review.json` and final record
 retain resolved instructions, cropped input/output provenance, immutable source
 hashes and visual check results. Paid API bodies remain in the existing payload

@@ -954,3 +954,35 @@ final passing run. Live read-only DQA verified the recovered image hash and all
 616 existing files with only the expected state/operation changes. No paid calls
 occurred during implementation/recovery. Credential-aware source/Git-object
 sanitation passed with zero findings and zero unreadable files.
+
+
+## Studio: visible provider originals and reviewed final-edit path
+
+Separated successful image visibility from workflow acceptance. A project-scoped,
+read-only registry exposes original saved image responses before accounting or
+postprocessing succeeds, including dimension/count mismatches and failed batches.
+The open gallery remains accessible throughout the project workflow and updates
+from lightweight progress metadata without requiring a page refresh. Corrupt
+image payloads show an explicit warning and a download instead of disappearing.
+
+Reviewed the real failure chain: verbal expansion, local crop generation and
+reinsertion, page-plane replacement and unreliable visual scoring could damage
+otherwise useful images or hide partial corrections. New version-2 final jobs
+send the full displayed image and exact user text to the authorized professional
+image adapter and preserve its original output bytes. Scene descriptions stay
+internal; separate final batch notes do not inherit old concept defaults. Retained
+model-role admission, conservative budget holds, paid-response caching, independent
+card completion, history and explicit human approval. Direct outputs are labeled
+as requiring human product/visual review, never deterministic source validation.
+Version-1 code remains available for explicit historical recovery. Free selection
+of an earlier image reference preserves all later assets. Unchanged failed jobs
+reuse their paid responses rather than purchasing the same step again.
+
+Restarted only the idle development Studio. Read-only live DQA found 24 original
+provider images and verified unchanged contents of all 710 pre-existing runtime
+files, including the ledger, feedback, deletion history and selected samples.
+No production changes or paid/Etsy/SMTP calls were made. Recorded test logs and
+runtime integrity reports remain private outside source control. Final verification: 123 Studio tests and 51 repository integration tests passed;
+the new browser flow passed nine checks and the historical browser flow passed
+12 named check groups. Credential-aware source/Git-object sanitation found zero leaks and zero
+unreadable files. No paid image-quality trial was performed.

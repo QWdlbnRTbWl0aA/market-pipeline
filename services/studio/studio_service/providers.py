@@ -182,6 +182,25 @@ class OpenAIStudio(OpenAIDev):
         return self._mockup_json('mockup_comparison',{'task':'Compare before (image 1), proposed corrected result (image 2), magnified before/after edit-region crops (images 3 and 4), and immutable source product pages (remaining images). Evaluate EACH acceptance check, in the exact supplied order and exact wording. Check physical contact and anatomy, not just object presence: paper must actually pass BETWEEN blades when requested. Rounded tips alone do not satisfy cutting. Verify requested preservation and product print matches source images, not just a vaguely similar illustration. Fail uncertain/unobservable checks. Report concise visible evidence only, no reasoning traces. This is advisory visual validation; human approval remains mandatory.',
             'plan':plan},REVIEW_SCHEMA,key,project,images,2400)
 
+    def mockup_direct_image(self,image,comments,batch_comments,key,project,export=False,output_size=None):
+        # Preserve the user's wording, including Hebrew. No interpretation pass.
+        from .refinement import WORK_SIZE,EXPORT_SIZE
+        if not isinstance(comments,str) or len(comments)>1800 or not isinstance(batch_comments,str) or len(batch_comments)>4000:raise Invalid('Bounded correction text required')
+        if batch_comments.strip() and comments.strip():prompt='Batch notes:\n'+batch_comments+'\n\nCorrection for this image (takes precedence):\n'+comments
+        else:prompt=comments if comments.strip() else batch_comments
+        if not prompt.strip():prompt='Improve presentation quality of this exact image while preserving its composition, people, objects and product artwork. Do not add new contents.'
+        if export:prompt='Export this approved image at the requested size with improved presentation quality. Preserve its composition and product artwork.\n'+prompt
+        size=output_size or (EXPORT_SIZE if export else WORK_SIZE)
+        payload={'model':self.image_model,'prompt':prompt,'n':1,'size':f'{size[0]}x{size[1]}','quality':'high' if export else 'medium','output_format':'png','background':'opaque',
+                 'images':[{'image_url':'data:image/png;base64,'+base64.b64encode(image).decode()}]}
+        maximum=(32768 if export else 16384)*30+65536*8+(len(prompt.encode())+4096)*5
+        value=self.call('mockup_direct_export' if export else 'mockup_direct_image',project,key,'images/edits',payload,maximum,'image_v25')
+        rows=value.get('data')
+        if not isinstance(rows,list) or len(rows)!=1:raise Invalid('Expected one image; all returned images remain available in original outputs')
+        body=base64.b64decode(rows[0]['b64_json'],validate=True)
+        if raster(body).size!=tuple(size):raise Invalid('Unexpected dimensions; the original provider image remains available')
+        return Asset(body,'image/png','Full-image correction',{'model':self.image_model,'quality':payload['quality']})
+
     def mockup_refinement_image(self,image,plan,key,project,export=False,output_size=None):
         from .refinement import checked_plan,WORK_SIZE,EXPORT_SIZE
         checked_plan(plan);size=output_size or (EXPORT_SIZE if export else WORK_SIZE)
