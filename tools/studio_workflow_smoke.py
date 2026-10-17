@@ -118,8 +118,8 @@ try:
   click('#apply-mockup-comments');request('POST',session+'/alert/accept',{})
   wait("document.querySelectorAll('#mockup-concepts [data-card] img').length === 5 && !document.querySelector('#apply-mockup-comments').disabled",60)
   trace=js('return window.progressTrace');assert trace['max']==1
-  assert len([c for c in trace['calls'] if c['url']=='/api/projects' and c['method']=='GET'])<=2
-  assert len([c for c in trace['calls'] if c['url']=='/api/projects/'+project and c['method']=='GET'])<=2
+  assert len([c for c in trace['calls'] if c['url']=='/api/projects' and c['method']=='GET'])<=7
+  assert len([c for c in trace['calls'] if c['url']=='/api/projects/'+project and c['method']=='GET'])<=7
   (OUT/'polling-results.json').write_text(json.dumps({'passed':True,'max_overlapping_progress_requests':trace['max'],'requests':trace['calls'],'paid_calls':0},indent=2)+'\n')
   assert all(not image['final'] for image in scene_port.images)
   first='#mockup-concepts [data-card]:first-child'
@@ -157,12 +157,30 @@ try:
   for i in range(4):
    selector='#mockup-concepts [data-card]:nth-child('+str(i+1)+') [data-lock]';click(selector);wait('document.querySelector('+json.dumps(selector)+').getAttribute("aria-pressed")==="true"')
   fill('#mockup-concepts [data-card]:nth-child(5) [data-comments]','Fix fingers; keep approved composition')
+  if args.targeted_refinement:
+   from test_partial_refinement import ZERO_PLAN
+   original_correction=scene_port.mockup_correction
+   scene_port.mockup_correction=lambda *a,**k:json.loads(json.dumps(ZERO_PLAN))
   previous_image=js("return document.querySelector('#mockup-concepts [data-card]:nth-child(5) img').src")
   click('#apply-mockup-comments');request('POST',session+'/alert/accept',{})
+  if args.targeted_refinement:
+   wait("document.querySelector('#mockup-concepts [data-card]:nth-child(5) [data-region]') !== null && document.querySelector('#apply-mockup-comments').disabled",60)
+   assert 'Edit rectangle' in js("return document.querySelector('#mockup-concepts [data-card]:nth-child(5)').textContent")
+   before_selection=len(scene_port.edits);click('#mockup-concepts [data-card]:nth-child(5) [data-region]')
+   js("document.querySelector('#mockup-concepts [data-card]:nth-child(5) .edit-region-host img').scrollIntoView({block:'center'})")
+   r=js("const i=document.querySelector('#mockup-concepts [data-card]:nth-child(5) .edit-region-host img'),r=i.getBoundingClientRect(),ratio=i.naturalWidth/i.naturalHeight,w=Math.min(r.width,r.height*ratio),h=w/ratio;return {left:r.left+(r.width-w)/2,top:r.top+(r.height-h)/2,width:w,height:h}")
+   x1=round(r['left']+r['width']*.2);y1=round(r['top']+r['height']*.2);x2=round(r['left']+r['width']*.55);y2=round(r['top']+r['height']*.6)
+   request('POST',session+'/actions',{'actions':[{'type':'pointer','id':'region-mouse','parameters':{'pointerType':'mouse'},'actions':[{'type':'pointerMove','duration':0,'x':x1,'y':y1},{'type':'pointerDown','button':0},{'type':'pointerMove','duration':300,'x':x2,'y':y2},{'type':'pointerUp','button':0}]}]})
+   wait("document.querySelector('#mockup-concepts [data-card]:nth-child(5)').dataset.editBox !== 'null' && !document.querySelector('#apply-mockup-comments').disabled")
+   assert studio.get(project)['workflow']['mockup_design']['board']['cards'][4].get('edit_box')
+   assert len(scene_port.edits)==before_selection
+   def no_more_planning(*a,**k):raise AssertionError('Manual area must reuse the completed interpretation')
+   scene_port.mockup_correction=no_more_planning
+   click('#apply-mockup-comments');request('POST',session+'/alert/accept',{})
   wait("!document.querySelector('#mockup-concepts [data-card]:nth-child(5) [data-lock]').disabled",60)
   wait("document.querySelector('#mockup-concepts [data-card]:nth-child(5) img').src!=="+json.dumps(previous_image)+" && document.querySelector('#mockup-concepts [data-card]:nth-child(5) img').naturalWidth>0",60)
   assert len(scene_port.edits if args.targeted_refinement else [image for image in scene_port.images if image['final']])==6
-  assert 'Fix fingers' in (scene_port.corrections[-1][0]['card_comments'] if args.targeted_refinement else scene_port.images[-1]['comments'])
+  assert 'Fix fingers' in (studio.get(project)['workflow']['mockup_design']['board']['cards'][4]['comments'] if args.targeted_refinement else scene_port.images[-1]['comments'])
   click('#mockup-concepts [data-card]:nth-child(5) [data-lock]');wait("!document.querySelector('#approve-mockups').disabled")
   assert js('return document.documentElement.scrollWidth <= window.innerWidth')
   js("document.querySelector('#mockups-panel').scrollIntoView({block:'start'})");screenshot('02c-lifestyle-final-mobile')
@@ -181,7 +199,7 @@ try:
  current=studio.get(project);assert current['phase']=='approved';assert current['workflow']['listing']['copy']['titles'][0]=='Edited printable holiday collection'
  assert current['listing']['etsy_api_called'] is False
  assert js('return document.documentElement.scrollWidth <= window.innerWidth')
- (OUT/'browser-results.json').write_text(json.dumps({'passed':True,'checks':(['Hebrew RTL mobile interface','Passive saved-brief library','Three representative candidates','Explicit print specification and production consent','Five individual printable units','Large preview','Three exact-artwork mockups','Mockup zero positions preserved','Saving preset retains edits','Saved preset can be adjusted','Mockup settings survive browser reload','Explicit automatic layout restores centered readable composition','Model copy and unsaved-edit preservation on final approval','Invalid copy edit cannot approve old saved copy','Customer and Studio downloads gated by approvals','No horizontal mobile overflow','Etsy publishing blocked'] if not args.lifestyle else ['Hebrew RTL mobile interface','Passive saved-brief library','Three representative candidates','Explicit print specification and production consent','Five individual printable units','Large preview','Legacy cards hidden in guided mode','Model copy and unsaved-edit preservation on final approval','Invalid copy edit cannot approve old saved copy','Customer and Studio downloads gated by approvals','No horizontal mobile overflow','Etsy publishing blocked']),'lifestyle_checks':(['Per-card editable prompts and comments','Concept lock retains pending notes without regeneration','Persistent lock survives reload','Locked scene skipped by planner and generator','Delete and add preserve history','New cards planned and sketched by one action','Single finalization action starts consented professional round','Distinct expensive-loop warning','Final composition fields read-only','Locked finals skip paid refinements','Latest per-card touch-up reaches final provider','Responsive card layout without overflow','Disabled action explanation visible','Incomplete provider payload logged to console','Known failed plan resumed by explicit apply','Dynamic final-model picker binds the chosen image route','Lightweight progress polling without overlapping requests','Full project/library refresh only at action boundaries','Updated final image appears without browser refresh'] if args.lifestyle else []),'targeted_refinement':args.targeted_refinement,'synthetic_images':True,'paid_calls':0,'etsy_calls':0},indent=2)+'\n')
+ (OUT/'browser-results.json').write_text(json.dumps({'passed':True,'checks':(['Hebrew RTL mobile interface','Passive saved-brief library','Three representative candidates','Explicit print specification and production consent','Five individual printable units','Large preview','Three exact-artwork mockups','Mockup zero positions preserved','Saving preset retains edits','Saved preset can be adjusted','Mockup settings survive browser reload','Explicit automatic layout restores centered readable composition','Model copy and unsaved-edit preservation on final approval','Invalid copy edit cannot approve old saved copy','Customer and Studio downloads gated by approvals','No horizontal mobile overflow','Etsy publishing blocked'] if not args.lifestyle else ['Hebrew RTL mobile interface','Passive saved-brief library','Three representative candidates','Explicit print specification and production consent','Five individual printable units','Large preview','Legacy cards hidden in guided mode','Model copy and unsaved-edit preservation on final approval','Invalid copy edit cannot approve old saved copy','Customer and Studio downloads gated by approvals','No horizontal mobile overflow','Etsy publishing blocked']),'lifestyle_checks':(['Per-card editable prompts and comments','Concept lock retains pending notes without regeneration','Persistent lock survives reload','Locked scene skipped by planner and generator','Delete and add preserve history','New cards planned and sketched by one action','Single finalization action starts consented professional round','Distinct expensive-loop warning','Final composition fields read-only','Locked finals skip paid refinements','Latest per-card touch-up reaches final provider','Responsive card layout without overflow','Disabled action explanation visible','Incomplete provider payload logged to console','Known failed plan resumed by explicit apply','Dynamic final-model picker binds the chosen image route','Lightweight progress polling without overlapping requests','Full project refresh at action and card-completion boundaries','Updated final image appears without browser refresh',*(['Invalid correction region is visible','Mouse-selected correction region saves without inference','Manual region reuses saved interpretation'] if args.targeted_refinement else [])] if args.lifestyle else []),'targeted_refinement':args.targeted_refinement,'synthetic_images':True,'paid_calls':0,'etsy_calls':0},indent=2)+'\n')
  print('BROWSER PASS')
 except Exception:
  if session:

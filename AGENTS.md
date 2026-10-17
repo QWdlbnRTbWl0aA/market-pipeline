@@ -162,6 +162,14 @@ host security settings without explicit authorization.
   and update completed edits without page refresh. Explicit saved-round restoration
   preserves all later assets, feedback, interactions and the paid ledger and must
   not queue inference. Never silently restore state or retry a rejected image.
+  Publish targeted mockup results independently per card. Malformed plans must
+  preserve that card's image, expose the actual error and not hide completed
+  siblings or cause guessed/full-image fallbacks. Validate positive bounded edit
+  regions; retain legacy response compatibility. Human rectangle selection saves
+  without inference and reuses matching saved interpretation, with separate paid
+  generation consent. Consume manual bounds only for the intended correction.
+  Explicit saved-result recovery must verify provenance, remain inference-free
+  and preserve the paid ledger. Unknown billing still stops further requests.
   Reuse identical failed-job inputs and paid responses on explicit Apply. Strict
   deterministic recovery may append only missing JSON container closings after
   complete schema-valid scenes and a terminal whitespace tail; preserve raw

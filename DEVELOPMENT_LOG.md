@@ -910,3 +910,47 @@ against the finished refinement code. The targeted browser passed 31 checks.
 The credential-aware source and Git-object audit found zero findings and zero
 unreadable files. Live restoration/DQA preserved all 582 existing files except
 the explicitly restored project state; no paid calls occurred.
+
+## Partial mockup recovery and malformed-region handling
+
+Investigated the live saved failure: a compiler returned a zero-area legacy edit
+rectangle on the second card after the first card's render/comparison had already
+completed. The former batch-level application hid that completed image, and the
+UI replaced the actual failure with a generic recovery message. The repeated
+Apply reused the same invalid response; no second image had been purchased.
+
+Targeted jobs now publish completed cards independently with durable partial
+results and idempotent per-card attempt receipts. Invalid correction plans remain
+card-level failures; other edited cards continue. Changed/failed eligible cards
+exclude unchanged completed siblings and blocked cards with unchanged invalid
+plans. Budget/unknown outcomes still stop paid work. The compiler schema uses
+positive width/height, while finite/bounded geometry checks remain deterministic
+and legacy plans remain supported. There is no guessed/full-image fallback.
+The actual error is visible. Human mouse/touch rectangle selection accounts for
+letterboxing, saves without inference and can reuse the matching completed paid
+interpretation; the selection expires after a successful correction. Polling
+loads newly completed card metadata instead of waiting for the entire batch.
+
+Added explicit no-inference recovery for completed assets from a failed legacy
+batch. Applied it only to the authorized development project: its first saved
+result is now available for human review; the second image/notes and previously
+deleted cards remain unchanged. Preserved all 616 existing files except the
+expected project-state/operation-status updates, including byte-identical paid
+ledger and unchanged raw provider bodies, generated assets and earlier history.
+The recovery queued no generation and loaded no provider credentials. Only the
+development Studio was restarted; production and other services were untouched.
+
+Regression tests cover the actual zero rectangle, sibling independence,
+immediate first-card publication, cached interpretation with manual bounds,
+no-cost recovery of the old all-or-nothing structure, positive schema bounds and
+budget-stop behavior. Offline browser tests exercise the visible failure, actual
+mouse selection with no inference, and successful explicit reuse of interpretation.
+
+Final verification: 116 Studio tests and 51 repository integration tests passed.
+Seven focused final regressions passed on the finished code. The browser flow
+passed 34 checks using synthetic adapters; its first test attempt had a WebDriver
+scope mistake after the real drag/save had already succeeded, corrected in the
+final passing run. Live read-only DQA verified the recovered image hash and all
+616 existing files with only the expected state/operation changes. No paid calls
+occurred during implementation/recovery. Credential-aware source/Git-object
+sanitation passed with zero findings and zero unreadable files.

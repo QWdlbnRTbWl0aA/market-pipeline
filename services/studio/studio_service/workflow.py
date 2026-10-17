@@ -38,7 +38,7 @@ class Workflow:
         workflow=self.state(state,directory)
         if (directory/'workflow-final-reservation.json').exists() and action!='approve_listing':raise Conflict('Final approval is reserved; retry its original action')
         replace_action=action in ('apply_mockup_comments','suggest_mockups','finalize_mockup_board') and self.lifestyle.board.replaceable(directory,state)
-        if workflow.get('pending') and action not in ('retry_workflow','abandon_mockup_job') and not replace_action:raise Conflict('Wait for the current operation')
+        if workflow.get('pending') and action not in ('retry_workflow','abandon_mockup_job','recover_mockup_results') and not replace_action:raise Conflict('Wait for the current operation')
         if action in LIFESTYLE_ACTIONS:self.lifestyle.command(directory,state,action,payload)
         elif action=='save_plan':
             if workflow.get('direction'):raise Conflict('Return to the direction stage before changing the inventory')

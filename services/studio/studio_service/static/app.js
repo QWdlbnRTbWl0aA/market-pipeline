@@ -93,7 +93,7 @@ async function pollProgress(){
  try{if(project&&project.phase.startsWith('generating_')&&!busy){pollInFlight=true;const id=project.id;
   if(!progressSupported){await load(id);pollDelay=5000;return;}
   const status=await request('/api/projects/'+id+'/progress');if(project?.id!==id)return;
-  if(status.phase!==project.phase||status.pending!==(project.workflow?.pending||null)){pollDelay=1500;await load(id);return;}
+  if(status.phase!==project.phase||status.pending!==(project.workflow?.pending||null)||(status.mockup_progress?.completed||0)>(project.workflow?.mockup_progress?.completed||0)){pollDelay=1500;await load(id);return;}
   pollDelay=status.revision!==project.revision?2000:Math.min(5000,pollDelay+1000);
   project.revision=status.revision;project.spending=status.spending;if(project.workflow){project.workflow.progress=status.progress;project.workflow.mockup_progress=status.mockup_progress;}render();
  }else pollDelay=1500;}catch(error){pollDelay=5000;notify(error.message,true);}finally{pollInFlight=false;setTimeout(pollProgress,pollDelay);}

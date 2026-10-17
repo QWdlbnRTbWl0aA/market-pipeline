@@ -56,6 +56,8 @@ class Studio:
                 'planning':{'model':'synthetic text'},'sketches':{'model':'synthetic image'},
                 'finals':[{'id':'configured','label':'Configured synthetic final','provider':'fixture'}] if not self.development else []}
             state['mockup_recovery']={'can_replace':self.workflow.lifestyle.board.replaceable(self.directory(project),state)}
+            pending=state['workflow'].get('pending')
+            state['mockup_recovery']['can_recover_saved']=bool(pending and state['phase']=='generation_failed' and read(self.directory(project)/'workflow-jobs'/pending/'request.json')['value'].get('refinement_version')==1)
         if state.get('workflow'):
             state['workflow_metrics']={'direction_rounds':len(state['rounds']),'product_versions':len(state['workflow']['products']),
                 'cost_per_approved_product_usd':state['spending']['product_usd'] if state['workflow']['approvals'].get('product') else None,

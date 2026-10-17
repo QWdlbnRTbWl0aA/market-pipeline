@@ -5,7 +5,7 @@ import uuid
 from .storage import Invalid, Conflict, digest, now, read, write, write_bytes, guard
 from . import production
 
-ACTIONS={'save_mockup_board','add_mockup_card','delete_mockup_card','toggle_mockup_lock','plan_mockup_board','render_mockup_board','enter_mockup_final','return_mockup_concepts','apply_mockup_comments','suggest_mockups','finalize_mockup_board','export_mockup_board','restore_mockup_round'}
+ACTIONS={'save_mockup_board','add_mockup_card','delete_mockup_card','toggle_mockup_lock','plan_mockup_board','render_mockup_board','enter_mockup_final','return_mockup_concepts','apply_mockup_comments','suggest_mockups','finalize_mockup_board','export_mockup_board','restore_mockup_round','recover_mockup_results'}
 
 
 class Board:
@@ -63,23 +63,30 @@ class Board:
             write(folder/'replaced.json',{'at':now(),'by_explicit_user_action':True,'paid_history_preserved':True});state['workflow']['pending']=None
         if final:board['final_model_id']=model
         self.workflow.queue(directory,state,kind,value)
+        state['workflow']['mockup_progress']={'completed':0,'total':len(cards),'title':None}
     def feedback(self,state,payload):
         board=self.state(state);patches=payload.get('cards',[])
         if not isinstance(patches,list) or len(patches)>10:raise Invalid('Bounded mockup cards required')
         seen=set()
         for patch in patches:
-            if not isinstance(patch,dict) or set(patch)-{'id','scene','comments'} or patch.get('id') in seen:raise Invalid('Invalid card edits')
+            if not isinstance(patch,dict) or set(patch)-{'id','scene','comments','edit_box'} or patch.get('id') in seen:raise Invalid('Invalid card edits')
             seen.add(patch.get('id'));card=self.card(board,patch.get('id'))
             comments=patch.get('comments',card['comments'])
             if not isinstance(comments,str) or len(comments)>1800:raise Invalid('Bounded card comments required')
+            region=patch.get('edit_box',card.get('edit_box'))
+            if region is not None:
+                from .refinement import box
+                box(region)
             scene=patch.get('scene',card['scene'])
             if scene is not None:
                 from .lifestyle import checked_plan
                 checked_plan({'product_understanding':'Card','direction':'Card','scenes':[scene]},1,{u['id'] for u in state['workflow']['plan']['units']})
-            if card['locked'] and (scene!=card['scene'] or comments!=card['comments']):raise Invalid('Unlock the sample before editing its prompt/comments')
+            if card['locked'] and (scene!=card['scene'] or comments!=card['comments'] or region!=card.get('edit_box')):raise Invalid('Unlock the sample before editing its prompt/comments')
             if board['stage']=='final' and scene!=card['scene']:raise Invalid('Return to concepts to change composition; final loop accepts touch-up comments only')
-            if scene!=card['scene'] or comments!=card['comments']:self.changed(state);card['needs_render']=True
+            if scene!=card['scene'] or comments!=card['comments'] or region!=card.get('edit_box'):self.changed(state);card['needs_render']=True
             card.update(scene=copy.deepcopy(scene),comments=comments)
+            if region is not None:card['edit_box']=copy.deepcopy(region)
+            else:card.pop('edit_box',None)
         if 'comments' in payload:
             value=payload['comments']
             if not isinstance(value,str) or len(value)>4000:raise Invalid('Bounded shared comments required')
@@ -118,9 +125,28 @@ class Board:
                     board['concept_cards']=copy.deepcopy(board['cards']);board['stage']='final'
                     for card in board['cards']:card.update(locked=False,needs_render=True)
                 cards=[c for c in board['cards'] if not c['locked']]
-                if not cards:raise Invalid('Unlock or add a mockup first')
+                if final and action=='apply_mockup_comments' and any(c.get('needs_render') for c in cards):cards=[c for c in cards if c.get('needs_render')]
+                from .refinement import correction_identity
+                blocked=[c for c in cards if (c.get('refinement_failure') or {}).get('code')=='invalid_correction_plan' and not c.get('edit_box') and c['refinement_failure'].get('context_sha256')==correction_identity(c,{'comments':design['comments'],'export_only':False})]
+                cards=[c for c in cards if c not in blocked]
+                if not cards:
+                    if blocked:raise Invalid('Select a correction area or change the comments before retrying the invalid plan; no request sent')
+                    raise Invalid('Unlock or add a mockup first')
                 self.queue_update(directory,state,cards,manifest,final=final,model=payload.get('model_id'))
             self.changed(state);board['events'].append({'action':action,'at':now()});state['workflow']['stage']='mockups';return
+        if action=='recover_mockup_results':
+            pending=state['workflow'].get('pending')
+            if not pending or state['phase']!='generation_failed':raise Invalid('No failed mockup job to recover')
+            folder=directory/'workflow-jobs'/pending;operation=read(folder/'operation.json');request=read(folder/'request.json')
+            if operation['status']!='failed' or request['value'].get('refinement_version')!=1:raise Invalid('Only a failed targeted-refinement job can be recovered without inference')
+            if request['value']['manifest_id']!=manifest['id']:raise Invalid('Product changed since the saved job')
+            from .refinement import recover_saved
+            result=recover_saved(self,directory,request,manifest)
+            self.apply(state,request['kind'],result);state['workflow']['pending']=None
+            state.pop('generation_error',None);state.pop('generation_diagnostic',None)
+            write(folder/'saved-results-recovery.json',{'at':now(),'completed_candidates':[c['id'] for c in result['candidates']],'failures':result['failures'],'paid_calls':0})
+            write(folder/'operation.json',{**operation,'status':'recovered_saved_results','recovered_at':now(),'automatic_retry':False})
+            return
         if action=='export_mockup_board':
             self.require_final(state)
             if payload.get('consent_expensive') is not True:raise Invalid('Explicit export cost consent required')
@@ -298,20 +324,29 @@ class Board:
                 card['scene']=scene
             board['explanation']=result['plan']['product_understanding'];design['status']='plan_review'
         else:
-            if not any(r['id']==result['id'] for r in design['rounds']):design['rounds'].append(result)
+            # A durable round grows as independently completed cards arrive.
+            previous=next((r for r in design['rounds'] if r['id']==result['id']),None)
+            if previous is None:design['rounds'].append(copy.deepcopy(result))
+            else:previous.update(copy.deepcopy(result))
             for candidate in result['candidates']:
                 card=self.card(board,candidate['card_id'])
                 if result.get('targeted_refinement'):
-                    card.setdefault('refinement_attempts',[]).append(copy.deepcopy(candidate))
+                    attempts=card.setdefault('refinement_attempts',[])
+                    if any(c['id']==candidate['id'] for c in attempts):continue
+                    attempts.append(copy.deepcopy(candidate))
                     if not candidate['refinement']['passed']:
                         card['refinement_failure']={'candidate_id':candidate['id'],'summary':candidate['refinement']['review']['summary'],'placement_reason':candidate.get('placement_reason')};card['needs_render']=True
                         continue
                 card.pop('refinement_failure',None)
+                card.pop('edit_box',None)  # A human-selected region applies to this correction only.
                 card.update(candidate=candidate,scene=candidate['scene'],locked=False,needs_render=False)
+            for issue in result.get('failures',[]):
+                card=self.card(board,issue['card_id']);card['refinement_failure']=copy.deepcopy(issue);card['needs_render']=True
             design['status']='final_review' if result['stage']=='final' else 'concept_review'
             if result['stage']=='final':w['mockups']=[c['candidate'] for c in board['cards'] if c.get('candidate')];design['final_comments_sha256']=digest(result['comments'])
-            w['mockup_progress']={'completed':len(result['candidates']),'total':len(result['candidates']),'title':None}
-        self.changed(state);w['stage']='mockups';state['phase']='mockup_review'
+            w['mockup_progress']={'completed':len(result['candidates'])+len(result.get('failures',[])),'total':result.get('total',len(result['candidates'])),'title':None}
+        self.changed(state);w['stage']='mockups'
+        if not result.get('partial'):state['phase']='mockup_review'
     def require_final(self,state):
         board=self.state(state);cards=board['cards']
         if board['stage']!='final' or not cards or any(not c['locked'] or c.get('needs_render') or not c.get('candidate') or c['candidate']['quality']!='final' or c['candidate'].get('card_input_sha256')!=digest({'scene':c['scene'],'comments':c['comments']}) for c in cards):raise Invalid('Lock every current high-quality final; apply new comments before approval')

@@ -26,6 +26,7 @@ class Provider(unittest.TestCase):
     def test_top_tier_medium_working_edit_uses_resolved_plan_and_caches_every_step(self):
         m=OpenAIStudio(self.root,self.transport,lambda:'synthetic',limit_usd=25,image_model='gpt-image-2.5-sunburst');pixels=self.image(1152,768)
         plan=m.mockup_correction({'scene':{'image_prompt':'thick paper'},'card_comments':'Thin paper, remove people'},[pixels],'compile',self.project)
+        region_schema=self.calls[0][1]['text']['format']['schema']['properties']['edit_region']['properties'];self.assertEqual(region_schema['width']['minimum'],.02);self.assertEqual(region_schema['height']['minimum'],.02)
         output=m.mockup_refinement_image(pixels,plan,'edit',self.project)
         wire=self.calls[-1][1];self.assertEqual(wire['size'],'1152x768');self.assertEqual(wire['quality'],'medium');self.assertEqual(wire['model'],'gpt-image-2.5-sunburst')
         self.assertEqual(base64.b64decode(wire['images'][0]['image_url'].split(',')[1]),pixels);self.assertNotIn('thick paper',wire['prompt']);self.assertNotIn('blank paper',json.loads(wire['prompt'])['instruction'])
