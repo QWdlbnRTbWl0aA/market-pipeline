@@ -136,6 +136,11 @@ host security settings without explicit authorization.
   to cheap concepts for redesign. Plan varied product-appropriate gallery roles
   (usage, spreads, illustrated steps, stacks and hero views), not repeated family
   portraits. Preserve history and actual page pixels across deletions/iterations.
+  Concept locking approves existing pixels without generating replacements;
+  retain pending comments for refinement. Explicit concept-only confirmation may
+  lock a composition with unresolved automatic page placement, recording the
+  image hash and remaining issue. It must never certify final placement or bypass
+  final approval checks. Always permit unlocking; preserve generated samples.
   Combine comment understanding and sketches in one action; Suggest X more plans
   and sketches only new cards. Finalize directly starts the first consented paid
   professional round. Dynamic final choices require a configured credential,

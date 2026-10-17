@@ -122,10 +122,18 @@ class Board:
             card=self.card(board,payload.get('card_id'))
             if not card['locked']:
                 c=card.get('candidate')
-                if card.get('needs_render'):raise Invalid('Render the changed instructions before locking this sample')
-                if not c or c.get('placement_status')!='ready':raise Invalid('Generate a safely placed sample before locking it')
-                if board['stage']=='final' and c['quality']!='final':raise Invalid('Generate a high-quality sample before final approval')
-                if c.get('card_input_sha256') and c['card_input_sha256']!=digest({'scene':card['scene'],'comments':card['comments']}):raise Invalid('Render the edited sample before locking it')
+                if not c:raise Invalid('Generate a sample before locking it')
+                file=directory/c['file']
+                if file.is_symlink() or not file.resolve().is_relative_to(directory.resolve()) or hashlib.sha256(file.read_bytes()).hexdigest()!=c['sha256']:raise Invalid('Saved sample changed; review its integrity before locking')
+                if board['stage']=='concept':
+                    if c.get('scene') and c['scene']!=card['scene']:raise Invalid('Apply or revert changed scene instructions before approving the existing composition')
+                    if c.get('placement_status')!='ready' and payload.get('concept_review_confirmed') is not True:raise Invalid('Confirm concept-only approval; final product placement remains unresolved')
+                    card['concept_approval']={'candidate_id':c['id'],'sha256':c['sha256'],'at':now(),'placement_review_required':c.get('placement_status')!='ready','pending_notes':bool(card.get('needs_render'))}
+                else:
+                    if c.get('placement_status')!='ready' or c.get('source_composited') is not True:raise Invalid('Final product placement must be validated before approval')
+                    if card.get('needs_render'):raise Invalid('Render the changed instructions before locking this sample')
+                    if c['quality']!='final':raise Invalid('Generate a high-quality sample before final approval')
+                    if c.get('card_input_sha256') and c['card_input_sha256']!=digest({'scene':card['scene'],'comments':card['comments']}):raise Invalid('Render the edited sample before locking it')
             card['locked']=not card['locked'];self.changed(state)
         elif action=='delete_mockup_card':
             card=self.card(board,payload.get('card_id'));board['cards'].remove(card);board['deleted'].append({**copy.deepcopy(card),'deleted_at':now(),'stage':board['stage']});self.changed(state)

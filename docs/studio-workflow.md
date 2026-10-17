@@ -29,8 +29,10 @@ mockups, listing review, customer downloads and editable preference memory.
    slot and × removes it from the active set while retaining saved history/files.
    Approve is a persistent on/off **lock**, not a vote to generate it again. Locked
    cards keep their exact pixels and prompts and skip both conceptual planning and
-   rendering. Unlock before editing; changed instructions need a new sample before
-   approval. Saving, deleting, locking and entering a stage make no model calls.
+   rendering. Unlock before editing. Concept locks approve the displayed pixels;
+   pending comments can remain for final refinement without paid regeneration.
+   Changed scene/composition prompts still need applying or reverting before
+   approving that image. Saving, deleting and locking make no model calls.
    Apply comments is one action: cheap text/vision understands all unlocked/new
    cards, then generates their sketches. Suggest X more appends, plans and renders
    only the new cards, leaving existing unlocked and locked images unchanged. For activities this may mix supervised
@@ -48,7 +50,9 @@ mockups, listing review, customer downloads and editable preference memory.
    final cards must be rendered and locked before approving the set for listing.
    Saved product pixels are composited into one to four verified non-overlapping
    page surfaces. Spread/storyboard need multiple surfaces. Failed placements stay
-   visible and cannot be locked; source files and old rounds remain unchanged.
+   visible: explicit concept-only confirmation may lock their composition while
+   retaining the unresolved placement flag. This cannot approve final files or
+   bypass final placement/source-image checks. Source files/rounds stay unchanged.
    Human review remains required, including anatomy, material claims and usage.
    Guided mode remains enabled beyond the first twenty products. Approved related
    examples guide later work without silently creating global preferences.

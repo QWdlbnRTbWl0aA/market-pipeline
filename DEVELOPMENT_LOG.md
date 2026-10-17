@@ -817,3 +817,32 @@ Verification completed: 466 tests passed (100 Studio), 30 guided and 17 offline
 Firefox checks passed, including delayed non-overlapping polling. The live small
 progress endpoint returned no source/round data, and actual unchanged inputs
 match the saved failed operation. No additional paid/image requests.
+
+## Studio concept lock repair without paid generation
+
+The two newly saved samples were blocked by automatic paper-placement failures;
+one also had pending comments. Those checks had incorrectly made concept approval
+require paid regeneration. Concept locks now approve the actual saved pixels and
+retain pending notes for refinement. A sample with unresolved placement requires
+explicit concept-only confirmation, records the approved image hash and remaining
+issue, and still cannot bypass final placement/source-compositing validation.
+Edited scene prompts remain guarded. Fixed the click handler to read current
+lock state so unlock does not reuse a stale confirmation decision.
+
+Three regression tests cover pending notes with concept-only acknowledgment,
+strict final-placement rejection and corrupted-image integrity. A private browser
+test copied the actual project and ledger into an isolated clone, substituted
+inference-forbidden adapters, and locked/unlocked/relocked both affected samples;
+all locks survived reload with zero inference calls. The live project was never
+modified by those tests. The guided browser flow also verifies locking with pending
+notes without generating replacement sketches. Tests use synthetic render ports.
+
+Restarted only the authorized development Studio and verified all 74 original
+state/generated-file/ledger hashes stayed identical. No images were regenerated,
+no user locks were changed on their behalf, no paid calls were made and no
+production, Etsy, SMTP or host-security changes occurred. All copied test state,
+screenshots and hash inventories remain private outside Git.
+
+Final verification: all six suites passed (469 tests total), all 30 guided
+browser checks passed, and the credential-aware source/Git-object audit found
+zero findings and zero unreadable files. No paid API calls were made.
