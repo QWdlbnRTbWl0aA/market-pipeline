@@ -3,7 +3,19 @@ let boardProject=null,boardStage=null,boardKey='',boardFetch=0,chosenFinalModel=
 window.mockupFeedback=()=>{const board=project.workflow.mockup_design?.board;return {count:Number($('mockup-count').value),comments:board.stage==='final'?project.workflow.mockup_design.comments:$('mockup-comments').value,...(board.stage==='final'?{final_comments:$('mockup-comments').value}:{}),cards:[...$('mockup-concepts').querySelectorAll('[data-card]')].map(box=>{
  const card=board.cards.find(c=>c.id===box.dataset.card);const scene=card.scene?{...card.scene,description:box.querySelector('[data-description]')?.value??card.scene.description,image_prompt:box.querySelector('[data-prompt]')?.value??card.scene.image_prompt}:null;
  return {id:card.id,scene,comments:box.querySelector('[data-comments]').value,edit_box:JSON.parse(box.dataset.editBox||'null')};})};};
-async function boardAction(name,extra={}){const result=action(name,{...window.mockupFeedback(),...extra});window.renderLifestyle();await result;}
+async function boardAction(name,extra={}){
+ const id=project.id,stage=project.workflow.mockup_design.board.stage,snapshot=window.mockupFeedback();
+ const result=action(name,{...snapshot,...extra});window.renderLifestyle();const ok=await result;
+ if(!ok&&project?.id===id&&project.workflow.mockup_design.board.stage===stage){
+  await drawBoard(project.workflow.mockup_design.board,boardKey);
+  for(const saved of snapshot.cards){const box=[...$('mockup-concepts').querySelectorAll('[data-card]')].find(b=>b.dataset.card===saved.id);if(!box)continue;
+   for(const [selector,value] of [['[data-description]',saved.scene?.description],['[data-prompt]',saved.scene?.image_prompt],['[data-comments]',saved.comments]]){const input=box.querySelector(selector);if(input&&value!==undefined)input.value=value;}
+   box.dataset.editBox=JSON.stringify(saved.edit_box);
+  }
+  $('mockup-comments').value=stage==='final'?snapshot.final_comments:snapshot.comments;updateBoardControls(project.workflow.mockup_design.board);
+ }
+ return ok;
+}
 async function drawBoard(board,key){
  const ticket=++boardFetch,id=project.id,response=await request('/api/projects/'+id+'/files');
  if(project?.id!==id||ticket!==boardFetch||boardKey!==key)return;
@@ -21,7 +33,7 @@ async function drawBoard(board,key){
    const details=node('details'),summary=node('summary','הנחיות התמונה לדוגמה הזו'),prompt=node('textarea');prompt.value=card.scene.image_prompt;prompt.dataset.prompt='true';prompt.maxLength=3500;prompt.rows=5;prompt.dir='auto';details.append(summary,prompt);box.append(label,details);}
   if(board.stage==='final'&&(candidate?.direct_edit?.reference_id||candidate?.refinement?.reference_id)){const previous=node('button','שימוש בתמונה הקודמת לתיקון · ללא חיוב','secondary');previous.dataset.previous='true';previous.onclick=()=>boardAction('previous_mockup_image',{card_id:card.id});box.append(previous);}
   const approve=node('button',card.locked?'✓ מאושר · נעול':'אישור ונעילה',card.locked?'mockup-lock selected':'mockup-lock');approve.dataset.lock='true';approve.setAttribute('aria-pressed',String(card.locked));approve.onclick=()=>{const current=project.workflow.mockup_design.board,liveCard=current.cards.find(c=>c.id===card.id);const concept=current.stage==='concept'&&!liveCard.locked&&liveCard.candidate?.placement_status!=='ready';if(concept&&!confirm('לאשר ולנעול את הקומפוזיציה הקיימת בלבד? התאמת עמודי המוצר עדיין לא אושרה. הדוגמה תישמר ללא יצירה או חיוב נוסף.'))return;const human=current.stage==='final'&&!liveCard.locked&&liveCard.candidate?.renderer_version==='direct-edit-v1';if(human&&!confirm('לאשר שהדוגמה נראית תקינה, שהתיקון בוצע ותוכן המוצר תואם למוצר האמיתי? זהו אישור אנושי, ללא יצירה או חיוב.'))return;boardAction('toggle_mockup_lock',{card_id:card.id,concept_review_confirmed:concept,human_review_confirmed:human});};box.append(approve);
-  const [label,comments]=field(board.stage==='final'?'תיקונים קטנים לדוגמה הזו':'הערות לדוגמה הזו',card.comments,'textarea');comments.dataset.comments='true';comments.maxLength=1800;comments.rows=3;comments.placeholder=board.stage==='final'?'למשל: לתקן את האצבעות ולחדד את מרקם הנייר':'מה לשנות בסצנה הזו?';box.append(label);const status=node('p',card.needs_render?(board.stage==='concept'?'ההערות נשמרות להמשך. אפשר לנעול את הקומפוזיציה הקיימת.':'ההנחיות השתנו · צרו דוגמה חדשה לפני נעילה.'):'','hint');box.append(status);for(const input of box.querySelectorAll('textarea'))input.addEventListener('input',()=>{status.textContent=board.stage==='concept'&&input.dataset.comments!==undefined?'הערה להמשך · אפשר לנעול ללא יצירה נוספת.':'עריכה ממתינה · צרו דוגמה חדשה כדי להחיל אותה.';updateBoardControls(project.workflow.mockup_design.board);if(board.stage==='final'||input.dataset.comments===undefined)disabledHint(approve,'יש להחיל את שינוי הסצנה לפני אישור הדוגמה');});$('mockup-concepts').append(box);
+  const [label,comments]=field(board.stage==='final'?'תיקונים קטנים לדוגמה הזו':'הערות לדוגמה הזו',card.comments,'textarea');comments.dataset.comments='true';comments.maxLength=1800;comments.rows=3;comments.placeholder=board.stage==='final'?'למשל: לתקן את האצבעות ולחדד את מרקם הנייר':'מה לשנות בסצנה הזו?';box.append(label);const status=node('p',card.needs_render?(board.stage==='concept'?(candidate&&JSON.stringify(candidate.requested_scene||candidate.scene)!==JSON.stringify(card.scene)?'תיאור הסצנה השתנה · יש ליצור סקיצה מעודכנת לפני אישור.':'ההערות נשמרות להמשך. אפשר לנעול את הקומפוזיציה הקיימת.'):'ההנחיות השתנו · צרו דוגמה חדשה לפני נעילה.'):'','hint');box.append(status);for(const input of box.querySelectorAll('textarea'))input.addEventListener('input',()=>{status.textContent=board.stage==='concept'&&input.dataset.comments!==undefined?'הערה להמשך · אפשר לנעול ללא יצירה נוספת.':'עריכה ממתינה · צרו דוגמה חדשה כדי להחיל אותה.';updateBoardControls(project.workflow.mockup_design.board);if(board.stage==='final'||input.dataset.comments===undefined)disabledHint(approve,'יש להחיל את שינוי הסצנה לפני אישור הדוגמה');});$('mockup-concepts').append(box);
  }
  if(board.stage==='concept'){const add=node('button','＋\nהוספת מוק-אפ','mockup-add-card');add.id='add-mockup-card';add.onclick=()=>boardAction('add_mockup_card');$('mockup-concepts').append(add);}
  updateBoardControls(board);
@@ -43,14 +55,14 @@ function updateBoardControls(board){const pending=!!project.workflow.pending&&!p
  for(const box of $('mockup-concepts').querySelectorAll('[data-card]')){const card=board.cards.find(c=>c.id===box.dataset.card);if(!card){for(const input of box.querySelectorAll('button,textarea'))input.disabled=true;continue;}box.classList.toggle('locked',card.locked);
   for(const input of box.querySelectorAll('textarea'))input.disabled=!!blocked||card.locked||(final&&input.dataset.comments===undefined);
   const lock=box.querySelector('[data-lock]');lock.textContent=card.locked?'✓ מאושר · נעול':'אישור ונעילה';lock.setAttribute('aria-pressed',String(card.locked));lock.classList.toggle('selected',card.locked);
-  const sceneChanged=card.candidate?.scene&&JSON.stringify(card.candidate.scene)!==JSON.stringify(card.scene);
+  const reviewedScene=card.candidate?.requested_scene||card.candidate?.scene;const sceneChanged=reviewedScene&&JSON.stringify(reviewedScene)!==JSON.stringify(card.scene)||sceneEdited(card,box);
   disabledHint(lock,blocked||(card.locked?'':!card.candidate?'יש ליצור דוגמה לפני אישור':!final&&sceneChanged?'תיאור הסצנה השתנה; יש להחיל או לשחזר אותו לפני אישור התמונה הקיימת':final&&card.candidate.renderer_version!=='direct-edit-v1'&&card.candidate.placement_status!=='ready'?'נדרש תיקון למשטח המוצר לפני אישור סופי':final&&card.needs_render?'יש להחיל את ההערות וליצור דוגמה מעודכנת':final&&card.candidate.quality!=='final'?'יש להפיק דוגמה מקצועית לפני אישור':''));
   disabledHint(box.querySelector('[data-remove]'),blocked);const previous=box.querySelector('[data-previous]');if(previous)disabledHint(previous,blocked);const region=box.querySelector('[data-region]');if(region)disabledHint(region,blocked||(card.locked?'יש לפתוח את הדוגמה לפני סימון אזור':''));
  }
  const add=$('add-mockup-card');if(add)disabledHint(add,blocked||(board.cards.length>=10?'ניתן לשמור עד עשרה מוק-אפים; הסירו דוגמה כדי להוסיף אחרת':''));
  const open=board.cards.filter(c=>!c.locked),all=board.cards.length>0&&open.length===0;
  $('mockup-concept-hint').textContent=board.cards.length+' מוק-אפים · '+(board.cards.length-open.length)+' נעולים · '+open.length+' פתוחים לשינוי';$('mockup-comments').disabled=!!blocked||all;
- const changed=c=>c.needs_render||document.querySelector('[data-card="'+c.id+'"] [data-comments]')?.value!==c.comments||$('mockup-comments').value!==(board.stage==='final'?board.final_comments||'':project.workflow.mockup_design.comments);
+ const changed=c=>c.needs_render||sceneEdited(c,document.querySelector('[data-card="'+c.id+'"]'))||document.querySelector('[data-card="'+c.id+'"] [data-comments]')?.value!==c.comments||$('mockup-comments').value!==(board.stage==='final'?board.final_comments||'':project.workflow.mockup_design.comments);
  const targets=open.some(changed)?open.filter(changed):open;
  const invalidRegion=!directModel()&&targets.length>0&&targets.every(c=>c.refinement_failure?.code==='invalid_correction_plan'&&!JSON.parse(document.querySelector('[data-card="'+c.id+'"]')?.dataset.editBox||'null')&&document.querySelector('[data-card="'+c.id+'"] [data-comments]')?.value===c.comments&&$('mockup-comments').value===(board.stage==='final'?board.final_comments||'':project.workflow.mockup_design.comments));
  const cheapMissing=project.mockup_models?.planning?.available===false||project.mockup_models?.sketches?.available===false;
@@ -118,3 +130,5 @@ async function loadGeneratedImages(){
   }
  }catch(e){galleryKey='';notify('לא ניתן לטעון את התמונות המקוריות: '+e.message,true);}
 }
+
+function sceneEdited(card,box){return !!box&&!!card.scene&&[['[data-description]','description'],['[data-prompt]','image_prompt']].some(([selector,key])=>{const input=box.querySelector(selector);return input&&input.value!==card.scene[key];});}

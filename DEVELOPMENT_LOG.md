@@ -986,3 +986,32 @@ runtime integrity reports remain private outside source control. Final verificat
 the new browser flow passed nine checks and the historical browser flow passed
 12 named check groups. Credential-aware source/Git-object sanitation found zero leaks and zero
 unreadable files. No paid image-quality trial was performed.
+
+
+## Studio: preserve human scene edits through concept regeneration
+
+Investigated the saved failed-to-satisfy scene edit. The action did produce new
+image bytes, but the planner copied the old internal image prompt and rewrote
+away the human description; applying its result replaced the editable text.
+Human `requested_scene` is now distinct from compiled `scene`. Explicit edits
+persist as `scene_overrides`; a changed description without an explicit advanced
+prompt edit becomes the exact image prompt. Image requests distinguish explicit
+per-card edits/notes from old shared defaults. Concept locks compare the human
+input represented by the candidate. Browser dirty tracking includes descriptions
+and advanced prompts; rejected actions restore unsaved descriptions/comments.
+
+Recovered the affected development card's exact submitted description from its
+saved request without inference. Its existing image remains selected and flagged
+for a new concept attempt; the old result is not represented as satisfying the
+recovered scene. All 734 other pre-existing files and the ledger were unchanged.
+Only development Studio was restarted, with no paid/Etsy/email calls, production
+changes, deletion or regeneration. The two metadata recovery receipts, complete
+before-state and live DQA remain private outside Git.
+
+Verification: the 126-test Studio suite and 51 integration tests passed. After
+adding explicit priority labels, all three focused regressions passed again.
+The full Hebrew mobile browser flow passed on final generation code, including
+lossy planner output and a simulated rejected HTTP action that retains drafts.
+A local missing-import issue in an intermediate focused run was corrected and
+the complete focused run passed. Saved API outputs/budgets remain untouched;
+image-model adherence was not tested with a new paid call.

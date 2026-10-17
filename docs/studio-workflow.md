@@ -385,3 +385,17 @@ worker tick or write the paid ledger. The failed operation and recovery receipt
 remain durable. The real generation error stays visible rather than being
 replaced by generic advice to retry. Completed paid assets never need regeneration
 merely to make them visible.
+
+
+### Human scene edits and compiled output
+
+Editable card descriptions, advanced prompts and comments are the submitted human
+input. Concept candidates preserve that input in `requested_scene`, separately
+from the actual generated scene. Explicit `scene_overrides` remain authoritative
+across later rounds. A changed description without a changed advanced prompt is
+sent verbatim as the image prompt, so a stale hidden prompt cannot cancel it.
+Cheap planning still selects other scene details and validates real page IDs.
+Lock comparisons use the submitted input; exact compiled scene and API payload
+remain available for inspection. A failed action keeps the browser's unsaved
+text instead of replacing it with reloaded server values. Returning to concepts
+retains later final assets/history and does not itself generate images.

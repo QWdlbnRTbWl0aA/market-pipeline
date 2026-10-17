@@ -2,7 +2,7 @@
 import copy
 import hashlib
 import uuid
-from .storage import Invalid, Conflict, digest, now, read, write, write_bytes, guard
+from .storage import Invalid, Conflict, canonical, digest, now, read, write, write_bytes, guard
 from . import production
 
 ACTIONS={'save_mockup_board','add_mockup_card','delete_mockup_card','toggle_mockup_lock','plan_mockup_board','render_mockup_board','enter_mockup_final','return_mockup_concepts','apply_mockup_comments','suggest_mockups','finalize_mockup_board','export_mockup_board','restore_mockup_round','recover_mockup_results','previous_mockup_image'}
@@ -29,10 +29,18 @@ class Board:
         if not pending or state['phase']!='generation_failed' or self.studio.budget.summary(state['id'])['unknown_outcomes']:return False
         folder=directory/'workflow-jobs'/pending
         return read(folder/'operation.json')['status']=='failed' and read(folder/'request.json')['kind'].startswith('mockup_')
+    def scene_overrides(self,card):
+        # Human text is durable input; compiled scene prose is a separate output.
+        candidate=card.get('candidate') or {};baseline=candidate.get('requested_scene',candidate.get('scene'))
+        overrides=copy.deepcopy(candidate.get('scene_overrides',{}))
+        if not baseline and card.get('scene'):overrides.update(card['scene'])
+        if baseline and card.get('scene'):
+            overrides.update({k:v for k,v in card['scene'].items() if v!=baseline.get(k)})
+        return overrides
     def context(self,state,manifest,cards):
         board=self.state(state);design=self.lifestyle.design(state)
         return {'brief':{k:state['brief'][k] for k in ('concept','audience','purpose')},'requirements':state['workflow']['plan']['constraints'],'inventory':manifest['units'],
-                'comments':design['comments'],'cards_to_plan':[{'scene':c['scene'],'comments':c['comments']} for c in cards],
+                'comments':design['comments'],'cards_to_plan':[{'scene':c['scene'],'comments':c['comments'],'latest_scene_edits':self.scene_overrides(c)} for c in cards],
                 'locked_scenes':[c['scene'] for c in board['cards'] if c['locked']],
                 'other_gallery_scenes':[c['scene'] for c in board['cards'] if c['id'] not in {a['id'] for a in cards}],
                 'deleted_scenes':[c['scene'] for c in board['deleted'][-10:]],'approved_related_scene_examples':self.lifestyle.remembered(state)}
@@ -210,7 +218,7 @@ class Board:
                 file=directory/c['file']
                 if file.is_symlink() or not file.resolve().is_relative_to(directory.resolve()) or hashlib.sha256(file.read_bytes()).hexdigest()!=c['sha256']:raise Invalid('Saved sample changed; review its integrity before locking')
                 if board['stage']=='concept':
-                    if c.get('scene') and c['scene']!=card['scene']:raise Invalid('Apply or revert changed scene instructions before approving the existing composition')
+                    if c.get('scene') and c.get('requested_scene',c['scene'])!=card['scene']:raise Invalid('Apply or revert changed scene instructions before approving the existing composition')
                     if c.get('placement_status')!='ready' and payload.get('concept_review_confirmed') is not True:raise Invalid('Confirm concept-only approval; final product placement remains unresolved')
                     card['concept_approval']={'candidate_id':c['id'],'sha256':c['sha256'],'at':now(),'placement_review_required':c.get('placement_status')!='ready','pending_notes':bool(card.get('needs_render'))}
                 elif c.get('renderer_version')=='direct-edit-v1':
@@ -293,7 +301,15 @@ class Board:
                 from .lifestyle import checked_plan
                 checked_plan(plan,len(value['cards']),set(pages));write(planned,plan)
             value=copy.deepcopy(value)
-            for card,scene in zip(value['cards'],plan['scenes']):card['scene']=scene
+            for card,scene in zip(value['cards'],plan['scenes']):
+                requested=copy.deepcopy(card['scene'] or scene);overrides=self.scene_overrides(card)
+                card['requested_scene']=requested;card['scene_overrides']=overrides
+                scene=copy.deepcopy(scene);scene.update(overrides)
+                if 'description' in overrides and 'image_prompt' not in overrides:
+                    # Do not let a stale hidden English prompt cancel a human
+                    # description edit. Image providers accept the exact text.
+                    scene['image_prompt']=overrides['description']
+                card['scene']=scene
         if request['kind']=='mockup_board_plan':
             path=folder/'response.json'
             if path.exists():result=read(path)
@@ -310,6 +326,7 @@ class Board:
         final=request['kind']=='mockup_board_final';provider=(self.studio.model_roles.select_final(value.get('model_id')) if self.studio.model_roles else self.studio.mockup_finals) if final else self.studio.mockup_drafts;target=directory/'lifestyle'/request['id'];records=[]
         for i,card in enumerate(value['cards']):
             scene=card['scene'];key=request['id']+'-'+card['id'];path=target/(card['id']+'.json');comments=value['comments']+'\n'+card['comments']
+            if card.get('scene_overrides'):comments=canonical({'shared_gallery_defaults':value['comments'],'latest_card_comments':card['comments'],'explicit_scene_edits':card['scene_overrides'],'priority':'Apply per-card comments and explicit scene edits before shared defaults or older prompt text.'}).decode()
             with guard(directory):
                 current=read(directory/'state.json');current['workflow']['mockup_progress']={'completed':i,'total':len(value['cards']),'title':scene['title']};self.studio.save(directory,current)
             if path.exists():record=read(path)
@@ -347,7 +364,8 @@ class Board:
                     'renderer_version':'lifestyle-board-v2','origin':'generative_lifestyle','quality':'final' if final else 'concept','review_required':True,
                     'model_id':value.get('model_id') if final else getattr(provider,'image_model','synthetic'),
                     'provider':getattr(provider,'name','configured'),
-                    'comments_sha256':digest(value['comments']),'card_input_sha256':digest({'scene':scene,'comments':card['comments']}),'scene':scene}
+                    'comments_sha256':digest(value['comments']),'card_input_sha256':digest({'scene':card.get('requested_scene',scene),'comments':card['comments']}),'scene':scene,
+                    **({'requested_scene':card['requested_scene'],'scene_overrides':card['scene_overrides']} if 'requested_scene' in card else {})}
                 write(path,record)
             for name,sha in (('file','sha256'),('background_file','background_sha256')):
                 if hashlib.sha256((directory/record[name]).read_bytes()).hexdigest()!=record[sha]:raise Invalid('Saved mockup asset changed')
@@ -379,7 +397,7 @@ class Board:
                         continue
                 card.pop('refinement_failure',None)
                 card.pop('edit_box',None)  # A human-selected region applies to this correction only.
-                card.update(candidate=candidate,scene=candidate['scene'],locked=False,needs_render=False)
+                card.update(candidate=candidate,scene=copy.deepcopy(candidate.get('requested_scene',candidate['scene'])),locked=False,needs_render=False)
             for issue in result.get('failures',[]):
                 card=self.card(board,issue['card_id']);card['refinement_failure']=copy.deepcopy(issue);card['needs_render']=True
             design['status']='final_review' if result['stage']=='final' else 'concept_review'

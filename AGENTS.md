@@ -141,6 +141,10 @@ host security settings without explicit authorization.
   lock a composition with unresolved automatic page placement, recording the
   image hash and remaining issue. It must never certify final placement or bypass
   final approval checks. Always permit unlocking; preserve generated samples.
+  Preserve human scene descriptions/prompts/comments as durable inputs, separately
+  from compiled planner output. Explicit scene edits must reach the actual image
+  request and override stale hidden prompts. Failed actions must retain local
+  browser drafts. Returning to concepts must not erase later final history.
   Combine comment understanding and sketches in one action; Suggest X more plans
   and sketches only new cards. Finalize directly starts the first consented paid
   professional round. Dynamic final choices require a configured credential,
