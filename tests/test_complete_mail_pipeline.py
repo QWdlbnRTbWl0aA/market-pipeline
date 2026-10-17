@@ -61,6 +61,7 @@ class CompletePipeline(unittest.TestCase):
                 for shop in old['shops']:shop['shop'].update(observed_at=stamp,transaction_sold_count=100+index*20)
                 atomic_json(app.store.runs/old['run_id']/'snapshot.json',old);atomic_json(app.store.runs/old['run_id']/'dqa.json',old['dqa'])
             product_config=json.loads((ROOT/'config'/'product.example.json').read_text());product_config['mail']=POLICY
+            product_config['visual_references']['enabled']=False
             path=root/'product.json';path.write_text(json.dumps(product_config))
             product=product_server(root/'product',0,path,brief_model=FixtureBrief());threading.Thread(target=product.serve_forever,daemon=True).start()
             self.addCleanup(product.server_close);self.addCleanup(product.shutdown);self.addCleanup(product.stop_worker)

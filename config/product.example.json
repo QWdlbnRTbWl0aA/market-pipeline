@@ -4,6 +4,12 @@
   "ollama_url": "http://127.0.0.1:11434",
   "qualification_root": "/var/lib/market-pipeline/controller/qualifications",
   "promotion_review": null,
+  "visual_references": {
+    "enabled": true,
+    "allow_listing_pages": true,
+    "max_images": 3,
+    "timeout_seconds": 10
+  },
   "briefing": {
     "provider": "ollama",
     "model": "gemma3:4b",

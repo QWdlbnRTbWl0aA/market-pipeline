@@ -54,7 +54,7 @@ def references(row):
     for sample in row.get('evidence_excerpts',[])[:3]:
         url=reference_url(sample.get('url'))
         if not url or not sample.get('evidence_id'):continue
-        samples.append({k:sample.get(k) for k in ('evidence_id','listing_id','title','description_excerpt','description_provenance','tags','shop_id','price','currency','metrics','observed_at','original_created_at','source_provenance')} | {'url':url})
+        samples.append({k:sample.get(k) for k in ('evidence_id','listing_id','title','description_excerpt','description_provenance','tags','shop_id','price','currency','metrics','observed_at','original_created_at','source_provenance','images')} | {'url':url})
     return samples
 
 
@@ -66,7 +66,7 @@ def context(row):
     measured['commercial_assessment']={k:v for k,v in assessment.items() if k in ('qualified','evidence_tier','hold_reasons','cheap_share','known_price_share','benchmark_price_share')}
     return {'initial_direction':row['product_brief'],'rationale':row['rationale'],
             'assessment':row.get('assessment'),'measured_context':measured,
-            'samples':[{k:v for k,v in s.items() if k not in ('source_provenance','description_provenance')} for s in samples],'images_visually_inspected':False,
+            'samples':[{k:v for k,v in s.items() if k not in ('source_provenance','description_provenance','images')} for s in samples],'images_visually_inspected':False,
             'image_scope':'No image vision performed by this definition stage. Text evidence only; choose and label a proposed style.'}
 
 
@@ -212,6 +212,20 @@ def document(product):
     for k,v in d['first_sketch'].items():lines += [k.replace('_',' ').title()+': '+('; '.join(v) if isinstance(v,list) else v),'']
     for k in ('customer_use_steps','production_files','acceptance_checks','proposed_choices_and_assumptions'):
         lines += ['## '+k.replace('_',' ').title(),'',*['- '+v for v in d[k]],'']
+    if 'visual_reference_status' in product:
+        status=product['visual_reference_status']
+        lines += ['## Visual reference board','',
+                  'Image availability: '+status['status']+'. Images attached: '+str(len(product.get('reference_images',[])))+'.',
+                  product['visual_reference_guidance'],'']
+        for reference,image in zip(product.get('visual_references',[]),product.get('reference_images',[])):
+            lines += ['### '+str(reference.get('title') or reference['evidence_id']),
+                      '!['+reference['evidence_id']+']('+image+')',reference['url'],
+                      'Use as guidance: '+reference['purpose'],'Keep original: '+reference['do_not_copy'],
+                      'Image source: '+reference['source_image_url'],
+                      'Evidence: '+reference['evidence_id']+' · Image SHA256: '+reference['sha256'],'']
+        for failure in status.get('failures',[]):
+            lines += ['Image unavailable — '+str(failure.get('title') or failure['evidence_id'])+': '+failure['reason']+
+                      (' (HTTP '+str(failure['http_status'])+')' if failure.get('http_status') else ''),'']
     lines += ['## Actual Etsy references','']
     interpretations={r['evidence_id']:r for r in d['reference_interpretation']}
     for s in product['samples']:
@@ -235,6 +249,9 @@ def html_document(markdown):
         if line.startswith('### '):parts.append('<h3>'+html.escape(line[4:])+'</h3>')
         elif line.startswith('## '):parts.append('<h2>'+html.escape(line[3:])+'</h2>')
         elif line.startswith('# '):parts.append('<h1>'+html.escape(line[2:])+'</h1>')
+        elif re.fullmatch(r'!\[[A-Za-z0-9_-]{1,100}\]\(data:image/jpeg;base64,[A-Za-z0-9+/=]{1,106668}\)',line):
+            label,image=line[2:].split('](',1)
+            parts.append('<figure><img loading="lazy" alt="Etsy visual reference '+html.escape(label,quote=True)+'" src="'+image[:-1]+'"><figcaption>Actual listing reference — create original artwork</figcaption></figure>')
         elif reference_url(line):parts.append('<p><a rel="noreferrer noopener" href="'+html.escape(line,quote=True)+'">View actual Etsy listing</a></p>')
         elif line:parts.append('<p>'+escaped+'</p>')
-    return '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Product brief</title><style>body{max-width:880px;margin:36px auto;padding:0 20px;font:17px/1.65 system-ui;color:#243d39;background:#fffdf8}h2{margin-top:2em;border-bottom:1px solid #d9e2dd}p{overflow-wrap:anywhere}a{color:#17634b}</style><main>'+''.join(parts)+'</main></html>'
+    return '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Product brief</title><style>body{max-width:880px;margin:36px auto;padding:0 20px;font:17px/1.65 system-ui;color:#243d39;background:#fffdf8}h2{margin-top:2em;border-bottom:1px solid #d9e2dd}p{overflow-wrap:anywhere}a{color:#17634b}figure{margin:1em 0}figure img{max-width:100%;height:auto;border-radius:10px}figcaption{font-size:.85em;color:#566a61}</style><main>'+''.join(parts)+'</main></html>'

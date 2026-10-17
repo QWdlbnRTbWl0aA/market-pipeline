@@ -33,14 +33,16 @@ images, when present, are interpreted locally; metadata alone is not visual evid
 
 ## Default Product output
 
-`run` and the ordinary HTTP worker use recipe `product-definition-v4.1-grounded`.
+`run` and the ordinary HTTP worker use handoff recipe
+`product-handoff-v4.2-visual-references`, retaining the independently cached
+`product-definition-v4.1-grounded` text-definition recipe.
 For each recommendation they save:
 
 - Exact request, started marker, raw model response and provider usage metadata.
 - `product.json`: original Analyzer direction, measured context, real references,
   full independent definition and backward-compatible Studio requirements.
 - `brief.md` and **one standalone `brief.html` for that product**, with the same
-  specification and actual Etsy example links. There is no batch dashboard,
+  specification, embedded visual reference board and actual Etsy example links. There is no batch dashboard,
   automatic hosting, remote image loading or directory publication.
 - A batch `studio-handoff.json` containing the complete exact briefs, not only
   directory pointers. SMTP and passive Studio delivery still use the exact saved
@@ -63,6 +65,70 @@ Product generates no artwork. A separate legacy `define` command and
 `enhanced_enabled` promotion policy retain earlier experimental wireframe
 compatibility; they are not required to use the new default definition path.
 Do not enable the legacy path to obtain the improved briefs.
+
+## Product visual references
+
+Product selects up to three of the evidence listings already chosen for the brief.
+It preserves their `images` metadata, prefers an available saved CDN URL, and,
+when missing, reads `og:image`/`twitter:image` from that exact public listing page.
+It downloads only still PNG/JPEG/WebP from `i.etsystatic.com`; no Etsy API calls,
+credentials, search-engine fallback, challenge bypass, redirects or general URL
+fetching are supported. Public DNS addresses are validated and pinned for TLS.
+Each example costs at most one bounded listing-page read and one image read;
+there are at most three references per brief. Responses and decoding are bounded.
+
+Pillow is required when this option is enabled; Product validates the runtime
+before starting new definition inference. It makes a fresh metadata-free JPEG at
+at most 512×512 pixels and 80 KB. Thumbnails are embedded as `reference_images`
+data URLs, with `visual_references` mapping each image to its evidence/listing/shop,
+original listing and CDN URLs, hashes, dimensions, citation purpose and exclusions.
+The standalone HTML embeds the same images, so viewing it makes no image-server
+requests. Product's exact email/Studio JSON includes these images automatically.
+Studio's existing passive intake saves them without generation or inference;
+visual interpretation happens after the user's explicit sketch action. Product
+does not claim that a thumbnail was visually inspected by its text-only model.
+
+The normal CLI/HTTP path enables visual references by default, including old
+configurations that omit the option. To change policy, add to Product JSON:
+
+```json
+"visual_references": {
+  "enabled": true,
+  "allow_listing_pages": true,
+  "max_images": 3,
+  "timeout_seconds": 10
+}
+```
+
+Set `allow_listing_pages: false` for CDN retrieval from saved metadata only, or
+`enabled: false` for deliberate text-only operation. The internal Python
+`process` function retains an opt-in `visual_settings` argument for callers that
+require saved-data-only operation; the CLI and worker supply the policy explicitly.
+Legacy experimental `enhanced_enabled` uses its previous output contract and
+does not automatically add a board; use the default path for new briefs.
+
+Failures are recorded under `visual_reference_status`; unavailable images are
+shown explicitly, never replaced with generic artwork. `ready` means images were
+attached, not that visual or commercial quality has been assessed. Text definitions
+remain readable if retrieval fails. Successful/failed per-brief receipts are
+reused; an interrupted attempt requires an explicit new revision. HTTP 401/403/429
+also creates a durable host block under the Product output root's `visual-access/`.
+New products and restarts retain it. An operator must review/resolve the cause and
+explicitly archive the applicable block before any new attempt; code never does
+that automatically. Old revision receipts remain immutable.
+
+An existing grounded brief can be enriched without definition, API inference,
+email, Studio delivery or generation, preserving the source and using a new folder:
+
+```bash
+PYTHONPATH=services/product python3 -m product_service enrich-visuals \
+  --brief /path/to/saved/product.json --output /path/to/new-visual-revision \
+  --definition-config /path/to/product-config.json
+```
+
+No existing completed brief is backfilled or hosted automatically. The explicit
+preview server must allow inline `data:` images in its CSP, and continue allowing
+only the requested HTML route rather than exposing its output directory.
 
 ## Configuration and installation
 

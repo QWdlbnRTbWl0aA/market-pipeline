@@ -35,7 +35,7 @@ if __name__=='__main__':
         checks.append({'check':'configuration_valid','component':component,'path':str(file),'ok':valid})
     try:
         result=subprocess.run([sys.executable,'-I','-c','import PIL'],env={'PATH':'/usr/bin:/bin'},capture_output=True,timeout=5)
-        checks.append({'check':'studio_image_runtime','ok':result.returncode==0,'action':'Pillow is required for Studio reference images/development vision; provision it independently if missing'})
+        checks.append({'check':'studio_image_runtime','ok':result.returncode==0,'action':'Pillow is required for Product/Studio reference images and development vision; provision it independently if missing'})
     except (OSError,subprocess.SubprocessError):checks.append({'check':'studio_image_runtime','ok':False})
     analyzer_path=Path(args.configs)/'analyzer.json'
     if analyzer_path.is_file():

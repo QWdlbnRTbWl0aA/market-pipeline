@@ -576,3 +576,24 @@ A mechanical format-validator false positive was corrected and the saved model
 response revalidated without another paid call. No Etsy requests, SMTP sends,
 production changes or additional hosted content. Runtime reports remain outside
 Git; the previously authorized single-brief preview remains unchanged.
+
+## Product visual reference handoff
+
+Added Product-owned selection/retrieval of up to three actual listing reference
+images, retaining saved image metadata and using bounded public listing metadata
+only when needed. Downloads allow only the Etsy image CDN, pin validated public
+addresses, prohibit redirects/credentials and enforce raster/pixel/byte limits.
+Metadata-free thumbnails, source attribution, hashes and citation purposes are
+embedded in standalone HTML and the exact Studio JSON. Studio's existing passive
+intake accepts them without generation. Added independent configuration, a saved
+brief enrichment command, durable receipts and persistent host access blocks.
+
+Validated 138 unique functional tests (Product 45, integration 50, Studio 43),
+plus a final focused ten-test check. Successful image transfer uses synthetic
+rasters/transports and actual temporary local Studio intake. The real baseline
+has no saved image URLs and the initial public listing probe returned HTTP 403.
+Preserved that access block without retry or bypass; the revised real brief
+honestly reports zero available reference images. This live-image blocker remains
+unresolved. Preserved its original definition and raw collection hashes, and
+replaced only the authorized single-HTML preview. No paid inference, Etsy API
+calls, SMTP sends, Studio generation, deployment or production-state changes.

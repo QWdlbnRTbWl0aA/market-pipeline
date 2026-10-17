@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 import tempfile
 
-VERSION = 'product-definition-v4.1-grounded'
+VERSION = 'product-handoff-v4.2-visual-references'
 MAX_BYTES = 5_000_000
 
 
@@ -137,8 +137,14 @@ class SavedReportIntake:
         return body
 
 
-def process(body, output_root, model=None):
+def process(body, output_root, model=None, visual_settings=None, visual_fetcher=None):
     clean_environment()
+    if visual_settings is not None:
+        from .visual_references import policy as visual_policy,GuardedFetch
+        visual_settings=visual_policy(visual_settings)
+        if visual_settings['enabled']:
+            from PIL import Image  # Validate the optional runtime before any inference.
+        visual_fetcher=visual_fetcher or GuardedFetch(Path(output_root)/'visual-access')
     if len(body) > MAX_BYTES:
         raise ValueError('Payload too large')
     payload = json.loads(body)
@@ -193,6 +199,11 @@ def process(body, output_root, model=None):
                         'acceptance_checks':definition['acceptance_checks']},ensure_ascii=False,separators=(',',':'))}
                 if len(product['source_requirements']['requirements'])>8000:
                     raise ValueError('Studio normalized requirements bound exceeded')
+                if visual_settings is not None:
+                    from .visual_references import enrich
+                    product=enrich(product,folder,visual_settings,visual_fetcher)
+                if len(json.dumps(product,ensure_ascii=False,indent=2).encode())>890000:
+                    raise ValueError('Studio brief size bound exceeded')
                 write_json(folder / 'product.json', product)
                 document=briefing.document(product)
                 (folder / 'brief.md').write_text(document)

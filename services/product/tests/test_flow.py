@@ -58,6 +58,8 @@ class FlowTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(); self.root = Path(self.tmp.name)
         self.model=FixtureBrief();self.factory=patch('product_service.briefing.default_model',return_value=self.model)
         self.factory.start();self.addCleanup(self.factory.stop)
+        self.media=patch('product_service.visual_references.fetch',side_effect=AssertionError('Synthetic tests forbid external media'))
+        self.media.start();self.addCleanup(self.media.stop)
 
     def tearDown(self):
         self.tmp.cleanup()

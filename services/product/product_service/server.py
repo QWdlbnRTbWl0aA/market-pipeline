@@ -43,7 +43,9 @@ def server(root, port=8093, definition_config=None, operations_root=None, brief_
                     else:
                         from .briefing import default_model
                         model=brief_model or default_model(policy.get('briefing') if policy else None)
-                        result = process(record['body'].encode(), root / 'studio-outbox', model)
+                        from .visual_references import policy as visual_policy
+                        result = process(record['body'].encode(), root / 'studio-outbox', model,
+                                         visual_policy(policy.get('visual_references') if policy else None))
                 except Exception as error:
                     result = {'status': 'failed', 'error_type': type(error).__name__, 'automatic_retry': False}
                 if not receipt.exists():write_json(receipt, result)

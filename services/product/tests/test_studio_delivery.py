@@ -28,6 +28,7 @@ class StudioDelivery(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name)
         factory=patch('product_service.briefing.default_model',return_value=FixtureBrief());factory.start();self.addCleanup(factory.stop)
+        media=patch('product_service.visual_references.fetch',side_effect=AssertionError('Synthetic tests forbid media retrieval'));media.start();self.addCleanup(media.stop)
         self.generator=Generator();self.studio=Studio(self.root/'studio',sketches=self.generator)
         self.http=Server(('127.0.0.1',0),self.studio);self.http.start_worker();threading.Thread(target=self.http.serve_forever,daemon=True).start()
         self.settings=policy({'enabled':True,'endpoint':f'http://127.0.0.1:{self.http.server_port}/api/library/briefs','max_attempts':2,'retry_seconds':1})

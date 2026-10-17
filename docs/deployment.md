@@ -128,7 +128,7 @@ settings. Follow the README's **Upgrade an existing deployment** procedure and
 `deploy/upgrade_config.py` preview/apply steps for automatic mail. Render SMTP-enabled
 units only after provisioning the dedicated credential. This preserves state and
 does not migrate or reset any paid, quota, completion, mail or offer ledger.
-Studio uploads and development image observation require system-visible Pillow;
+Product visual reference boards, Studio uploads and development image observation require system-visible Pillow;
 `/usr/bin/python3 -I -c 'import PIL'` checks availability without installing it.
 Core mock operation does not need it. No Studio generation belongs to the automatic
 search→analysis→Product→email chain in this release.

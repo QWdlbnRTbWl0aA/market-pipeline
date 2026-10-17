@@ -7,7 +7,7 @@ defaults to mock generation and broker. An explicit development-only OpenAI
 adapter has a persistent $1 total envelope; Etsy publishing remains blocked.
 
 One repository contains independently runnable Python services. Python 3.11+
-and its standard library support the core services. Studio reference images and
+and its standard library support the core services. Product/Studio reference images and
 OpenAI image observation additionally require Pillow (optional; verified by preflight).
 Ollama
 with `gemma3:4b` is needed for actual local inference. OpenAI is optional and

@@ -73,6 +73,15 @@ host security settings without explicit authorization.
 - Product writes complete local textual definitions and exact first-sketch
   instructions, with actual saved Etsy URLs and verified source quotations.
   Default delivery must not substitute generic SVG placeholders for examples.
+  Product owns visual reference selection and bounded retrieval from saved image
+  metadata or the selected public Etsy listing's image metadata, using only Etsy's
+  public image CDN. It never loads Etsy credentials or calls the Etsy API.
+  Attach up to three downsized, metadata-stripped raster images with source links,
+  hashes and intended use to the exact brief/Studio payload and standalone HTML.
+  Studio owns visual interpretation and original generation. Preserve retrieval
+  receipts and access blocks; do not retry challenges or substitute generic images.
+  Existing briefs may be enriched explicitly into a new private revision without
+  repeating definition/inference or triggering mail, Studio delivery or generation.
   Component quantities must match enumerated contents. Product owns its
   definition independently of the Analyzer's initial direction, preserving both.
   Optional paid definition uses its own credential delivery and the same preserved
