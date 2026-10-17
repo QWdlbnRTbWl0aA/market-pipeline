@@ -779,3 +779,41 @@ console shape, model picker and disabled hints. Private runtime previews verifie
 Apply is enabled for the current failed job/new card, without mutating it. Only the
 development Studio was restarted and left running; no production, Etsy, SMTP,
 host-security or GitHub-push actions. Logs/results remain private outside Git.
+
+## Studio whitespace-tail failure recovery and lightweight polling
+
+The actual reported job made one paid planning request ($0.010420), no image
+request. Its one complete scene was followed by 5,089 whitespace characters and
+lacked only the final ]} containers; the provider reached 5,300 output tokens.
+This is a malformed whitespace tail, not evidence that a larger token limit is
+needed. Raw response, charge and failure diagnostics remain unchanged.
+
+Added narrowly bounded deterministic recovery only for a max-output response
+with a long whitespace tail, no refusal/error and complete schema-valid values.
+Only missing container closings can be appended. Missing fields, truncated
+strings/scenes, wrong counts/page identities, duplicate keys and schema violations
+fail closed. A separate receipt records source/validated hashes and the exact
+appended closings. This validates structure, never image quality or semantic
+faithfulness. Explicit Apply with identical failed inputs resumes that operation
+and reuses its cached paid response/completed images. Changed inputs remain a new
+explicit request; unknown financial outcomes still block both paths.
+
+Replaced overlapping 800 ms full-project/library polling with one in-flight,
+adaptive 1.5–5 second lightweight progress request. Full data reloads on phase/job
+change. The actual 68 GETs were local UI traffic, not paid inference. Browser
+fixtures with delayed responses verify no overlapping progress requests and only
+two full project/library loads across a complete combined action.
+
+The exact saved failed response validates offline after appending only ]}; zero
+paid/image calls or changes to the actual job/state/ledger were performed for
+this assignment. Regression coverage includes truncated/duplicate/wrong-page
+rejection, cached provider-response reuse, identical-job resume and source-free
+progress metadata. Private full-suite, browser and saved-response DQA artifacts
+record verification. Only the development Studio was restarted; the failed job
+stays recorded until the user explicitly resumes it. No production or mail/Etsy
+operations. Generated reports/receipts stay outside Git.
+
+Verification completed: 466 tests passed (100 Studio), 30 guided and 17 offline
+Firefox checks passed, including delayed non-overlapping polling. The live small
+progress endpoint returned no source/round data, and actual unchanged inputs
+match the saved failed operation. No additional paid/image requests.

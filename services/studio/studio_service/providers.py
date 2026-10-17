@@ -109,7 +109,7 @@ class OpenAIStudio(OpenAIDev):
         text=''.join(c['text'] for item in result.get('output',[]) if item.get('type')=='message' for c in item.get('content',[]) if c.get('type')=='output_text')
         return checked_listing(json.loads(text))
 
-    def _mockup_json(self,stage,context,schema,key,project,images=(),output=3000):
+    def _mockup_json(self,stage,context,schema,key,project,images=(),output=3000,recovery=None):
         from .references import thumbnail
         encoded=canonical(context)
         if len(encoded)>40000 or len(images)>6:raise Invalid('Mockup planning context exceeds bound')
@@ -123,15 +123,26 @@ class OpenAIStudio(OpenAIDev):
             'text':{'format':{'type':'json_schema','name':'mockup','strict':True,'schema':schema}}}
         maximum=math.ceil((len(canonical(payload))+4096)*.4+output*1.6)
         result=self.call(stage,project,key,'responses',payload,maximum,'text')
-        if result.get('status')!='completed':raise PlanningFailure(result,stage,TEXT_MODEL)
-        return json.loads(''.join(c['text'] for item in result.get('output',[]) if item.get('type')=='message' for c in item.get('content',[]) if c.get('type')=='output_text'))
+        text=''.join(c['text'] for item in result.get('output',[]) if item.get('type')=='message' for c in item.get('content',[]) if c.get('type')=='output_text')
+        if result.get('status')!='completed':
+            refusal=any(c.get('type')=='refusal' for item in result.get('output',[]) for c in item.get('content',[]))
+            if recovery and not refusal and not result.get('error') and result.get('status')=='incomplete' and (result.get('incomplete_details') or {}).get('reason')=='max_output_tokens':
+                try:value,suffix=recovery(text)
+                except Invalid:pass
+                else:
+                    receipt={'kind':'terminal_whitespace_container_completion','provider_response_sha256':digest(result),'raw_text_sha256':hashlib.sha256(text.encode()).hexdigest(),'appended_closings':suffix,'validated_plan_sha256':digest(value),'raw_response_preserved':True,'new_provider_requests':0}
+                    write(self.root/'development-openai'/'steps'/digest({'key':key,'stage':stage,'project':project})/'validation-recovery.json',receipt)
+                    return value
+            raise PlanningFailure(result,stage,TEXT_MODEL)
+        return json.loads(text)
 
     def mockup_plan(self,context,number,key,project,images=()):
         from .lifestyle import schema
+        from .planning_recovery import recover
         task='Understand this actual digital product. Design an attractive, deliberately VARIED listing gallery, not variations of the same family photo. Respect locked_scenes: never rewrite them; fill only requested unlocked slots and complement locked scenes. For a preschool activity, a five-image gallery should usually mix ONE warm supervised parent/child usage photo, ONE overhead page spread on a table/floor, ONE original cartoon usage storyboard, ONE realistic quality-paper/cardstock stack close-up, and ONE clean product hero. With three slots choose three distinct roles rather than three parent/child views; at most two family scenes in larger sets unless explicitly requested. For other products adapt these roles to their real purpose; no irrelevant children. scene_type identifies usage, spread, storyboard, stack or hero. Change composition, visual purpose, camera, setting and medium, not merely the people. Rejected/deleted ideas and current per-card notes are evidence; explicit latest feedback wins. Final inventory is authoritative: never invent contents, efficacy, materials supplied or genuine customers. Quality paper/cardstock is a suggested buyer printing option, not an included physical product. Fictional fully clothed people; adult supervision whenever scissors are used. Storyboards should be clear cartoon/illustration panels that demonstrate the ACTUAL workflow, no invented steps or gibberish text. Every scene must leave one to four large fully visible blank white rectangular product surfaces against contrasting surroundings for actual page composition by code; spread/storyboard require two or more separate unobstructed surfaces. No hands, tools, shadows from objects or panels overlap these surfaces. Other pages in a stack may show plain paper edges, never invented printed artwork. Select an actual page_id for the main surface. Use concise Hebrew explanation, titles and descriptions and detailed English image_prompt. Reflect per-card comments in that card and consider gallery diversity, approved related examples and actual prior feedback.'
-        task+=' Be concise: product_understanding/direction each under 220 characters, description under 360 characters and image_prompt under 1000 characters. Do not repeat the brief. Return scenes in cards_to_plan order when supplied; honor each card\'s notes. No reasoning transcript.'
+        task+=' Emit compact JSON. After the final scene immediately close the scenes array and outer object. Do not pad with whitespace or carriage returns. Be concise: product_understanding/direction each under 220 characters, description under 360 characters and image_prompt under 1000 characters. Do not repeat the brief. Return scenes in cards_to_plan order when supplied; honor each card\'s notes. No reasoning transcript.'
         ids=[u['id'] for u in context.get('inventory',[]) if isinstance(u,dict) and 'id' in u]
-        return self._mockup_json('mockup_planning',{'task':task,'count':number,'product':context},schema(number,ids),key,project,images,min(22000,3500+number*1800))
+        return self._mockup_json('mockup_planning',{'task':task,'count':number,'product':context},schema(number,ids),key,project,images,min(22000,3500+number*1800),recovery=lambda text:recover(text,number,ids))
 
     def mockup_surface(self,image,key,project):
         schema={'type':'object','additionalProperties':False,'required':['usable','reason','quad'],'properties':{'usable':{'type':'boolean'},'reason':{'type':'string'},'quad':{'type':'array','minItems':4,'maxItems':4,'items':{'type':'array','minItems':2,'maxItems':2,'items':{'type':'number'}}}}}

@@ -285,3 +285,25 @@ its artifacts and charges. Unknown billing outcomes cannot be replaced this way.
 Interrupted combined jobs reuse the cached plan and completed images on explicit
 recovery. Changing model during recovery is rejected; start a distinct, consented
 operation instead.
+
+## Whitespace-tail planning recovery and progress polling
+
+A saved provider response may contain a complete scene followed by thousands of
+whitespace characters and reach the token cap without its final JSON closings.
+Only for max_output_tokens, no provider error/refusal, a long terminal whitespace
+tail and complete schema-valid scene values may Studio append missing container
+closings. It never invents fields or finishes truncated strings/scenes. Count,
+page identity, required fields, enums, lengths and duplicate keys are checked.
+The original response remains immutable; a separate validation-recovery receipt
+records its digest, the exact appended closings and the validated plan digest.
+This is deterministic syntax recovery, not an assessment of scene quality.
+
+Explicit Apply with identical failed-job inputs resumes that operation and reuses
+its cached paid response and completed images. Changed inputs create a distinct
+request. Unknown billing still blocks recovery. No automatic generation occurs
+on restart, page load or merely validating a saved response.
+
+The browser uses the small project progress endpoint with one in-flight poll and
+a 1.5–5 second adaptive interval, rather than fetching full project/library data
+every 800 ms. It reloads full project state when phase/job identity changes.
+Polling GETs are local UI traffic, never provider inference or Etsy requests.

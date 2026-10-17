@@ -77,6 +77,12 @@ class Studio:
             if receipt.exists(): state['notification']['delivery'] = read(receipt)
         return state
 
+    def progress(self,project):
+        state=read(self.directory(project)/'state.json');workflow=state.get('workflow',{})
+        spending=self.budget.summary(project);spending['development']=self.development
+        return {'id':state['id'],'revision':state['revision'],'phase':state['phase'],'pending':workflow.get('pending'),
+                'progress':workflow.get('progress'),'mockup_progress':workflow.get('mockup_progress'),'spending':spending}
+
     def planning_diagnostic(self,project,operation):
         """Project-scoped legacy failure diagnostics; no credential discovery."""
         if not operation:return None

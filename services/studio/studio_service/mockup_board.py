@@ -38,19 +38,28 @@ class Board:
                 'deleted_scenes':[c['scene'] for c in board['deleted'][-10:]],'approved_related_scene_examples':self.lifestyle.remembered(state)}
     def queue_update(self,directory,state,cards,manifest,*,final=False,model=None):
         board=self.state(state);design=self.lifestyle.design(state)
+        if not final:model=None  # Final-picker changes never invalidate cheap work.
         if self.studio.model_roles:
             if final:
                 self.studio.model_roles.select_final(model)
                 if model is None:model=self.studio.model_roles.final_options()[0]['id']
             else:self.studio.model_roles.require_cheap()
-        if state['workflow'].get('pending'):
-            if not self.replaceable(directory,state):raise Conflict('Current job cannot be replaced; recover unknown billing first')
-            old=state['workflow']['pending'];write(directory/'workflow-jobs'/old/'replaced.json',{'at':now(),'by_explicit_user_action':True,'paid_history_preserved':True});state['workflow']['pending']=None
         previous=[c for c in board['cards'] if c.get('candidate')][:3]
         value={'manifest_id':manifest['id'],'cards':copy.deepcopy(cards),'comments':design['comments'],'stage':'final' if final else 'concept',
                'model_id':model,'context':self.context(state,manifest,cards),'feedback_images':[c['candidate'] for c in previous]}
+        kind='mockup_board_final' if final else 'mockup_board_update'
+        if state['workflow'].get('pending'):
+            if not self.replaceable(directory,state):raise Conflict('Current job cannot be replaced; recover unknown billing first')
+            old=state['workflow']['pending'];folder=directory/'workflow-jobs'/old;original=read(folder/'request.json')
+            comparable=copy.deepcopy(original['value'])
+            if comparable.get('stage')=='concept':comparable['model_id']=None
+            if original['kind']==kind and comparable==value:
+                operation=read(folder/'operation.json')
+                write(folder/('recovery-'+uuid.uuid4().hex+'.json'),{'at':now(),'previous_operation':operation,'explicit_apply_same_inputs':True})
+                write(folder/'operation.json',{**operation,'status':'queued','explicit_recovery_at':now()});state['phase']='generating_mockups';return
+            write(folder/'replaced.json',{'at':now(),'by_explicit_user_action':True,'paid_history_preserved':True});state['workflow']['pending']=None
         if final:board['final_model_id']=model
-        self.workflow.queue(directory,state,'mockup_board_final' if final else 'mockup_board_update',value)
+        self.workflow.queue(directory,state,kind,value)
     def feedback(self,state,payload):
         board=self.state(state);patches=payload.get('cards',[])
         if not isinstance(patches,list) or len(patches)>10:raise Invalid('Bounded mockup cards required')

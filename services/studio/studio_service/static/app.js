@@ -1,6 +1,6 @@
 'use strict';
 const $=id=>document.getElementById(id);
-let project=null,editing=false,busy=false,draft={},round=null,chosen=null,references=[],lastSpending='',pending=null,importedBrief=null,lastDiagnostic='';
+let project=null,editing=false,busy=false,draft={},round=null,chosen=null,references=[],lastSpending='',pending=null,importedBrief=null,lastDiagnostic='',progressSupported=false,pollInFlight=false,pollDelay=1500;
 const fields=['concept','audience','purpose','deliverables','visual_direction','requirements'];
 const phases={generating_mockups:'מתכננים ומפיקים מוק-אפים',product_review:'בדיקת קובצי המוצר',mockup_review:'בחירת מוק-אפים',listing_review:'טקסט למכירה',generating_product:'מפיקים את קובצי המוצר',generating_listing:'מכינים טקסט למכירה',brief_ready:'בריף שמור · מוכן לבחירה',needs_information:'נשלים כמה פרטים',sketch_review:'בוחרים כיוון',professional_review:'מלטשים את היצירה',generating_sketch:'מבינים ויוצרים',generating_professional:'מכינים דוגמאות מקצועיות',generation_failed:'היצירה נעצרה',approved:'היצירה אושרה'};
 try{pending=JSON.parse(sessionStorage.getItem('studio-pending')||'null');}catch(_){}
@@ -88,12 +88,22 @@ $('back').onclick=()=>action('back_to_sketches');$('start-over').onclick=()=>{if
 $('approve').onclick=()=>{const selected=chosen||Object.keys(draft).find(id=>draft[id].decision==='accept');if(!selected){notify('בחרו דוגמה מקצועית שאהבתם.');return;}action('approve_final',{candidate_id:selected});};
 $('retry').onclick=()=>{const expensive=project.final_settings!==null;if(!expensive||confirm('לנסות שוב בסבב המקצועי?'))action('retry_generation',{consent_expensive:expensive});};
 $('reasoning').onclick=async()=>{try{const data=await request('/api/projects/'+project.id+'/reasoning');$('reasoning-log').textContent=JSON.stringify(data.entries,null,2);show('reasoning-log',true);}catch(e){notify(e.message,true);}};
-setInterval(async()=>{if(project&&project.phase.startsWith('generating_')&&!busy)await load(project.id);},800);
+async function pollProgress(){
+ if(pollInFlight)return;
+ try{if(project&&project.phase.startsWith('generating_')&&!busy){pollInFlight=true;const id=project.id;
+  if(!progressSupported){await load(id);pollDelay=5000;return;}
+  const status=await request('/api/projects/'+id+'/progress');if(project?.id!==id)return;
+  if(status.phase!==project.phase||status.pending!==(project.workflow?.pending||null)){pollDelay=1500;await load(id);return;}
+  pollDelay=status.revision!==project.revision?2000:Math.min(5000,pollDelay+1000);
+  project.revision=status.revision;project.spending=status.spending;if(project.workflow){project.workflow.progress=status.progress;project.workflow.mockup_progress=status.mockup_progress;}render();
+ }else pollDelay=1500;}catch(error){pollDelay=5000;notify(error.message,true);}finally{pollInFlight=false;setTimeout(pollProgress,pollDelay);}
+}
+setTimeout(pollProgress,1500);
 projects().then(()=>{render();if(pending){notify('פעולה קודמת ממתינה לאימות. שלחו שוב עם אותם נתונים כדי לשמור על זהות הפעולה.');}}).catch(e=>notify(e.message,true));
 
 $('load-payloads').onclick=async()=>{try{const id=project.id;const data=await request('/api/projects/'+id+'/payloads');if(project.id!==id)return;$('payload-list').replaceChildren();$('api-payload').textContent=data.calls.length?'בחרו בקשה.':'אין בקשות OpenAI שמורות ליצירה זו. ספק mock אינו שולח בקשות.';show('payload-download',false);for(const call of data.calls){const button=document.createElement('button');button.className='quiet';button.textContent=call.at+' · '+call.endpoint+' · '+call.status;button.onclick=async()=>{try{const result=await request('/api/projects/'+id+'/payloads/'+call.id);if(project.id!==id)return;$('api-payload').textContent=JSON.stringify(result,null,2);$('payload-download').href='/api/projects/'+id+'/payloads/'+call.id+'/body';show('payload-download',true);}catch(e){notify(e.message,true);}};$('payload-list').append(button);}}catch(e){notify(e.message,true);}};
 
-request('/api/runtime').then(data=>{if(project)return;const s=data.spending;$('budget').textContent='תקציב פיתוח OpenAI: $'+s.remaining_usd.toFixed(4)+' נותרו מתוך $'+s.limit_usd+' · $'+s.charged_or_reserved_usd.toFixed(4)+' נוצלו או שמורים';$('provider-status').textContent='ספק סקיצות: '+data.sketch_provider+(data.sketch_provider==='mock'?' · הדמיה בלבד: תבניות בדיקה, ללא יצירת תמונות מהבריף.':'');}).catch(e=>notify(e.message,true));
+request('/api/runtime').then(data=>{progressSupported=data.progress_polling===true;if(project)return;const s=data.spending;$('budget').textContent='תקציב פיתוח OpenAI: $'+s.remaining_usd.toFixed(4)+' נותרו מתוך $'+s.limit_usd+' · $'+s.charged_or_reserved_usd.toFixed(4)+' נוצלו או שמורים';$('provider-status').textContent='ספק סקיצות: '+data.sketch_provider+(data.sketch_provider==='mock'?' · הדמיה בלבד: תבניות בדיקה, ללא יצירת תמונות מהבריף.':'');}).catch(e=>notify(e.message,true));
 
 // A running older daemon can serve updated static files before it is restarted.
 // Enable the new workflow only when its backend contract is actually available.

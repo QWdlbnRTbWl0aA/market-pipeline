@@ -145,6 +145,11 @@ host security settings without explicit authorization.
   errors include the actual project-scoped incomplete provider response, without
   credentials/headers. Known failed jobs may be replaced by an explicit action;
   unknown billing holds remain blocked. Hebrew singular is מוק-אפ.
+  Reuse identical failed-job inputs and paid responses on explicit Apply. Strict
+  deterministic recovery may append only missing JSON container closings after
+  complete schema-valid scenes and a terminal whitespace tail; preserve raw
+  response/repair provenance and never infer missing fields. Browser polling is
+  lightweight, adaptive and non-overlapping; it must not run inference.
   Review combined feedback, including thumbnails of actual prior scenes. Guided creation remains enabled throughout
   at least the first twenty products and does not automatically disable itself.
   Human-approved related scene examples may guide later work; do not silently

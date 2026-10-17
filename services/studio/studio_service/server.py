@@ -119,11 +119,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/projects': return self.reply(200, {'projects': studio.list()})
         if path == '/api/preferences': return self.reply(200,studio.preferences.list())
         if path == '/api/templates':return self.reply(200,{'templates':[read(p) for p in (studio.root/'templates').glob('*.json') if not p.is_symlink()]})
-        if path == '/api/runtime':return self.reply(200,{'workflow_version':2,'mockup_flow_version':3,'lifestyle_mockups':studio.workflow.lifestyle.enabled(),'sketch_provider':getattr(studio.sketches,'name','mock'),
+        if path == '/api/runtime':return self.reply(200,{'workflow_version':2,'mockup_flow_version':3,'progress_polling':True,'lifestyle_mockups':studio.workflow.lifestyle.enabled(),'sketch_provider':getattr(studio.sketches,'name','mock'),
             'professional_provider':getattr(studio.professional,'name','mock'),'development':studio.development,
             'understanding_provider':getattr(studio.understanding,'name','local'),
             'broker_provider':getattr(studio.broker,'name','custom'),'listing_provider':'blocked',
             'spending':studio.budget.summary('')})
+        progress_match=re.fullmatch(r'/api/projects/([a-f0-9]{32})/progress',path)
+        if progress_match:return self.reply(200,studio.progress(progress_match.group(1)))
         workflow_match=re.fullmatch(r'/api/projects/([a-f0-9]{32})/(files|customer-download)(?:/([A-Za-z0-9_.-]+))?',path)
         if workflow_match:
             project,kind,token=workflow_match.groups();state=studio.get(project);directory=studio.directory(project)

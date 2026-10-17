@@ -32,7 +32,7 @@ class Actions(unittest.TestCase):
         self.assertTrue(failed['mockup_recovery']['can_replace']);self.assertEqual(failed['generation_diagnostic']['response']['incomplete_details']['reason'],'max_output_tokens')
         self.port.mockup_plan=original;self.command('apply_mockup_comments');self.studio.tick()
         self.assertEqual(self.state()['phase'],'mockup_review');folder=self.studio.directory(self.project)/'workflow-jobs'/old
-        self.assertTrue((folder/'replaced.json').exists());self.assertTrue((folder/'diagnostic.json').exists());self.assertEqual(read(folder/'operation.json')['status'],'failed');self.assertEqual(len(self.port.images),1)
+        self.assertTrue(list(folder.glob('recovery-*.json')));self.assertTrue((folder/'diagnostic.json').exists());self.assertEqual(read(folder/'operation.json')['status'],'completed');self.assertEqual(len(self.port.images),1)
     def test_unknown_billing_cannot_be_replaced(self):
         self.ready()
         def failure(*a,**k):raise Invalid('Unknown synthetic billing outcome')
