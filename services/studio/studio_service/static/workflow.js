@@ -28,6 +28,7 @@ async function loadFiles(){
    const checkbox=node('input');checkbox.type='checkbox';checkbox.value=file.unit_id;checkbox.className='unit-selection';const label=node('label',w.plan.units.find(u=>u.id===file.unit_id)?.title||file.unit_id);label.prepend(checkbox);box.append(image,label);$('product-files').append(box);
   }
   for(const file of files.filter(f=>f.role==='print_pdf')){const link=node('a','PDF · '+file.format,'button secondary');link.href='/api/projects/'+id+'/files/'+file.id;link.target='_blank';link.rel='noopener';$('print-downloads').append(link);}
+  if(project.lifestyle_mockups){$('legacy-mockups').hidden=true;return;}
   let library=(await request('/api/templates')).templates;if(project?.id!==id||filesKey!==key)return;
   for(const [index,file] of response.files.filter(f=>f.role==='mockup').entries()){
    const box=node('article',undefined,'mockup-card');box.dataset.index=index;const image=node('img');image.src='/api/projects/'+id+'/files/'+file.id;image.alt='מוקאף '+(index+1);image.onclick=()=>preview(image.src);
@@ -56,7 +57,7 @@ window.renderWorkflow=()=>{
  for(const [id,label] of stages){const badge=node('button',label,'stage-step');badge.classList.toggle('active',view===id);badge.disabled=stages.findIndex(s=>s[0]===id)>stages.findIndex(s=>s[0]===w.stage);badge.onclick=()=>{workflowView=id;window.renderWorkflow();};$('stage-nav').append(badge);}
  const reviewing=['sketch_review','professional_review'].includes(project.phase);
  show('review',(reviewing||project.phase==='generation_failed'&&!w.pending)&&view==='direction');show('inventory-panel',!w.direction&&['brief_ready','sketch_review','professional_review'].includes(project.phase));
- show('production-panel',view==='product'&&w.products.length>0);show('mockups-panel',view==='mockups'&&w.mockups.length>0);show('listing-panel',view==='listing');
+ show('production-panel',view==='product'&&w.products.length>0);show('mockups-panel',view==='mockups'&&(w.mockups.length>0||project.lifestyle_mockups));show('listing-panel',view==='listing');
  show('library-brief',view==='brief');
  if(!$('production-panel').hidden){$('production-checks').textContent='הפקה '+w.products.length+' · '+w.plan.units.length+' פריטים · '+w.print_settings.formats.join(' / ')+' · '+w.print_settings.dpi+' DPI. נדרש אישור חזותי; בדיקות הקוד אינן מאשרות איכות תוכן.';}
  $('approve-files').hidden=project.phase!=='product_review';$('final').textContent='אישור הכיוון והפקת החבילה';
@@ -97,4 +98,4 @@ async function loadMemory(){const memory=await request('/api/preferences');memor
 $('load-memory').onclick=()=>loadMemory().catch(e=>notify(e.message,true));
 $('save-memory').onclick=async()=>{try{const memory=await request('/api/preferences');await action('remember_preference',{operation:'save',preference_id:editingPreference,memory_revision:memory.revision,text:$('memory-text').value,scope:$('memory-scope').value,family:project.workflow.plan.family});editingPreference=null;await loadMemory();}catch(e){notify(e.message,true);}};
 
-request('/api/runtime').then(runtime=>{if(runtime.mockup_flow_version!==1)return;const script=document.createElement('script');script.src='/lifestyle.js';script.onload=()=>{if(project)window.renderWorkflow();};document.head.append(script);}).catch(e=>notify(e.message,true));
+request('/api/runtime').then(runtime=>{if(runtime.mockup_flow_version!==2)return;const script=document.createElement('script');script.src='/lifestyle.js';script.onload=()=>{if(project)window.renderWorkflow();};document.head.append(script);}).catch(e=>notify(e.message,true));

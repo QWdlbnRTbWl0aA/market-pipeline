@@ -14,13 +14,13 @@ STATIC = Path(__file__).parent / 'static'
 LOG = logging.getLogger(__name__)
 DEFAULT = {'schema_version': 1, 'sketch_provider': 'mock', 'professional_provider': 'mock',
            'broker_provider': 'mock', 'listing_provider': 'blocked', 'allowed_hostnames': [], 'development_openai': False,
-           'lifestyle_mockups':False,'trial_total_usd':1,'draft_model':'gpt-image-2.5-flare','professional_model':'gpt-image-2.5-flare'}
+           'lifestyle_mockups':False,'trial_total_usd':1,'draft_model':'gpt-image-2.5-flare','professional_model':'gpt-image-2.5-flare','mockup_final_model':'gpt-image-2.5-sunburst'}
 
 
 def configuration(path=None):
     config = read(path) if path else dict(DEFAULT)
     reject_secrets(config)
-    if isinstance(config,dict):config={**{k:DEFAULT[k] for k in ('development_openai','trial_total_usd','draft_model','professional_model','lifestyle_mockups')},**config}
+    if isinstance(config,dict):config={**{k:DEFAULT[k] for k in ('development_openai','trial_total_usd','draft_model','professional_model','lifestyle_mockups','mockup_final_model')},**config}
     if not isinstance(config, dict) or set(config) != set(DEFAULT): raise Invalid('Unexpected Studio configuration')
     for key in ('schema_version', 'sketch_provider', 'professional_provider', 'broker_provider', 'listing_provider'):
         allowed=('mock','openai_dev','openai','gemini',*(['comparison'] if key=='sketch_provider' else [])) if key in ('sketch_provider','professional_provider') else ('mock','file') if key=='broker_provider' else (DEFAULT[key],)
@@ -31,7 +31,7 @@ def configuration(path=None):
     from .providers import MODELS
     from .dev_budget import Budget
     Budget(Path('.'),config['trial_total_usd'])
-    if any(config[k] not in MODELS for k in ('draft_model','professional_model')):raise Invalid('Unknown priced image model')
+    if any(config[k] not in MODELS for k in ('draft_model','professional_model','mockup_final_model')):raise Invalid('Unknown priced image model')
     names = config['allowed_hostnames']
     if not isinstance(names, list) or len(names) > 20 or any(not isinstance(n, str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}', n) for n in names):
         raise Invalid('Invalid allowed hostnames')
@@ -117,7 +117,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/projects': return self.reply(200, {'projects': studio.list()})
         if path == '/api/preferences': return self.reply(200,studio.preferences.list())
         if path == '/api/templates':return self.reply(200,{'templates':[read(p) for p in (studio.root/'templates').glob('*.json') if not p.is_symlink()]})
-        if path == '/api/runtime':return self.reply(200,{'workflow_version':2,'mockup_flow_version':1,'lifestyle_mockups':studio.workflow.lifestyle.enabled(),'sketch_provider':getattr(studio.sketches,'name','mock'),
+        if path == '/api/runtime':return self.reply(200,{'workflow_version':2,'mockup_flow_version':2,'lifestyle_mockups':studio.workflow.lifestyle.enabled(),'sketch_provider':getattr(studio.sketches,'name','mock'),
             'professional_provider':getattr(studio.professional,'name','mock'),'development':studio.development,
             'understanding_provider':getattr(studio.understanding,'name','local'),
             'broker_provider':getattr(studio.broker,'name','custom'),'listing_provider':'blocked',

@@ -1,25 +1,57 @@
 'use strict';
-let mockupProject=null,mockupPlanKey='',mockupRoundKey='',mockupChoices={};
-window.mockupFeedback=()=>({count:Number($('mockup-count').value),comments:$('mockup-comments').value,mockup_reviews:mockupChoices});
-function currentScenePlan(){const plan=structuredClone(project.workflow.mockup_design.plan);for(const box of $('mockup-plan').querySelectorAll('[data-scene-index]')){const scene=plan.scenes[Number(box.dataset.sceneIndex)];scene.description=box.querySelector('[data-scene-description]').value;scene.image_prompt=box.querySelector('[data-image-prompt]').value;}return plan;}
-function paintMockupChoices(){for(const card of $('mockup-concepts').children){for(const button of card.querySelectorAll('[data-decision]')){const selected=mockupChoices[card.dataset.candidate]===button.dataset.decision;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));}}const all=$('mockup-concepts').children.length;const marked=Object.keys(mockupChoices).length;const accepted=Object.values(mockupChoices).filter(v=>v==='accept').length;$('mockup-concept-hint').textContent=all?marked+' מתוך '+all+' סומנו · '+accepted+' נבחרו להפקה סופית':'';return all>0&&marked===all&&accepted>0;}
-async function mockupConceptImages(round){const id=project.id,response=await request('/api/projects/'+id+'/files');if(project?.id!==id||project.workflow.mockup_design?.rounds.at(-1)?.id!==round.id)return;
- $('mockup-concepts').replaceChildren();for(const candidate of round.candidates){const file=response.files.find(f=>f.role==='mockup_concept'&&f.candidate_id===candidate.id);if(!file)continue;const box=node('article',undefined,'mockup-card');box.dataset.candidate=candidate.id;const image=node('img');image.src='/api/projects/'+id+'/files/'+file.id;image.alt=candidate.scene_title;image.onclick=()=>preview(image.src);box.append(image,node('h4',candidate.scene_title),node('p',candidate.scene_description));if(candidate.placement_status!=='ready')box.append(node('p','נדרש תיקון: לא נמצא מקום בטוח להצגת המוצר. '+candidate.placement_reason,'error'));
- const buttons=node('div',undefined,'mockup-decisions');for(const [value,label] of [['reject','לא מתאים'],['accept','אהבתי']]){const button=node('button',label,value);if(value==='accept'&&candidate.placement_status!=='ready')button.disabled=true;button.dataset.decision=value;button.onclick=()=>{if(mockupChoices[candidate.id]===value)delete mockupChoices[candidate.id];else mockupChoices[candidate.id]=value;window.renderLifestyle();};buttons.append(button);}box.append(buttons);$('mockup-concepts').append(box);}
- window.renderLifestyle();}
-window.renderLifestyle=()=>{const w=project?.workflow;if(!w)return;const design=w.mockup_design||{},live=project.lifestyle_mockups===true,pending=!!w.pending;
- show('mockup-workbench',true);show('lifestyle-actions',live);show('update-mockups',!live);show('auto-mockups',!live);
- if(mockupProject!==project.id){mockupProject=project.id;mockupPlanKey='';mockupRoundKey='';mockupChoices=structuredClone(design.rounds?.at(-1)?.reviews||{});$('mockup-comments').value=design.comments||'';$('mockup-count').value=design.count||w.mockups.length||3;$('mockup-plan').replaceChildren();$('mockup-concepts').replaceChildren();}
- const planKey=project.id+JSON.stringify(design.plan);if(planKey!==mockupPlanKey){mockupPlanKey=planKey;$('mockup-plan').replaceChildren();if(design.plan){$('mockup-plan').append(node('p',design.plan.product_understanding),node('p',design.plan.direction));for(const [i,scene] of design.plan.scenes.entries()){const box=node('article',undefined,'mockup-scene-plan');box.dataset.sceneIndex=i;const [label,input]=field(scene.title,scene.description,'textarea');input.dataset.sceneDescription='true';input.maxLength=1800;const details=node('details'),summary=node('summary','הוראות למודל התמונה'),prompt=node('textarea');prompt.value=scene.image_prompt;prompt.dataset.imagePrompt='true';prompt.maxLength=3500;details.append(summary,prompt);box.append(label,details);$('mockup-plan').append(box);}}}
- const round=design.rounds?.at(-1);if(round&&mockupRoundKey!==round.id){mockupRoundKey=round.id;mockupChoices=structuredClone(round.reviews||{});mockupConceptImages(round).catch(e=>{mockupRoundKey='';notify(e.message,true);});}
- show('make-mockup-concepts',live&&!!design.plan);show('final-mockup-scenes',live&&!!round);show('abandon-mockup-job',live&&pending&&project.phase==='generation_failed');
- const allowance=project.spending.stage_budgets?.mockups;$('mockup-budget-hint').textContent=allowance?'לתכנון, סקיצות ומוקאפים נותרו $'+allowance.remaining_usd.toFixed(3)+' מתוך $'+allowance.limit_usd+' · חלק מתקציב הניסוי הכולל, ללא תוספת תקציב.':'כל הקריאות מחויבות לתקציב הסטודיו הקיים. אישור סופי נדרש בנפרד מהסקיצות.';
- const ready=paintMockupChoices();$('final-mockup-scenes').disabled=busy||pending||!ready;$('make-mockup-concepts').disabled=busy||pending;$('plan-mockup-scenes').disabled=busy||pending;$('save-mockup-notes').disabled=busy||pending;
- if(live)$('approve-mockups').disabled=busy||pending||!w.mockups.length||w.mockups.some(m=>m.origin!=='generative_lifestyle'||m.quality!=='final'||m.placement_status!=='ready');
- if(project.phase==='generating_mockups')$('generation').querySelector('p').textContent='עובדים על המוקאפים · '+(w.mockup_progress?.completed||0)+' מתוך '+(w.mockup_progress?.total||Number($('mockup-count').value))+(w.mockup_progress?.title?' · '+w.mockup_progress.title:'');
+let boardProject=null,boardKey='',boardFetch=0;
+window.mockupFeedback=()=>{const board=project.workflow.mockup_design?.board;return {count:Number($('mockup-count').value),comments:$('mockup-comments').value,cards:[...$('mockup-concepts').querySelectorAll('[data-card]')].map(box=>{
+ const card=board.cards.find(c=>c.id===box.dataset.card);const scene=card.scene?{...card.scene,description:box.querySelector('[data-description]').value,image_prompt:box.querySelector('[data-prompt]').value}:null;
+ return {id:card.id,scene,comments:box.querySelector('[data-comments]').value};})};};
+async function boardAction(name,extra={}){const result=action(name,{...window.mockupFeedback(),...extra});window.renderLifestyle();await result;}
+async function drawBoard(board,key){
+ const ticket=++boardFetch,id=project.id,response=await request('/api/projects/'+id+'/files');
+ if(project?.id!==id||ticket!==boardFetch||boardKey!==key)return;
+ $('mockup-concepts').replaceChildren();
+ for(const card of board.cards){const box=node('article',undefined,'mockup-scene-card');box.dataset.card=card.id;
+  const header=node('div',undefined,'mockup-card-header'),remove=node('button','×','mockup-remove');remove.type='button';remove.title='הסרת המוקאף';remove.setAttribute('aria-label','הסרת '+(card.scene?.title||'מוקאף'));remove.dataset.remove='true';remove.onclick=()=>boardAction('delete_mockup_card',{card_id:card.id});header.append(node('strong',card.scene?.title||'מוקאף חדש'),remove);box.append(header);
+  const candidate=card.candidate,file=candidate&&response.files.find(f=>f.candidate_id===candidate.id||f.role==='mockup'&&f.sha256===candidate.sha256);
+  if(file){const image=node('img');image.src='/api/projects/'+id+'/files/'+file.id;image.alt=card.scene?.title||'מוקאף';image.onclick=()=>preview(image.src);box.append(image);}else box.append(node('div','הדוגמה תופיע כאן לאחר יצירה','mockup-placeholder'));
+  if(candidate?.placement_status==='needs_revision')box.append(node('p','נדרש תיקון למשטח המוצר: '+candidate.placement_reason,'error'));
+  if(card.scene){const [label,input]=field('תיאור הסצנה הזו',card.scene.description,'textarea');input.dataset.description='true';input.maxLength=1800;input.rows=3;
+   const details=node('details'),summary=node('summary','הנחיות התמונה לדוגמה הזו'),prompt=node('textarea');prompt.value=card.scene.image_prompt;prompt.dataset.prompt='true';prompt.maxLength=3500;prompt.rows=5;prompt.dir='auto';details.append(summary,prompt);box.append(label,details);}
+  const approve=node('button',card.locked?'✓ מאושר · נעול':'אישור ונעילה',card.locked?'mockup-lock selected':'mockup-lock');approve.dataset.lock='true';approve.setAttribute('aria-pressed',String(card.locked));approve.onclick=()=>boardAction('toggle_mockup_lock',{card_id:card.id});box.append(approve);
+  const [label,comments]=field(board.stage==='final'?'תיקונים קטנים לדוגמה הזו':'הערות לדוגמה הזו',card.comments,'textarea');comments.dataset.comments='true';comments.maxLength=1800;comments.rows=3;comments.placeholder=board.stage==='final'?'למשל: לתקן את האצבעות ולחדד את מרקם הנייר':'מה לשנות בסצנה הזו?';box.append(label);const status=node('p',card.needs_render?'ההנחיות השתנו · צרו דוגמה חדשה לפני נעילה.':'','hint');box.append(status);for(const input of box.querySelectorAll('textarea'))input.addEventListener('input',()=>{status.textContent='עריכה ממתינה · צרו דוגמה חדשה כדי להחיל אותה.';approve.disabled=true;});$('mockup-concepts').append(box);
+ }
+ if(board.stage==='concept'){const add=node('button','＋\nהוספת מוקאף','mockup-add-card');add.id='add-mockup-card';add.onclick=()=>boardAction('add_mockup_card');$('mockup-concepts').append(add);}
+ updateBoardControls(board);
+}
+function updateBoardControls(board){const pending=!!project.workflow.pending,disabled=busy||pending||project.phase==='approved',final=board.stage==='final';
+ for(const box of $('mockup-concepts').querySelectorAll('[data-card]')){const card=board.cards.find(c=>c.id===box.dataset.card);if(!card){for(const input of box.querySelectorAll('button,textarea'))input.disabled=true;continue;}box.classList.toggle('locked',card.locked);
+  for(const input of box.querySelectorAll('textarea'))input.disabled=disabled||card.locked||(final&&input.dataset.comments===undefined);
+  const lock=box.querySelector('[data-lock]');lock.textContent=card.locked?'✓ מאושר · נעול':'אישור ונעילה';lock.setAttribute('aria-pressed',String(card.locked));lock.classList.toggle('selected',card.locked);lock.disabled=disabled||!card.candidate||card.candidate.placement_status!=='ready'||(!card.locked&&(card.needs_render||final&&card.candidate.quality!=='final'));
+  box.querySelector('[data-remove]').disabled=disabled;
+ }
+ const add=$('add-mockup-card');if(add)add.disabled=disabled||board.cards.length>=10;
+ const open=board.cards.filter(c=>!c.locked),all=board.cards.length>0&&open.length===0;
+ $('mockup-concept-hint').textContent=board.cards.length+' מוקאפים · '+(board.cards.length-open.length)+' נעולים · '+open.length+' פתוחים לשינוי';
+ $('mockup-comments').disabled=disabled||all;
+ for(const id of ['save-mockup-notes','plan-mockup-scenes','make-mockup-concepts','final-mockup-scenes','back-mockup-concepts'])$(id).disabled=disabled;
+ show('plan-mockup-scenes',!final);show('make-mockup-concepts',!final);$('plan-mockup-scenes').disabled=disabled||all;$('make-mockup-concepts').disabled=disabled||!open.length||open.some(c=>!c.scene);
+ show('final-mockup-scenes',final||all);$('final-mockup-scenes').textContent=final?'הפקת הדוגמאות הפתוחות · ליטוש סופי יקר':'כל הקונספטים אושרו · מעבר לליטוש סופי';$('final-mockup-scenes').disabled=disabled||(final?!open.length:!all);
+ $('approve-mockups').hidden=!final;$('approve-mockups').disabled=disabled||!all||board.cards.some(c=>c.needs_render||c.candidate?.quality!=='final');
+}
+window.renderLifestyle=()=>{const w=project?.workflow;if(!w)return;const live=project.lifestyle_mockups===true;
+ show('mockup-workbench',live);show('lifestyle-actions',live);show('legacy-mockups',!live);if(!live){$('approve-mockups').hidden=false;return;}
+ const design=w.mockup_design||{},board=design.board;if(!board)return;
+ const final=board.stage==='final';$('mockups-panel').classList.toggle('final-refinement',final);$('mockup-heading').textContent=final?'ליטוש סופי · איכות ופרטים':'המוקאפים שלכם · קונספט וקומפוזיציה';show('mockup-final-warning',final);show('mockup-initial-count',!board.cards.length);
+ $('mockup-final-provider').textContent='מודל הליטוש: '+(project.mockup_final_model||'הספק המקצועי המוגדר');$('mockup-mode-hint').textContent=final?'הקומפוזיציה נעולה. התמקדו בתיקונים קטנים. כל יצירה נוספת בתשלום; אפשר לחזור לקונספטים.':'אישור נועל דוגמה ומוציא אותה מהסבב הזול הבא. לחצו שוב כדי לפתוח אותה. × מסיר מהסט.';
+ if(boardProject!==project.id){boardProject=project.id;boardKey='';$('mockup-comments').value=design.comments||'';$('mockup-count').value=design.count||3;}
+ const key=project.id+JSON.stringify([board.stage,board.cards.map(c=>[c.id,c.scene,c.candidate?.id,c.comments])]);
+ if(key!==boardKey){boardKey=key;drawBoard(board,key).catch(e=>{boardKey='';notify(e.message,true);});}
+ $('mockup-plan-explanation').textContent=board.explanation||'';
+ const allowance=project.spending.stage_budgets?.mockups;$('mockup-budget-hint').textContent=allowance?'נותרו $'+allowance.remaining_usd.toFixed(3)+' מתוך $'+allowance.limit_usd+' למוקאפים · חלק מתקציב הניסוי הכולל.':'כל הקריאות מחויבות לתקציב הסטודיו הקיים.';
+ show('abandon-mockup-job',!!w.pending&&project.phase==='generation_failed');updateBoardControls(board);
+ if(project.phase==='generating_mockups')$('generation').querySelector('p').textContent=(final?'ליטוש סופי בתשלום':'מכינים סצנות')+' · '+(w.mockup_progress?.completed||0)+' מתוך '+(w.mockup_progress?.total||board.cards.length);
 };
-$('save-mockup-notes').onclick=()=>action('save_mockup_feedback',window.mockupFeedback());
-$('plan-mockup-scenes').onclick=()=>{if(confirm('לתכנן סצנות מהמוצר ומההערות באמצעות מודל טקסט זול? הבקשה מחויבת בתקציב הקיים.'))action('plan_mockups',{...window.mockupFeedback(),...(project.workflow.mockup_design?.plan?{scene_plan:currentScenePlan()}: {})});};
-$('make-mockup-concepts').onclick=()=>{if(confirm('ליצור '+$('mockup-count').value+' סקיצות זולות לסצנות? עדיין לא יופקו מוקאפים סופיים.'))action('generate_mockup_concepts',{...window.mockupFeedback(),scene_plan:currentScenePlan()});};
-$('final-mockup-scenes').onclick=()=>{if(confirm('לולאה יקרה: להפיק רק את הסצנות שאהבתם באיכות גבוהה? ההערות האחרונות יישלחו למודל.'))action('finalize_mockups',{...window.mockupFeedback(),consent_expensive:true});};
-$('abandon-mockup-job').onclick=()=>{if(confirm('לסגור את הסבב שנכשל ולהשאיר את כל ההיסטוריה והחיובים? תוצאות כספיות לא ידועות נשארות חסומות.'))action('abandon_mockup_job');};
+$('save-mockup-notes').onclick=()=>boardAction('save_mockup_board');
+$('plan-mockup-scenes').onclick=()=>{if(confirm('לתכנן מחדש רק את המוקאפים הפתוחים באמצעות LLM זול? דוגמאות נעולות יישמרו.'))boardAction('plan_mockup_board');};
+$('make-mockup-concepts').onclick=()=>{if(confirm('ליצור רק את הדוגמאות שאינן נעולות באמצעות המודל הזול?'))boardAction('render_mockup_board');};
+$('final-mockup-scenes').onclick=()=>{const final=project.workflow.mockup_design.board.stage==='final';if(!final)boardAction('enter_mockup_final');else if(confirm('סבב ליטוש יקר: רק הדוגמאות הפתוחות יישלחו למודל המקצועי. לשמור קומפוזיציה ולתקן פרטים?'))boardAction('render_mockup_board',{consent_expensive:true});};
+$('back-mockup-concepts').onclick=()=>boardAction('return_mockup_concepts');
+$('abandon-mockup-job').onclick=()=>{if(confirm('לסגור את הסבב שנכשל ולהשאיר היסטוריה וחיובים? תוצאות כספיות לא ידועות נשארות חסומות.'))action('abandon_mockup_job');};

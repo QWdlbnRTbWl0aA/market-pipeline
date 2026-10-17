@@ -189,6 +189,9 @@ Saved runs, raw downloads, images, model outputs, logs, emails and budget/cursor
 files are runtime artifacts. They are excluded from the publication repository.
 
 Studio lifestyle mockups are opt-in with `lifestyle_mockups: true`; the trial example
-enables product-aware verbal plans, cheap concepts and explicitly approved finals.
+enables per-sample scene prompts/comments, persistent approval locks, a varied
+gallery of cheap concepts and a separate costly final-refinement loop. Locked
+cards skip regeneration; add/delete cards to adjust quantity. Final edits use
+`mockup_final_model`, independently configurable from product generation.
 See [Studio workflow setup and recovery](docs/studio-workflow.md#lifestyle-setup-and-recovery).
 Source updates and passive brief delivery do not trigger paid generation.

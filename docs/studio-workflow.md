@@ -23,28 +23,37 @@ mockups, listing review, customer downloads and editable preference memory.
    DPI; upscaling cannot pass this check. Text clipping, counts, corrupt files and
    missing content block approval. Human visual review is required; physical
    print-proof confirmation is recorded separately.
-5. Mockups have a shared verbal-comment area and an adjustable count of **1–10**.
-   With `lifestyle_mockups: true`, explicitly plan product-specific scenes with a
-   cheap text/vision model, inspect/edit the verbal descriptions, then request
-   low-quality concept images. Mark every concept like/dislike and give shared
-   feedback. Replanning compares actual accepted/rejected thumbnails and prior
-   assessments. Only explicitly accepted concepts can advance to high-quality
-   finals, with separate cost consent. The number accepted sets the final count.
-   Product-specific scenes can show supervised play, warm family use, close-ups
-   or wall-art context, rather than applying one setting to every printable.
-   Saved product pixels are composited into the generated setting; a cheap vision
-   check finds a safe paper seed and local segmentation fits its actual edges.
-   Unusable surfaces are visible as failed concepts and cannot be promoted or
-   approved. Original sources are unchanged; scene lighting and perspective are
-   deterministic display transforms. Human review of anatomy, placement and any
-   invented props/claims is still required.
-   The enabled mode always requires guided final mockups, including the first
-   15–20 products; it does **not** silently turn off at twenty. Human-approved
-   scene examples are retained for related products without inferring global
-   preferences from one choice. Metadata intake and saving notes remain passive.
-   Legacy procedural frame/desk/stack/bundle templates remain available when this
-   explicit paid feature is disabled. Their edits and zero positions persist;
-   the automatic-layout button intentionally restores centered defaults.
+5. Guided mockups use a responsive card gallery. Each card owns its visible sample,
+   editable description, expandable exact image prompt and verbal comments. Shared
+   notes apply to **unlocked** cards. Start with 1–10 cards; the plus card adds a
+   slot and × removes it from the active set while retaining saved history/files.
+   Approve is a persistent on/off **lock**, not a vote to generate it again. Locked
+   cards keep their exact pixels and prompts and skip both conceptual planning and
+   rendering. Unlock before editing; changed instructions need a new sample before
+   approval. Saving, deleting, locking and entering a stage make no model calls.
+   Plan varied gallery roles with cheap text/vision, then explicitly generate only
+   open cards with the cheap image model. For activities this may mix supervised
+   family use, a table/floor spread, an illustrated usage storyboard, paper-stack
+   material detail and a clean product hero. Roles adapt to the real product;
+   paper/cardstock scenes describe buyer printing options, not shipped contents.
+   When every remaining concept is locked, enter the visually distinct amber
+   **final refinement** workspace, with the same card layout and a persistent
+   costly-loop warning. No API call occurs on entry. Final rendering requires
+   separate consent every round, uses the approved background as an edit reference
+   and focuses on resolution, anatomy, faces, physical coherence and small notes.
+   Composition prompts become read-only; return to cheap concepts for redesign.
+   Lock satisfactory finals to exclude them from further paid rounds. All active
+   final cards must be rendered and locked before approving the set for listing.
+   Saved product pixels are composited into one to four verified non-overlapping
+   page surfaces. Spread/storyboard need multiple surfaces. Failed placements stay
+   visible and cannot be locked; source files and old rounds remain unchanged.
+   Human review remains required, including anatomy, material claims and usage.
+   Guided mode remains enabled beyond the first twenty products. Approved related
+   examples guide later work without silently creating global preferences.
+   The procedural template controls are absent in guided mode. When real scene
+   providers are explicitly disabled, the independent offline template view remains
+   available for local development; it never impersonates generative output.
+
 6. After mockup approval, an explicit action generates two titles, one description
    and thirteen tags from the actual manifest and saved evidence. Code validates
    title/tag limits, duplicates and obvious quantity contradictions, then attaches
@@ -185,8 +194,8 @@ its protected OpenAI credential delivery. The real trial example enables this
 flag; existing configurations default to false, so pulling source does not start
 paid work. No collection, Analyzer/Product delivery or import triggers mockups.
 The text/vision planner uses the existing inexpensive OpenAI text route; image
-concepts use `draft_model` at low quality, finals use `professional_model` at high
-quality. Both are independently replaceable ports. Finals edit the actual approved
+concepts use `draft_model` at low quality, finals use the separately configurable
+`mockup_final_model` (default `gpt-image-2.5-sunburst`) at high quality. Both are independently replaceable ports. Finals edit the actual approved
 concept background, not a newly invented unrelated setting. No Google credentials
 are substituted into the OpenAI scene route.
 
@@ -201,10 +210,15 @@ calls, retaining the previous round. All model payloads/usage remain inspectable
 Internal large print images are validated and reduced to metadata-free ≤512px
 previews before text/vision calls; the external reference-upload bounds remain.
 
-New state is additive: `lifestyle/`, `mockup_design` rounds/feedback in project
+New state is additive: `lifestyle/`, `mockup_design` rounds/feedback and its v2
+`board` (stable card IDs, locks, deleted cards, final/concept snapshots) in project
 state, and human-approved `scene-memory/` examples. Enabling guided mode blocks
 legacy procedural images from new downstream approval; it does not delete those
-images or existing copy. A new plan invalidates downstream mockup/listing approval;
+images or existing copy. Older saved scenes appear as unlocked cards without
+rewriting source state on reads. A different product version starts a fresh board
+while preserving the previous board in history. The v1 API remains available for
+explicit legacy recovery; the v2 UI uses card-level operations exclusively.
+A new plan invalidates downstream mockup/listing approval;
 copy itself can be reused after the new finals are approved. Preserve the recorded
 pre-lifestyle checkpoint, current state, all source/scene artifacts and every paid
 receipt on rollback. Older UI versions cannot fully interpret lifestyle state:
@@ -222,3 +236,8 @@ python3 tools/studio_workflow_smoke.py --lifestyle --output /path/outside/source
 The smoke uses an already installed Firefox/geckodriver and a temporary loopback
 fixture server. It exercises the Hebrew mobile UI through customer/Studio downloads
 with synthetic rasters/text and zero paid, Etsy or SMTP calls. Live trials must reconcile prior spend and preserve exact provider receipts. Inspect all five holiday subjects/symbols, both paper sizes, mockups and copy; physical proof and final human approval remain separate acceptance steps. Google/model-comparison access must be tested with the configured account before relying on it.
+
+The final image route uses JSON image edits and preserves the approved background.
+See [OpenAI image editing](https://developers.openai.com/api/reference/resources/images/methods/edit)
+and [image prompting](https://developers.openai.com/api/docs/guides/image-prompting)
+for the provider contract. Native quality does not prove sale readiness.

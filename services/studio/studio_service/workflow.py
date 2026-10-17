@@ -81,7 +81,10 @@ class Workflow:
             production.compose_mockup(production.raster(self.page(directory,workflow)),template)
             write(self.studio.root/'templates'/(name+'.json'),{'name':name,'template':template,'at':now()})
         elif action=='approve_mockups':
-            if self.lifestyle.enabled():
+            board=workflow.get('mockup_design',{}).get('board')
+            if self.lifestyle.enabled() and board:
+                self.lifestyle.board.feedback(state,payload);self.lifestyle.board.require_final(state)
+            elif self.lifestyle.enabled():
                 self.lifestyle.feedback(state,payload)
                 design=self.lifestyle.design(state)
                 if design.get('final_comments_sha256')!=digest(design['comments']):raise Invalid('New mockup comments require another reviewed final render before approval')
@@ -171,7 +174,8 @@ class Workflow:
         if workflow['approvals'].get('mockups',{}).get('sha256')!=digest(workflow['mockups']):raise Invalid('Approve these exact mockups first')
         if self.lifestyle.enabled():
             design=workflow.get('mockup_design',{})
-            if design.get('final_comments_sha256')!=digest(design.get('comments','')):raise Invalid('Latest mockup comments have not been applied to the approved finals')
+            if design.get('board'):self.lifestyle.board.require_final({'workflow':workflow})
+            elif design.get('final_comments_sha256')!=digest(design.get('comments','')):raise Invalid('Latest mockup comments have not been applied to the approved finals')
 
     def finish(self,directory,state,key,payload):
         workflow=state['workflow'];manifest=self.require_product(directory,workflow);listing=workflow['listing']

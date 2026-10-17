@@ -132,3 +132,21 @@ class Providers(unittest.TestCase):
         scene={'title':'Scene','description':'An actual product scene','image_prompt':'A scene','page_id':'unit-01'}
         with self.assertRaises(BudgetBlocked):model.mockup_scene(scene,'','new',self.project)
         self.assertEqual(keys,[]);self.assertEqual(self.calls,[])
+
+    def test_gallery_surfaces_and_final_edit_use_actual_scene_medium_and_precise_model(self):
+        def transport(req,timeout):
+            body=json.loads(req.data);self.calls.append((req.full_url,body,req.data))
+            if '/images/' in req.full_url:
+                w,h=map(int,body['size'].split('x'));value={'usage':{'input_tokens_details':{'text_tokens':20,'image_tokens':10},'output_tokens':100},'data':[{'b64_json':base64.b64encode(self.image(w,h)).decode()}]}
+            else:
+                value={'status':'completed','usage':{'input_tokens':20,'output_tokens':20},'output':[{'type':'message','content':[{'type':'output_text','text':json.dumps({'surfaces':[{'page_id':'unit-01','usable':True,'reason':'Clear paper','quad':[[.1,.1],[.4,.1],[.4,.7],[.1,.7]]},{'page_id':'unit-02','usable':True,'reason':'Clear paper','quad':[[.6,.1],[.9,.1],[.9,.7],[.6,.7]]}]})}]}]}
+            return io.BytesIO(json.dumps(value).encode())
+        model=OpenAIStudio(self.root,transport,lambda:'synthetic',limit_usd=25,image_model='gpt-image-2.5-sunburst')
+        scene={'title':'Usage steps','description':'An illustrated activity storyboard','image_prompt':'Three cartoon panels','page_id':'unit-01','scene_type':'storyboard'}
+        background=self.image();path=self.root/'projects'/self.project/'lifestyle/saved.png';write_bytes(path,background)
+        result=model.mockup_surfaces(background,scene,['unit-01','unit-02'],'surfaces',self.project);self.assertEqual(len(result['surfaces']),2)
+        wire=self.calls[-1][1];self.assertIn('scene_type',wire['input'][0]['content'][0]['text']);self.assertEqual(wire['input'][0]['content'][1]['detail'],'low')
+        model.mockup_scene(scene,'Fix hands only','finish',self.project,True,{'background_file':'lifestyle/saved.png','background_sha256':hashlib.sha256(background).hexdigest()})
+        url,wire,_=self.calls[-1];self.assertTrue(url.endswith('/images/edits'));self.assertEqual(wire['model'],'gpt-image-2.5-sunburst');self.assertEqual(wire['quality'],'high')
+        prompt=json.loads(wire['prompt']);self.assertIn('Preserve its concept, composition',prompt['refinement_contract']);self.assertIn('cartoon',prompt['task']);self.assertEqual(prompt['scene']['scene_type'],'storyboard')
+        self.assertEqual(base64.b64decode(wire['images'][0]['image_url'].split(',')[1]),background)

@@ -128,8 +128,15 @@ host security settings without explicit authorization.
 - Studio mockups support shared verbal feedback and adjustable counts (1–10).
   Explicitly enabled paid Studio uses product-aware LLM scene descriptions,
   inexpensive image concepts and separate human-consented high-quality finals.
-  Review combined like/dislike decisions and comments, including thumbnails of
-  actual accepted/rejected scenes. Guided creation remains enabled throughout
+  The guided UI uses per-sample prompts/comments, delete/add cards and persistent
+  on/off approval locks; locked cards skip conceptual planning/rendering. Keep
+  the procedural UI hidden in guided mode. Once every active concept is locked,
+  enter a visually distinct, explicitly consented expensive refinement loop with
+  the same card layout. Lock good finals to exclude further paid calls; return
+  to cheap concepts for redesign. Plan varied product-appropriate gallery roles
+  (usage, spreads, illustrated steps, stacks and hero views), not repeated family
+  portraits. Preserve history and actual page pixels across deletions/iterations.
+  Review combined feedback, including thumbnails of actual prior scenes. Guided creation remains enabled throughout
   at least the first twenty products and does not automatically disable itself.
   Human-approved related scene examples may guide later work; do not silently
   promote them to global preferences. Preserve actual product pixels through

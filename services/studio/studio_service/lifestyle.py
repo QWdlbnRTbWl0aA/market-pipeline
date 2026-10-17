@@ -3,8 +3,9 @@ import hashlib
 import math
 from .storage import Invalid,Conflict,read,write,write_bytes,digest,now,guard
 from . import production
+from .mockup_board import Board, ACTIONS as BOARD_ACTIONS
 
-ACTIONS={'plan_mockups','generate_mockup_concepts','finalize_mockups','save_mockup_feedback','abandon_mockup_job','refresh_mockup_geometry'}
+ACTIONS=BOARD_ACTIONS|{'plan_mockups','generate_mockup_concepts','finalize_mockups','save_mockup_feedback','abandon_mockup_job','refresh_mockup_geometry'}
 MAX_COUNT=10
 
 
@@ -16,8 +17,8 @@ def count(value):
 def schema(number):
     return {'type':'object','additionalProperties':False,'required':['product_understanding','direction','scenes'],'properties':{
         'product_understanding':{'type':'string'},'direction':{'type':'string'},'scenes':{'type':'array','minItems':number,'maxItems':number,'items':{
-            'type':'object','additionalProperties':False,'required':['title','description','image_prompt','page_id'],
-            'properties':{k:{'type':'string'} for k in ('title','description','image_prompt','page_id')}}}}}
+            'type':'object','additionalProperties':False,'required':['title','description','image_prompt','page_id','scene_type'],
+            'properties':{**{k:{'type':'string'} for k in ('title','description','image_prompt','page_id')},'scene_type':{'type':'string','enum':['usage','spread','storyboard','stack','hero']}}}}}}
 
 
 def checked_plan(value,number,ids):
@@ -26,10 +27,11 @@ def checked_plan(value,number,ids):
         if not isinstance(value[key],str) or not 1<=len(value[key])<=2000:raise Invalid('Bounded scene explanation required')
     if not isinstance(value['scenes'],list) or len(value['scenes'])!=count(number):raise Invalid('Scene count must match the chosen quantity')
     for scene in value['scenes']:
-        if not isinstance(scene,dict) or set(scene)!={'title','description','image_prompt','page_id'}:raise Invalid('Complete scene description required')
+        if not isinstance(scene,dict) or not {'title','description','image_prompt','page_id'}<=set(scene)<={'title','description','image_prompt','page_id','scene_type'}:raise Invalid('Complete scene description required')
+        if 'scene_type' in scene and scene['scene_type'] not in ('usage','spread','storyboard','stack','hero'):raise Invalid('Unknown scene type')
         for k,limit in (('title',120),('description',1800),('image_prompt',3500)):
             if not isinstance(scene[k],str) or not 1<=len(scene[k])<=limit:raise Invalid('Bounded scene text required')
-        if scene['page_id'] not in ids:raise Invalid('Scenes must refer to actual finished product pages')
+        if not isinstance(scene['page_id'],str) or scene['page_id'] not in ids:raise Invalid('Scenes must refer to actual finished product pages')
     return value
 
 
@@ -97,7 +99,7 @@ def composite(background,page,quad):
 
 
 class Lifestyle:
-    def __init__(self,workflow):self.workflow=workflow;self.studio=workflow.studio
+    def __init__(self,workflow):self.workflow=workflow;self.studio=workflow.studio;self.board=Board(self)
     def enabled(self):return all((self.studio.mockup_planner,self.studio.mockup_drafts,self.studio.mockup_finals))
     def design(self,state):
         return state['workflow'].setdefault('mockup_design',{'version':1,'count':3,'comments':'','rounds':[],'feedback_events':[],'plan':None,'status':'not_started'})
@@ -125,12 +127,13 @@ class Lifestyle:
         for record in workflow['mockups']:
             if record.get('origin')!='generative_lifestyle':continue
             value={'family':workflow['plan']['family'],'concept':state['brief']['concept'],'product_id':record['product_id'],
-                'scene':next(r for r in design['rounds'] if any(c['scene_index']==record['scene_index'] for c in r['candidates']) and r['plan']==design['plan'])['plan']['scenes'][record['scene_index']],
+                'scene':record['scene'] if 'scene' in record else next(r for r in design['rounds'] if any(c['scene_index']==record['scene_index'] for c in r['candidates']) and r.get('plan')==design['plan'])['plan']['scenes'][record['scene_index']],
                 'comments':design['comments'],'background_file':record['background_file'],'background_sha256':record['background_sha256'],
                 'source_project_id':state['id'],'human_approved_at':now(),'kind':'approved_scene_example_not_global_preference'}
             path=self.studio.root/'scene-memory'/(digest({'project':state['id'],'background':record['background_sha256']})+'.json')
             if not path.exists():write(path,value)
     def command(self,directory,state,action,payload):
+        if action in BOARD_ACTIONS:return self.board.command(directory,state,action,payload)
         workflow=state['workflow']
         if action=='abandon_mockup_job':
             pending=workflow.get('pending');folder=directory/'workflow-jobs'/str(pending)
@@ -194,6 +197,7 @@ class Lifestyle:
         root=directory/workflow['products'][-1]['directory'];paper=manifest['settings']['formats'][0]
         return {f['unit_id']:{'record':f,'body':(root/f['file']).read_bytes()} for f in manifest['files'] if f.get('role')=='print_page' and f['format']==paper}
     def run(self,directory,folder,request):
+        if request['kind'].startswith('mockup_board_'):return self.board.run(directory,folder,request)
         state=read(directory/'state.json');workflow=state['workflow'];manifest=self.workflow.require_product(directory,workflow);value=request['value']
         if manifest['id']!=value['manifest_id']:raise Invalid('Product changed during scene generation')
         pages=self.pages(directory,workflow,manifest)
@@ -243,6 +247,7 @@ class Lifestyle:
             records.append(record)
         return {'id':request['id'],'product_id':manifest['id'],'plan':value['plan'],'comments':value['comments'],'candidates':records,'reviews':{},'created_at':now()}
     def apply(self,state,kind,result):
+        if kind.startswith('mockup_board_'):return self.board.apply(state,kind,result)
         workflow=state['workflow'];design=self.design(state)
         if kind=='mockup_plan':
             design.update(plan=result,plan_product_id=workflow['products'][-1]['id'],status='plan_review')

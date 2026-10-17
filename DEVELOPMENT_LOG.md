@@ -706,3 +706,37 @@ concepts do not establish final quality, exact usage fidelity or sale readiness.
 Only the existing development Studio was restarted and left running. Production,
 other services, Etsy, SMTP and OS settings were untouched. Real reports, images,
 provider payloads, ledgers and browser artifacts remain private outside Git.
+
+## Studio per-sample mockup board and final refinement
+
+Rebuilt guided mockups around the supplied layout: responsive sample cards with
+adjacent descriptions/image prompts, individual comments, an add card and ×
+removal. The procedural controls are hidden in guided mode. Approval now toggles
+an explicit persistent lock: locked cards retain exact pixels and skip both
+planning and conceptual rendering. Edits must be rendered before locking; deleted
+cards/files remain recoverable in history. Saving and stage changes are passive.
+
+Once all active concepts are locked, users enter an amber final-refinement board
+with the same layout, a persistent costly-loop warning and explicit per-round
+consent. Final edits preserve the approved composition and focus on quality,
+anatomy, physical coherence and small touch-ups. Lock good finals to skip later
+paid rounds; return to concepts for redesign. Added separately configurable
+mockup_final_model (Sunburst default), retaining the existing shared ledger/caps.
+Scene planning now balances usage, spreads, illustrated instructions, stacks and
+hero views instead of repeated family photos. Multiple verified non-overlapping
+surfaces receive actual saved product pages, preserving their provenance.
+
+All 454 tests passed across the six service/integration suites (88 Studio).
+Validation records are private outside Git. Eight new board regression tests
+cover locks across planning/rendering, explicit final consent, selective final
+refinement, delete/add history, edited-prompt guards, read-only legacy projection,
+multiple-page placement, interrupted recovery and a new-product board reset.
+A provider contract test verifies multi-surface analysis and the configured final
+edit request. Firefox mobile passed 24 guided checks and 17 offline template
+checks, including a full downstream listing/download flow with synthetic ports.
+A read-only real runtime preview verified three preserved samples on desktop and
+mobile with no overflow or duplicate legacy controls. Existing project state and
+paid ledger stayed byte-identical. No paid/Etsy/SMTP calls or production changes.
+Gallery creativity and final quality were not live-tested in this assignment;
+new instructions apply to the next user-requested generation. Only the authorized
+development Studio was restarted and left running.

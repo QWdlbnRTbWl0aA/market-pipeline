@@ -46,6 +46,9 @@ class Studio:
         state['runtime_providers']={'sketch':getattr(self.sketches,'name','mock'),'professional':getattr(self.professional,'name','mock')}
         state['round_number']=len(state['rounds'])
         state['lifestyle_mockups']=self.workflow.lifestyle.enabled()
+        if state['lifestyle_mockups'] and state['workflow']['products']:
+            self.workflow.lifestyle.board.state(state)  # Read-only projection; persisted only by explicit actions.
+            state['mockup_final_model']=getattr(self.mockup_finals,'image_model',getattr(self.mockup_finals,'name','configured'))
         if state.get('workflow'):
             state['workflow_metrics']={'direction_rounds':len(state['rounds']),'product_versions':len(state['workflow']['products']),
                 'cost_per_approved_product_usd':state['spending']['product_usd'] if state['workflow']['approvals'].get('product') else None,
