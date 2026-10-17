@@ -135,6 +135,17 @@ class OpportunityTests(unittest.TestCase):
         report=analyze(data(),folder,self.config,*models)
         self.assertEqual(len(report['recommendations']),1);self.assertEqual(report['shortfall'],4)
         self.assertEqual([m.calls for m in models],[0,0,1])
+    def test_cheap_abstention_still_receives_bounded_independent_final_review(self):
+        class Abstain(AllSelections):
+            def generate(self,request):
+                self.calls+=1
+                return ModelResponse(json.dumps({'summary':'No preferred candidate','items':[], 'limitations':['Insufficient confidence']}),{}, {})
+        folder=self.root/'review';folder.mkdir();good=AllSelections()
+        report=analyze(data(12),folder,self.config,AllSelections(),Abstain(),good)
+        self.assertEqual(good.calls,1);self.assertGreater(len(report['recommendations']),0)
+        self.assertLessEqual(len(report['recommendations']),2)
+        audit=json.loads((folder/'cheap-selection-audit.json').read_text())
+        self.assertEqual(audit['selected_ids'],[]);self.assertTrue(audit['independent_challenger_ids'])
     def test_insufficient_data_skips_all_models_and_retains_negative_assessments(self):
         d=data();d['metadata']['history']={};folder=self.root/'first';folder.mkdir();models=[AllSelections() for _ in range(3)]
         report=analyze(d,folder,self.config,*models)
@@ -158,6 +169,13 @@ class OpportunityTests(unittest.TestCase):
         model=Fixed();stage(self.root,'saved',model,req);stage(self.root,'saved',model,req);self.assertEqual(model.calls,1)
         write_json(self.root/'stage-unknown'/'started.json',{})
         with self.assertRaises(RuntimeError):stage(self.root,'unknown',model,req)
+    def test_admission_denial_is_not_an_unknown_inference(self):
+        class Denied:
+            def generate(self,request):raise BudgetExceeded('No request sent')
+        request=ModelRequest('x','{}',{})
+        with self.assertRaises(BudgetExceeded):stage(self.root,'admission',Denied(),request)
+        self.assertFalse((self.root/'stage-admission/started.json').exists())
+        self.assertFalse(json.loads((self.root/'stage-admission/admission-rejected.json').read_text())['request_sent'])
     def test_development_cap_persists_and_blocks_before_key_loading(self):
         cap={'id':'market-history-development','total_usd':.5};budget=Budget(self.root,None,2,None,cap)
         budget.reserve('old',.45);budget.settle('old',.45,{})

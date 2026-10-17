@@ -16,7 +16,7 @@ from studio_service.adapters import MockGenerator
 from studio_service.storage import read
 from product_service.core import process
 from product_service.studio_delivery import policy,prepare,tick,backfill,recover
-from test_flow import fixture
+from test_flow import fixture,FixtureBrief
 
 
 class Generator(MockGenerator):
@@ -27,6 +27,7 @@ class Generator(MockGenerator):
 class StudioDelivery(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name)
+        factory=patch('product_service.briefing.default_model',return_value=FixtureBrief());factory.start();self.addCleanup(factory.stop)
         self.generator=Generator();self.studio=Studio(self.root/'studio',sketches=self.generator)
         self.http=Server(('127.0.0.1',0),self.studio);self.http.start_worker();threading.Thread(target=self.http.serve_forever,daemon=True).start()
         self.settings=policy({'enabled':True,'endpoint':f'http://127.0.0.1:{self.http.server_port}/api/library/briefs','max_attempts':2,'retry_seconds':1})

@@ -69,7 +69,9 @@ def command(service, config, state, port=None, bind='127.0.0.1', credential_dire
     elif service == 'controller':
         args = ['-m','pipeline_control','--config',str(config),'serve','--port',str(port or 8094)]
     elif service == 'product':
-        if credential_directory:env['PIPELINE_SMTP_CREDENTIAL_FILE']=str(Path(credential_directory)/'gmail_smtp.env')
+        if credential_directory:
+            env['PIPELINE_SMTP_CREDENTIAL_FILE']=str(Path(credential_directory)/'gmail_smtp.env')
+            env['PIPELINE_PRODUCT_OPENAI_KEY_FILE']=str(Path(credential_directory)/'openai.env')
         args = ['-m','product_service','serve','--data',str(state/'product'),'--port',str(port or 8093),
                 '--definition-config',str(config),'--operations-root',str(state/'controller'/'operations')]
     elif service == 'studio':

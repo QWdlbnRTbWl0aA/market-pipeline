@@ -1,4 +1,4 @@
-"""Saved market research to studio handoffs; no source or LLM credentials."""
+"""Independent saved-research product definitions; no source credentials/client."""
 from pathlib import Path
 import sys
 _shared=str(Path(__file__).resolve().parents[2]/'common')

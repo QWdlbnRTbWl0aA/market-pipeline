@@ -4,6 +4,11 @@
   "ollama_url": "http://127.0.0.1:11434",
   "qualification_root": "/var/lib/market-pipeline/controller/qualifications",
   "promotion_review": null,
+  "briefing": {
+    "provider": "ollama",
+    "model": "gemma3:4b",
+    "ollama_url": "http://127.0.0.1:11434"
+  },
   "mail": {
     "enabled": false,
     "recipients": [],

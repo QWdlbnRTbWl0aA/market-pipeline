@@ -7,7 +7,7 @@ import threading
 from .core import MAX_BYTES, clean_environment, now, process, validate, valid_key, write_json, waiting_for_brief
 
 
-def server(root, port=8093, definition_config=None, operations_root=None):
+def server(root, port=8093, definition_config=None, operations_root=None, brief_model=None):
     clean_environment()
     policy = None
     if definition_config:
@@ -41,7 +41,9 @@ def server(root, port=8093, definition_config=None, operations_root=None):
                         from .definition import enhanced, OllamaDefinition
                         result = enhanced(record['body'].encode(), root / 'definition-outbox', OllamaDefinition(policy['model'],policy['ollama_url']), qualification_root=policy['qualification_root'])
                     else:
-                        result = process(record['body'].encode(), root / 'studio-outbox')
+                        from .briefing import default_model
+                        model=brief_model or default_model(policy.get('briefing') if policy else None)
+                        result = process(record['body'].encode(), root / 'studio-outbox', model)
                 except Exception as error:
                     result = {'status': 'failed', 'error_type': type(error).__name__, 'automatic_retry': False}
                 if not receipt.exists():write_json(receipt, result)

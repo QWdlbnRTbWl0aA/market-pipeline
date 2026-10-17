@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 from .security import reject_secrets
 
-VERSION='commercial-assessments-v2-discovery'
+VERSION='commercial-assessments-v3-replication'
 DEFAULT={'enabled':True,'initial_candidates':80,'maximum_opportunities':10,'minimum_target':5,
          'minimum_shops':3,'minimum_active_sales_shops':2,'minimum_history_days':7,
          'minimum_shop_age_days':90,'minimum_inventory_coverage':.8,'minimum_content_similarity':.35,
@@ -181,16 +181,28 @@ def qualify(candidate,dataset,prior,settings):
     if len(linked_shops)<2:discovery_reasons.append('insufficient_saved_etsy_examples')
     if known_price_share<settings['minimum_known_price_share']:discovery_reasons.append('insufficient_native_currency_price_coverage')
     if query_match_share<settings['minimum_query_match_share']:discovery_reasons.append('insufficient_saved_content_query_match')
-    discovery_score=.4*components['diversity']+.3*min(1,len(engaged_shops)/5)+.2*min(1,len(established)/3)+.1*known_price_share
+    from .evidence_quality import profile
+    engagement_quality=profile(rows,as_of.isoformat())
+    # A positive view used to count as much as a heavily favourited listing.
+    # Rank magnitude and independent replication separately; leave age context
+    # visible rather than mislabel cumulative counters as recent sales velocity.
+    favorite_shops=engagement_quality['favorite_positive_shops']
+    favorites=sum(m.get('value',0) or 0 for r in rows for m in r['metrics'] if m.get('scope')=='listing' and m.get('name')=='favorites')
+    replication=min(1,engagement_quality['leave_leading_shop_out']['favorite_positive_shops']/3)
+    concentration=engagement_quality['top_shop_favorite_share']
+    discovery_score=(.15*components['diversity']+.20*min(1,favorite_shops/4)+.20*min(1,math.log1p(max(0,favorites))/math.log(101))+
+                     .20*replication+.10*(1-concentration if concentration is not None else 0)+.10*min(1,len(established)/3)+.05*known_price_share)
     discovery_risks=['Listing purchases, recent demand and marketplace competition are unverified.',
                      'Whole-shop lifetime transactions establish shop context only; no sales are assigned to these listings.']
     if reasons:discovery_risks.append('Longitudinal validation is incomplete; consult hold_reasons and saved history.')
+    if concentration is not None and concentration>.8:discovery_risks.append('Most saved favourites belong to one shop; independent replication is weak.')
+    if favorite_shops<2:discovery_risks.append('Favourites are not replicated across independent shops; views alone are weak purchase-interest evidence.')
     if benchmark_price_share<settings['minimum_known_price_share']:discovery_risks.append('Cheap-price benchmarks cover only part of the group; compare each native currency separately.')
     if cheap is not None and cheap>settings['maximum_cheap_share']:discovery_risks.append('Observed benchmarked listings are predominantly cheap; test differentiated value before investing.')
     return {'qualified':not reasons,'hold_reasons':reasons,'score':round(score,5),'current_score':round(current,5),
             'evidence_tier':'trend_supported' if not reasons else 'discovery_hypothesis' if not discovery_reasons else 'insufficient_evidence',
             'discovery':{'qualified':not discovery_reasons,'hold_reasons':discovery_reasons,'score':round(discovery_score,5),
-                         'engaged_listing_shops':len(engaged_shops),'established_shops':len(established),'risks':discovery_risks},
+                         'engaged_listing_shops':len(engaged_shops),'established_shops':len(established),'engagement_quality':engagement_quality,'risks':discovery_risks},
             'score_delta':round(score-prior_context['weighted_prior_score'],5) if prior_context['weighted_prior_score'] is not None else None,
             'score_components':components,'score_scope':'Transparent prioritization heuristic, not probability of sales or profitability',
             'shops':shops,'positive_listing_history_shops':positive_shops,'strong_sales_context_shops':sales_shops,'cheap_share':cheap,

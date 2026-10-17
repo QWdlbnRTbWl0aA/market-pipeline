@@ -88,6 +88,21 @@ class MailTests(unittest.TestCase):
         old=json.loads((self.root/'analyzer.json').read_text());changed=plan(self.root,True,['team@example.com'])
         self.assertEqual(changed['analyzer']['after']['paid'],old['paid']);self.assertTrue(changed['product']['after']['mail']['enabled'])
         self.assertEqual(json.loads((self.root/'analyzer.json').read_text()),old)
+    def test_product_openai_upgrade_uses_existing_policy_without_calls_or_writes(self):
+        sys.path.insert(0,str(ROOT/'deploy'));from upgrade_config import plan
+        before={}
+        for name in ('analyzer','product'):
+            value=json.loads((ROOT/'config'/(name+'.example.json')).read_text());write(self.root/(name+'.json'),value);before[name]=value
+        ledger=self.root/'budget.json';ledger.write_text('{"reserved":"preserve exact bytes"}')
+        with patch('socket.socket.connect',side_effect=AssertionError('Upgrade made a request')):
+            changes=plan(self.root,enable_product_openai=True)
+        brief=changes['product']['after']['briefing'];self.assertEqual(brief['provider'],'openai')
+        self.assertEqual(brief['paid']['ledger_root'],before['analyzer']['paid']['ledger_root'])
+        self.assertEqual(brief['paid']['total_usd'],before['analyzer']['paid']['total_usd'])
+        self.assertEqual(changes['analyzer']['after']['paid'],before['analyzer']['paid'])
+        self.assertEqual(changes['product']['after']['studio_delivery'],before['product']['studio_delivery'])
+        self.assertEqual(json.loads((self.root/'product.json').read_text()),before['product'])
+        self.assertEqual(ledger.read_text(),'{"reserved":"preserve exact bytes"}')
     def test_message_tampering_and_quit_failure_do_not_create_duplicate_sends(self):
         folder=self.queue()
         class QuitFailure(SMTP):

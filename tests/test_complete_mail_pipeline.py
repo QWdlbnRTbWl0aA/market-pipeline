@@ -19,6 +19,8 @@ from urllib.parse import urlparse
 ROOT=Path(__file__).resolve().parents[1]
 for service in ('collector','analyzer','product','controller','common'):sys.path.insert(0,str(ROOT/'services'/service))
 sys.path.insert(0,str(ROOT/'services'/'analyzer'/'tests'))
+sys.path.insert(0,str(ROOT/'services'/'product'/'tests'))
+from test_flow import FixtureBrief
 from test_opportunities import AllSelections
 from etsy_app.server import App,handler
 from etsy_app.core import config,FetchResult,atomic_json
@@ -39,7 +41,7 @@ class CompletePipeline(unittest.TestCase):
             def source(url,timeout,headers):
                 calls.append(url);route=urlparse(url)
                 if route.path.endswith('/listings/active'):
-                    value={'count':9,'results':[{'listing_id':i,'shop_id':(i-1)//3+1,'title':'Printable amber geometry','description':'Original printable wall art','tags':['amber geometry'],'listing_type':'download','views':150,'num_favorers':30,'taxonomy_id':1,
+                    value={'count':9,'results':[{'listing_id':i,'url':'https://www.etsy.com/listing/'+str(i)+'/synthetic-fixture','shop_id':(i-1)//3+1,'title':'Printable amber geometry','description':'Original printable wall art','tags':['amber geometry'],'listing_type':'download','views':150,'num_favorers':30,'taxonomy_id':1,
                         'original_creation_timestamp':1600000000,'creation_timestamp':1600000000,'state':'active','price':{'amount':1200,'divisor':100,'currency_code':'USD'}} for i in range(1,10)]}
                 else:value={'shop_id':int(route.path.rsplit('/',1)[-1]),'shop_name':'Fixture shop','listing_active_count':3,'transaction_sold_count':140,'created_timestamp':1600000000}
                 return FetchResult(200,json.dumps(value).encode(),'application/json',{'x-limit-per-second':'2','x-limit-per-day':'5000','x-remaining-today':'4990'})
@@ -60,7 +62,7 @@ class CompletePipeline(unittest.TestCase):
                 atomic_json(app.store.runs/old['run_id']/'snapshot.json',old);atomic_json(app.store.runs/old['run_id']/'dqa.json',old['dqa'])
             product_config=json.loads((ROOT/'config'/'product.example.json').read_text());product_config['mail']=POLICY
             path=root/'product.json';path.write_text(json.dumps(product_config))
-            product=product_server(root/'product',0,path);threading.Thread(target=product.serve_forever,daemon=True).start()
+            product=product_server(root/'product',0,path,brief_model=FixtureBrief());threading.Thread(target=product.serve_forever,daemon=True).start()
             self.addCleanup(product.server_close);self.addCleanup(product.shutdown);self.addCleanup(product.stop_worker)
             control=control_server({'data_root':str(root/'control'),'saved_runs_root':str(app.store.runs),'analyzer_output_root':str(root/'analyzer'),'product_data_root':str(root/'product'),'collector_url':'http://127.0.0.1:'+str(http.server_port),
                                    'control_auth_file':str(root/'unused-auth'),'execution_enabled':False,'poll_seconds':1},0)

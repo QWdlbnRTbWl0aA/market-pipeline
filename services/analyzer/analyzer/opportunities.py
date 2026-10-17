@@ -6,6 +6,7 @@ from pathlib import Path
 from .assessments import VERSION, key, policy, previous, qualify
 from .io import write_json, now
 from .ports import ModelResponse
+from .budget import BudgetExceeded
 from .research import build_evidence, model_request, validate_selection, local_request, validate_local
 from .product_briefs import request as brief_request, validate as validate_brief, compact_cross_checks, local_design_selection
 
@@ -20,7 +21,14 @@ def stage(directory,name,model,request):
     if response.exists():
         value=json.loads(response.read_text());return ModelResponse(value['text'],{**value['metadata'],'cached_stage':True},value['raw'])
     if (folder/'started.json').exists():raise RuntimeError('Interrupted model outcome; no automatic inference retry')
-    write_json(folder/'started.json',{'fingerprint':signature});result=model.generate(request)
+    write_json(folder/'started.json',{'fingerprint':signature})
+    try:result=model.generate(request)
+    except BudgetExceeded:
+        # Admission rejection is known to precede credentials/network. Keep the
+        # receipt, but don't misclassify it as an unknown paid/model outcome.
+        write_json(folder/'admission-rejected.json',{'fingerprint':signature,'request_sent':False})
+        (folder/'started.json').unlink()
+        raise
     write_json(response,{'text':result.text,'metadata':result.metadata,'raw':result.raw});return result
 
 
@@ -66,7 +74,9 @@ def locked(dataset,directory,config,settings,local,cheap,good):
     def order(candidate):
         a=candidate['commercial_assessment']
         specificity=len(set(words(candidate['phrase']))-query_terms-common-STOP)
-        return (not a['qualified'],-min(2,specificity),-a['discovery']['score'] if not a['qualified'] else -a['score'],candidate['opportunity_key'])
+        # Broad query-wide groups are controls, not concrete product formats.
+        focus=1-min(.75,candidate['listing_count']/max(1,len(dataset['records'])))
+        return (not a['qualified'],-a['discovery']['score']*focus if not a['qualified'] else -a['score'],-min(2,specificity),candidate['opportunity_key'])
     novel.sort(key=order)
     distinct=[];overlapping=[]
     for candidate in novel:
@@ -101,10 +111,35 @@ def locked(dataset,directory,config,settings,local,cheap,good):
         except Exception as error:stages.append({'stage':'local','status':'failed','error_type':type(error).__name__})
         if cheap is not None:
             req=model_request('market_insights',evidence,shortlist);req.schema['properties']['items']['maxItems']=10
+            # Fit complete evidence units rather than silently truncating source
+            # text or issuing a predictably over-bound paid request.
+            input_bound=config.get('paid',{}).get('max_input_token_bound',100000)
+            while len(shortlist)>1 and len(json.dumps({'instructions':req.system,'input':req.prompt,'schema':req.schema},ensure_ascii=False).encode())+4096>input_bound:
+                shortlist=shortlist[:-1]
+                req=model_request('market_insights',evidence,shortlist);req.schema['properties']['items']['maxItems']=10
             req.system=req.system.replace('zero to five','zero to ten')+' Rank evidence-qualified business-validation candidates; history, diversity, age and similarity matter. Do not infer allocated listing sales.'
             response=stage(directory,'opportunity-cheap',cheap,req);selection=validate_selection(response.text,shortlist,maximum=10)
             stages.append({'stage':'cheap','status':'completed','metadata':response.metadata})
-            chosen={r['candidate_id'] for r in selection['items']};shortlist=[c for c in shortlist if c['candidate_id'] in chosen]
+            chosen={r['candidate_id'] for r in selection['items']}
+            selected=[c for c in shortlist if c['candidate_id'] in chosen]
+            # The cheap stage advises, but cannot veto all alternatives before
+            # the better model sees them. Independently retain up to two focused
+            # challengers with distinctive language and different leading examples.
+            # Information weights use the current saved corpus, not niche rules.
+            import math
+            def distinctiveness(c):
+                terms=set(words(c['phrase']))-query_terms-common-STOP
+                information=sum(math.log((len(dataset['records'])+1)/(frequencies[t]+1)) for t in terms)
+                return (-information*c['commercial_assessment']['discovery']['score'],c['opportunity_key'])
+            challengers=[];leaders={c['evidence'][0]['listing_id'] for c in selected if c['evidence']}
+            for c in sorted(shortlist,key=distinctiveness):
+                if c['candidate_id'] in chosen or not c['evidence'] or c['evidence'][0]['listing_id'] in leaders:continue
+                challengers.append(c);leaders.add(c['evidence'][0]['listing_id'])
+                if len(challengers)>=2:break
+            write_json(directory/'cheap-selection-audit.json',{'selected_ids':sorted(chosen),
+                'independent_challenger_ids':[c['candidate_id'] for c in challengers],
+                'scope':'Cheap advice plus bounded independent alternatives; final model may reject all.'})
+            shortlist=selected+challengers
         shortlist=shortlist[:settings['maximum_opportunities']]
     recommendations=[]
     # A bounded local preview can exercise the handoff without paid admission.
@@ -117,7 +152,7 @@ def locked(dataset,directory,config,settings,local,cheap,good):
         req=brief_request(model_request('market_insights',evidence,batch))
         req.schema['properties']['items']['maxItems']=10 if good is not None else 1
         req.system=req.system.replace('Select at most two focused product concepts.','Select five to ten focused product concepts when supported; select fewer when evidence is insufficient. Do not pad.' if good is not None else 'Select at most one focused product concept.')
-        req.system+=' Use concise briefs: short audience/job statements, at most two deliverables and two items in each checklist. Cross-examine commercial_assessment and prior assessments. A discovery_hypothesis is a cross-sectional product experiment, not a trend-supported opportunity. Explain observed listing content and propose original deliverables. Neither tier verifies listing purchases, profit or thin marketplace supply.'
+        req.system+=' Each concept must name its concrete product mechanism, audience and use, preserve the mechanics of cited examples, and explain a specific reason to test it plus its strongest counterevidence. Avoid interchangeable generic worksheet bundles and overlapping concepts. Cross-examine commercial_assessment, engagement_quality and prior assessments. Cite both a leading example and independent-shop corroboration when present; all cited deliverable sources must appear in evidence_ids. A discovery_hypothesis is a cross-sectional product experiment, not a trend-supported opportunity. Neither tier verifies listing purchases, profit or thin marketplace supply. Provide a concise initial product direction; the independent Product service will define exact content, package and visual specification.'
         if good is None:req.system+=' Keep every statement under twenty words and each checklist to one item.'
         name='opportunity-final' if good is not None else f'opportunity-local-brief-{index+1}'
         try:
@@ -135,7 +170,7 @@ def locked(dataset,directory,config,settings,local,cheap,good):
             c=by_id[item['candidate_id']]
             recommendations.append({'candidate_id':c['candidate_id'],'opportunity_key':key(c),'keywords':c['suggested_keywords'],
                 'rationale':item['reason'],'product_brief':briefs[c['candidate_id']],'evidence_ids':item['evidence_ids'],
-                'evidence_excerpts':[e for e in c['evidence'] if e['evidence_id'] in item['evidence_ids']],
+                'evidence_excerpts':c['evidence'],
                 'facts':facts(c),
                 'assessment':'trend_supported_opportunity' if c['commercial_assessment']['qualified'] else 'discovery_hypothesis',
                 'evidence_tier':c['commercial_assessment']['evidence_tier'],'brief_provider':'openai' if good is not None else 'ollama',

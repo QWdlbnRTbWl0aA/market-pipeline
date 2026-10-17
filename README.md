@@ -43,7 +43,7 @@ installations require enablement and an upgraded receiver; see
 | Search refiner | Saved-file watcher; HTTP output | Flag irrelevant/physical results and propose more precise keywords |
 | Market analyst | Independent saved-file watcher; HTTP output | Evidence-backed product hypotheses, listing content/images and scoped shop history |
 | Controller | Loopback port 8094 | Persist proposals, explicit experiment decisions, tracking cohorts, operations and comparisons |
-| Product | Loopback port 8093 | Consume saved market analysis; persist textual studio briefs and original SVG draft directions |
+| Product | Loopback port 8093 | Independently define exact product contents, first-sketch instructions, real Etsy references and one HTML brief per product |
 | Studio | Hebrew dashboard and HTTP intake, port 8096 | Three-sample batch feedback, compressed brief references, Studio-owned generator prompts, persistent sketch/professional loops; mock defaults and optional $1 development mode |
 
 The analyzers never load Etsy credentials, call Etsy or modify collector input.
@@ -74,6 +74,15 @@ Native-currency prices remain separate. Local-only runs can generate up to three
 Ollama preview briefs without consuming future production offers. Search experiments
 retain niche terms, omit unchanged/duplicate queries and include comparison criteria.
 Weekly aggregate trend reporting is deferred.
+
+The default Product path now performs real definition inference (local Ollama,
+or explicitly configured OpenAI), rather than copying an Analyzer draft into
+generic SVG layouts. It keeps the Analyzer direction unchanged for provenance,
+defines an original complete content inventory, verifies reference quotations,
+and writes `product.json`, `brief.md` and a standalone `brief.html` per product.
+The handoff includes the full exact specification; Studio import remains passive.
+See [grounded analysis and product definitions](docs/product-definitions.md) for
+configuration, upgrade behavior, quality checks and recovery.
 
 ## Verify without credentials
 

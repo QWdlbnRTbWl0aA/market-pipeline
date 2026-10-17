@@ -58,7 +58,7 @@ class IntegrationTests(unittest.TestCase):
    collect_server=ThreadingHTTPServer(('127.0.0.1',0),handler(app))
    output=root/'analyzer';control_settings={'data_root':str(root/'control'),'saved_runs_root':str(store.runs),'analyzer_output_root':str(output),'product_data_root':str(root/'product'),'collector_url':'http://127.0.0.1:'+str(collect_server.server_port),'control_auth_file':str(auth),'execution_enabled':False,'poll_seconds':1}
    controller_server=control_server(control_settings,0);controller=controller_server.controller;model=DefinitionFixture()
-   process_patch=patch('product_service.server.process',side_effect=lambda body,out:enhanced(body,out,model,qualification_root=controller.root/'qualifications'))
+   process_patch=patch('product_service.server.process',side_effect=lambda body,out,*unused:enhanced(body,out,model,qualification_root=controller.root/'qualifications'))
    process_patch.start();products=product_server(root/'product',0);control_settings['product_url']='http://127.0.0.1:'+str(products.server_port)
    servers=[collect_server,controller_server,products]
    for http in servers:threading.Thread(target=http.serve_forever,daemon=True).start()

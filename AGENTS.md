@@ -11,9 +11,19 @@ host security settings without explicit authorization.
 
 ## Current requirements
 
+- Expose or send only the specific pages, content, downloads and email attachments
+  the user explicitly requests, through the requested channel. LAN and Tailscale
+  are exposure boundaries too. Permission
+  to display a produced brief does not authorize publishing evaluations, reports,
+  raw data, internal state or additional exports. Use an explicit route allowlist;
+  never publish a directory's contents by discovery. Keep all other artifacts
+  private unless separately authorized.
 - OpenAI development/testing has a **$2 total** budget, including prior recorded
   spend. No application daily dollar/call cap or fixed two-week preparation
   period applies. Preserve the shared ledger and unknown-outcome reservations.
+  Unknown calls block by default. Explicit held-reservation policy may admit
+  different request identities only while charging every unknown at its full
+  conservative maximum; never resend an unknown identity or release its credit.
 - Etsy follows provider QPS and rolling QPD policy with a **5% reserve**,
   conservative pacing, persisted cooldowns and admission before every request.
   Do not bypass access challenges or automatically retry actual challenges.
@@ -27,8 +37,10 @@ host security settings without explicit authorization.
 - Market reports weight prior assessments, cross-examine comparable listing/shop
   histories, suppress prior offers and target five to ten qualified novel product
   briefs without padding. Retain insufficiency reasons and never allocate shop sales
-  to listings. This assignment's paid development allowance is $0.50 within the
-  preserved shared ledger; it does not change Studio's separate development budget.
+  to listings. The current Analyzer/Product assignment may use the remaining
+  shared **$2 total**, including all prior usage; the earlier $0.50 development
+  sub-envelope no longer limits new work. Preserve its historical entries and
+  unknown reservations. This does not change Studio's separate development budget.
   Market candidate intake combines new discoveries with the relevant saved listing
   and shop pool; fetch exclusions must not exclude prior saved candidates from
   analysis. Preserve real observation dates, as-of boundaries and per-artifact
@@ -58,7 +70,14 @@ host security settings without explicit authorization.
   retired. Counters and saved-run metadata load independently and immediately.
   Daily configuration persists separately from trial parameters; protect
   mutations against cross-origin requests. No source scraping on page load.
-- Product writes local textual definitions and original draft directions. It
+- Product writes complete local textual definitions and exact first-sketch
+  instructions, with actual saved Etsy URLs and verified source quotations.
+  Default delivery must not substitute generic SVG placeholders for examples.
+  Component quantities must match enumerated contents. Product owns its
+  definition independently of the Analyzer's initial direction, preserving both.
+  Optional paid definition uses its own credential delivery and the same preserved
+  paid ledger/development envelope as the analyzers, with admission before key access.
+  It
   does not manufacture or publish sale-ready products. Configured automatic mail
   is authorized: one Analyzer email per collection with the exact Product-bound
   JSON plus readable report, and one Product email containing the full exact

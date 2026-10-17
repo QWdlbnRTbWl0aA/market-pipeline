@@ -13,8 +13,9 @@ SPECS = {
 }
 
 
-def render(name, user='market-pipeline', mail=False):
+def render(name, user='market-pipeline', mail=False, product_paid=False):
     service, config, port, writable, credential = SPECS[name]
+    if name=='product' and product_paid:writable=(*writable,'paid-ledger')
     args = f'{service} --config {config}'
     if port: args += f' --port {port}'
     if name == 'collector': args += ' --bind 0.0.0.0'
@@ -33,6 +34,7 @@ def render(name, user='market-pipeline', mail=False):
             'ReadWritePaths='+' '.join('/var/lib/market-pipeline/'+p for p in writable),
             'StandardOutput=journal','StandardError=journal']
     if credential: rows.append(f'LoadCredential={credential}:/etc/market-pipeline/credentials/{credential}')
+    if name=='product' and product_paid:rows.append('LoadCredential=openai.env:/etc/market-pipeline/credentials/openai.env')
     if mail and name in ('market-analyst','product'):rows.append('LoadCredential=gmail_smtp.env:/etc/market-pipeline/credentials/gmail_smtp.env')
     if name == 'collector': rows.append('EnvironmentFile=-/etc/market-pipeline/dashboard.env')
     rows += ['', '[Install]','WantedBy=multi-user.target','']

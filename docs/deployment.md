@@ -19,8 +19,13 @@
 Inherited keys, collector environment and proxy variables are discarded.
 Systemd `LoadCredential` exposes Etsy credentials only to the collector and
 OpenAI credentials only to the two analyzer daemons in normal production units.
-The analyzer paid adapter opens its credential only after admission. Product and
-Controller load neither Etsy nor OpenAI credentials. Studio uses an independent
+The analyzer paid adapter opens its credential only after admission. Controller
+loads neither Etsy nor OpenAI credentials. Product defaults to real local Ollama
+definition; its optional independent OpenAI provider requires a `briefing` policy
+and units rendered with `--with-product-paid`. That option gives Product only its
+own `openai.env` delivery and access to the existing shared paid ledger, never
+collector credentials. See [Product definition configuration](product-definitions.md).
+Studio uses an independent
 OpenAI credential only in explicitly enabled development mode. Optional units
 rendered with `--with-mail` expose `gmail_smtp.env` to Market Analyst and Product;
 no other daemon receives SMTP credentials. See [automatic mail](mail.md).

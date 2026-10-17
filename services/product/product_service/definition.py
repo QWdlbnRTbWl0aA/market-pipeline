@@ -5,11 +5,17 @@ import html
 import json
 from pathlib import Path
 import re
+import textwrap
 import urllib.request
 from urllib.parse import urlsplit
 from .core import clean_environment, now, reject_secrets, text, validate, write_json, process
 
 VERSION = 'studio-definition-v3.2'
+
+
+def svg_text(x,y,value,size=17,width=68,fill='#243d39'):
+    lines=textwrap.wrap(value,width=width)[:4]
+    return '<text x="%s" y="%s" font-family="Arial,sans-serif" font-size="%s" fill="%s">%s</text>' % (x,y,size,fill,''.join('<tspan x="%s" dy="%s">%s</tspan>' % (x,0 if i==0 else size*1.4,html.escape(line)) for i,line in enumerate(lines)))
 
 
 def digest(value):
@@ -179,7 +185,6 @@ def checked(value, row):
 
 def wireframe(definition,direction,vision):
     """Render whitelisted geometry only. Model SVG/code/fonts/URLs never execute."""
-    from .core import svg_text
     palette=direction['palette'];background,accent=palette[:2]
     components = [int(background[i:i+2],16)/255 for i in (1,3,5)]
     luminance = sum(v*w for v,w in zip([c/12.92 if c<=.04045 else ((c+.055)/1.055)**2.4 for c in components],(.2126,.7152,.0722)))

@@ -542,3 +542,37 @@ Full component suite: 378 tests passed; final analyzer suite after the cultural-
 regression: 138 passed. Paid calls, Etsy calls and SMTP calls: zero. Existing paid
 ledger remains production-private; no allowance was reset. Production was not
 modified or deployed. Test outputs and the readable report remain outside Git.
+
+## Grounded market evidence and independent Product definitions
+
+Replaced short introductory description excerpts with traceable source sections,
+added original-age context, favourite magnitude/concentration and evidence after
+removing the leading shop, and deduplicated source content in model inputs.
+The cheap shortlist is now advisory: bounded independent challengers reach the
+strong final model. Complete source examples accompany the Product handoff.
+
+Default Product generation now defines actual contents and first-sketch details
+instead of copying a generic Analyzer draft into placeholder SVGs. Each product
+has its own standalone HTML/Markdown brief and full exact JSON handoff with real
+saved references. Counts, citations, quotations and basic paper-format consistency
+are mechanically checked. Local inference remains a preview option; the installed
+small model did not meet the stricter contract in the real dry-runs. The stronger
+provider produced a concrete, source-cited brief without agent-authored content.
+
+Extracted shared locked accounting/Responses transport without sharing source
+clients or credentials. Product has independently configured optional OpenAI
+credentials, conservative pricing including cache writes, bounded timeouts and
+explicit systemd/config upgrade options. The user lifted the earlier development
+sub-limit while retaining the shared total. A timed-out request remains fully
+reserved; optional admission for different identities never releases that hold
+or resends the unknown identity. Default unknown-outcome blocking is unchanged.
+
+Archived the superseded development analysis, Product output and caches with a
+verified inventory. Preserved all raw collection bytes. Full functional suite:
+398 tests passed, including real local HTTP with synthetic model/SMTP providers.
+The real saved-data trial completed analysis and one substantive Product brief;
+repeated triggers performed no inference, network delivery or ledger mutation.
+A mechanical format-validator false positive was corrected and the saved model
+response revalidated without another paid call. No Etsy requests, SMTP sends,
+production changes or additional hosted content. Runtime reports remain outside
+Git; the previously authorized single-brief preview remains unchanged.
